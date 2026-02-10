@@ -1,0 +1,32 @@
+{
+    "name": "youtube-shorter-gemini",
+    "version": "1.0.0",
+    "description": "YouTube Shorter Gemini - Create Reels from YouTube videos using Gemini",
+    "private": true,
+    "packageManager": "npm@10.9.3",
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "scripts": {
+        "build": "turbo run build",
+        "dev": "turbo run dev",
+        "lint": "turbo run lint",
+        "test": "turbo run test",
+        "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+    },
+    "keywords": [
+        "youtube",
+        "shorts",
+        "gemini",
+        "ai",
+        "video"
+    ],
+    "author": "jef",
+    "license": "Apache-2.0",
+    "devDependencies": {
+        "turbo": "latest",
+        "prettier": "latest",
+        "eslint": "latest"
+    }
+}
