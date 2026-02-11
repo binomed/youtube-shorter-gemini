@@ -1,6 +1,6 @@
 # Story 0.1: monorepo-scaffolding
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -94,12 +94,15 @@ so that I have a clean, shared workspace.
 - Root monorepo initialized with Turborepo and npm workspaces.
 - apps/back (NestJS) and apps/front (Lit) scaffolded.
 - packages/shared created and linked to both apps.
-- Tailwind CSS 4.x set up in apps/front with @tailwindcss/vite.
+- Tailwind CSS 4.x set up in apps/front with @tailwindcss/vite and tailwind.config.ts.
 - Shoelace integrated into apps/front (verified with sl-button).
-- Root-level ESLint and Prettier configured.
-- Apache 2.0 license headers added to all source files.
-- Documentation (README, CONTRIBUTING, ADR 001) created.
-- Custom project skills placeholders initialized in .agent/custom-skills.
+- Root-level ESLint and Prettier configured with stricter TypeScript rules.
+- Apache 2.0 license headers added to all source files and package.json.
+- Documentation (README, CONTRIBUTING, ADR 001) created and enhanced.
+- Custom project skills initialized in .agent/skills.
+- Backend directory structure created (modules/, entities/, workers/).
+- Shared package test infrastructure added with Jest.
+- .env.sample configuration template created.
 
 ### File List
 
@@ -109,8 +112,9 @@ so that I have a clean, shared workspace.
 - .prettierrc
 - README.md
 - CONTRIBUTING.md
+- .env.sample
 - docs/adr/001-monorepo-structure.md
-- apps/back/ (all files)
-- apps/front/ (all files)
-- packages/shared/ (all files)
-- .agent/custom-skills/ (all md files)
+- apps/back/ (all files including src/modules/, src/entities/, src/workers/)
+- apps/front/ (all files including tailwind.config.ts)
+- packages/shared/ (all files including test/)
+- .agent/skills/ (all skill directories with SKILL.md)

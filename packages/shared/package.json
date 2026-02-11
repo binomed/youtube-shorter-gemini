@@ -7,9 +7,23 @@
     "scripts": {
         "build": "tsc",
         "dev": "tsc -w",
-        "lint": "eslint src --ext .ts"
+        "lint": "eslint src --ext .ts",
+        "test": "jest"
     },
     "devDependencies": {
-        "typescript": "latest"
+        "typescript": "latest",
+        "jest": "^30.0.0",
+        "ts-jest": "^29.2.5",
+        "@types/jest": "^30.0.0"
+    },
+    "jest": {
+        "preset": "ts-jest",
+        "testEnvironment": "node",
+        "roots": [
+            "<rootDir>/test"
+        ],
+        "testMatch": [
+            "**/*.spec.ts"
+        ]
     }
 }
