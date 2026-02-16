@@ -132,6 +132,16 @@ So that I can maintain high quality and accessibility from the start.
 **Then** automated tests (Unit & Integration) run.
 **And** an accessibility audit (CI) checks the Lit components.
 
+> [!IMPORTANT]
+> **Story 0.2 provides BASIC accessibility validation only** (happy-dom checks). A future story in Epic 1 or Epic 2 MUST implement **comprehensive WCAG 2.1 AA testing** using:
+> - **Playwright** for real browser environment
+> - **@axe-core/playwright** for complete accessibility audits
+> - **Keyboard navigation testing** (Tab, Enter, Escape, Arrow keys)
+> - **Screen reader compatibility** validation
+> - **Color contrast** and **focus management** checks
+> 
+> The current `basic-accessibility-checks` CI job is intentionally limited and serves as a foundation only.
+
 ---
 
 ## Epic 1: Workspace & Media Induction

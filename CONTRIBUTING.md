@@ -22,15 +22,44 @@ The command will start:
 
 ## 🧪 Running Tests
 
+### Run All Tests
 ```bash
-# Run all tests across the monorepo
+# Run all tests across the monorepo (Turbo orchestration)
 npm run test
 
-# Run tests in a specific package
+# Run tests with coverage
+npm run test:cov --workspace=back    # Backend (Jest)
+npm run test:coverage --workspace=front  # Frontend (Vitest)
+```
+
+### Package-Specific Tests
+```bash
+# Backend (Jest)
 cd apps/back && npm test
+npm run test:watch  # Watch mode
+npm run test:e2e    # Integration tests
+
+# Frontend (Vitest)
 cd apps/front && npm test
+npm run test:watch  # Watch mode with UI
+npm run test:coverage  # Generate coverage reports
+
+# Shared package (Jest)
 cd packages/shared && npm test
 ```
+
+### Testing Strategy
+- **Backend**: Jest 30.0.0 for unit and integration tests
+- **Frontend**: Vitest 4.x for component and accessibility tests
+- **Coverage Target**: 80% for core business logic
+- **Test Co-location**: `*.spec.ts` files next to source code
+- **Accessibility**: WCAG 2.1 AA compliance (see [ADR-002](docs/adr/002-testing-strategy.md))
+
+### Writing Tests
+- **Unit tests**: Co-locate with source (`*.spec.ts`)
+- **Integration tests**: Place in `apps/back/test/` directory
+- **Accessibility tests**: Use `apps/front/test/accessibility.spec.ts` as reference
+- **Coverage**: All new code should maintain 80%+ coverage
 
 ## 🏗 Project Structure
 

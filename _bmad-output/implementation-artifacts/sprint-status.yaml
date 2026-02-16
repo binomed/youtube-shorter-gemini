@@ -42,7 +42,7 @@ story_location: /Users/jeanfrancoisgarreau/Projets/youtube-shorter-gemini/_bmad-
 development_status:
   epic-0: in-progress
   0-1-monorepo-scaffolding: done
-  0-2-quality-gates-testing-setup: backlog
+  0-2-quality-gates-testing-setup: done
   epic-0-retrospective: optional
   epic-1: backlog
   1-1-project-creation-video-ingestion: backlog
