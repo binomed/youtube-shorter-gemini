@@ -3,23 +3,50 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { CleanupService } from './cleanup.service';
 import { Project } from '../../entities/project.entity';
 
 describe('CleanupService', () => {
     let service: CleanupService;
+    let mockDataSource: any;
+    let mockRepository: any;
 
     beforeEach(async () => {
+        // Mock project for successful deletion
+        const mockProject = {
+            id: 'test-project-123',
+            name: 'Test Project',
+            videoPath: '/Users/test/video.mp4',
+        };
+
+        mockRepository = {
+            findOne: jest.fn().mockResolvedValue(mockProject),
+            remove: jest.fn().mockResolvedValue(mockProject),
+            delete: jest.fn().mockResolvedValue({ affected: 1 }),
+        };
+
+        // Mock DataSource for transactions
+        mockDataSource = {
+            transaction: jest.fn((callback) => {
+                // Execute transaction callback with mock manager
+                const mockManager = {
+                    getRepository: jest.fn().mockReturnValue(mockRepository),
+                };
+                return callback(mockManager);
+            }),
+        };
+
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 CleanupService,
                 {
                     provide: getRepositoryToken(Project),
-                    useValue: {
-                        delete: jest.fn().mockResolvedValue({ affected: 1 }),
-                        find: jest.fn(),
-                        findOne: jest.fn(),
-                    },
+                    useValue: mockRepository,
+                },
+                {
+                    provide: DataSource,
+                    useValue: mockDataSource,
                 },
             ],
         }).compile();

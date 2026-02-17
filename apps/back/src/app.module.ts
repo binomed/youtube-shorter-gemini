@@ -31,7 +31,9 @@ import { Project } from './entities/project.entity';
       type: 'sqlite',
       database: 'data/youtube-shorter.db', // Stored in apps/back/data/
       entities: [Project],
-      synchronize: true, // Auto-create schema (dev only - use migrations in prod)
+      // CRITICAL: synchronize MUST be false in production to prevent data loss
+      // Schema changes require migrations in production
+      synchronize: process.env.NODE_ENV !== 'production',
       logging: process.env.NODE_ENV !== 'production',
     }),
 

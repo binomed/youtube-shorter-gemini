@@ -7,6 +7,7 @@ import {
     Column,
     CreateDateColumn,
     UpdateDateColumn,
+    Index,
 } from 'typeorm';
 import { IsNotEmpty, MaxLength } from 'class-validator';
 
@@ -36,8 +37,13 @@ export class Project {
     name: string;
 
     /**
-     * Path to the uploaded video file in temporary storage
-     * @example "/tmp/youtube-shorter/uploads/abc123-def456/video.mp4"
+     * Path to the video file
+     * 
+     * For desktop local use case (Story 1.1): References user's original file path
+     * For future YouTube downloads (Epic 2+): Will store temporary download path
+     * 
+     * @example "/Users/john/Videos/my-video.mp4" (desktop)
+     * @example "/tmp/youtube-shorter/downloads/abc123/video.mp4" (future)
      */
     @Column({ type: 'varchar', length: 500 })
     videoPath: string;
@@ -65,7 +71,9 @@ export class Project {
 
     /**
      * Timestamp when the project was created
+     * Indexed for efficient cleanup queries
      */
+    @Index()
     @CreateDateColumn()
     createdAt: Date;
 

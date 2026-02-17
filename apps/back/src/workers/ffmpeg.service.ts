@@ -1,7 +1,8 @@
 // Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
-// Licensed under the Apache-20 License. See LICENSE file in the project root for full license information.
+// Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { readFile, writeFile, mkdir, access } from 'fs/promises';
@@ -29,7 +30,8 @@ export interface VideoMetadata {
  * cross-platform compatibility. Performance to be evaluated in future epic.
  * 
  * Performance Optimization: WASM binaries (~30MB) are cached locally
- * in .cache/ffmpeg/{version}/ to avoid re-downloading on every app restart.
+ * to avoid re-downloading on every app restart. Cache directory is configurable
+ * via FFMPEG_CACHE_DIR environment variable (default: .cache/ffmpeg/{version}/).
  * First launch downloads from unpkg.com, subsequent launches load from disk.
  * 
  * @service
@@ -38,11 +40,15 @@ export interface VideoMetadata {
 export class FFmpegService {
     private readonly logger = new Logger(FFmpegService.name);
     private readonly ffmpegVersion = '0.12.6';
-    private readonly cacheDir = join(process.cwd(), '.cache', 'ffmpeg', this.ffmpegVersion);
+    private readonly cacheDir: string;
     private ffmpeg: FFmpeg;
     private loaded = false;
 
-    constructor() {
+    constructor(private readonly configService: ConfigService) {
+        // Issue #5: Make cache path configurable
+        const baseCacheDir = this.configService.get<string>('FFMPEG_CACHE_DIR') || join(process.cwd(), '.cache');
+        this.cacheDir = join(baseCacheDir, 'ffmpeg', this.ffmpegVersion);
+
         this.ffmpeg = new FFmpeg();
 
         // Log FFmpeg output for debugging

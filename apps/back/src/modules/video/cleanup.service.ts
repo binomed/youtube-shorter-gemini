@@ -1,9 +1,9 @@
 // Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan } from 'typeorm';
+import { Repository, LessThan, DataSource } from 'typeorm';
 import { Project } from '../../entities/project.entity';
 
 /**
@@ -33,6 +33,7 @@ export class CleanupService {
     constructor(
         @InjectRepository(Project)
         private readonly projectRepository: Repository<Project>,
+        private readonly dataSource: DataSource,
     ) { }
 
     /**
@@ -53,14 +54,24 @@ export class CleanupService {
     async deleteProject(projectId: string): Promise<void> {
         this.logger.log(`Deleting project: ${projectId}`);
 
-        // Delete from database
-        const result = await this.projectRepository.delete(projectId);
+        // Issue #7: Use transaction for data integrity
+        // Issue #12: Add null safety and proper error handling
+        await this.dataSource.transaction(async (manager) => {
+            const projectRepo = manager.getRepository(Project);
 
-        if (result.affected === 0) {
-            this.logger.warn(`Project not found: ${projectId}`);
-        } else {
-            this.logger.log(`Project deleted from database: ${projectId}`);
-        }
+            // Find project first to ensure it exists
+            const project = await projectRepo.findOne({ where: { id: projectId } });
+
+            if (!project) {
+                this.logger.warn(`Project not found: ${projectId}`);
+                throw new NotFoundException(`Project with ID ${projectId} not found`);
+            }
+
+            // Delete with cascade (will handle future foreign key constraints)
+            await projectRepo.remove(project);
+
+            this.logger.log(`Project deleted successfully: ${projectId}`);
+        });
 
         // Important: Do NOT delete original video file for desktop local files
         // The video belongs to the user and is outside our app's management scope
@@ -74,14 +85,15 @@ export class CleanupService {
      * @returns Promise<number> - Number of projects deleted
      */
     async deleteAllProjects(): Promise<number> {
-        this.logger.log('Deleting all projects');
+        this.logger.log('Deleting all projects - privacy compliance cleanup initiated');
 
         // Delete all from database
         const result = await this.projectRepository.delete({});
 
-        this.logger.log(`All projects deleted: ${result.affected} records`);
+        const deletedCount = result.affected || 0;
+        this.logger.log(`All projects deleted successfully: ${deletedCount} projects removed`);
 
-        return result.affected || 0;
+        return deletedCount;
     }
 
     /**
@@ -94,7 +106,7 @@ export class CleanupService {
      * @returns Promise<number> - Number of projects deleted
      */
     async cleanupInactive(maxAgeHours: number): Promise<number> {
-        this.logger.log(`Cleaning up projects older than ${maxAgeHours} hours`);
+        this.logger.log(`Cleanup job started: removing projects older than ${maxAgeHours} hours`);
 
         const cutoffDate = new Date();
         cutoffDate.setHours(cutoffDate.getHours() - maxAgeHours);
@@ -103,8 +115,9 @@ export class CleanupService {
             createdAt: LessThan(cutoffDate),
         });
 
-        this.logger.log(`Cleaned up ${result.affected} inactive projects`);
+        const deletedCount = result.affected || 0;
+        this.logger.log(`Cleanup job completed successfully: ${deletedCount} inactive projects removed`);
 
-        return result.affected || 0;
+        return deletedCount;
     }
 }

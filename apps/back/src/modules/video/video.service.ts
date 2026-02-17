@@ -1,12 +1,13 @@
 // Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectResponse } from '@youtube-shorter/shared';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { Project } from '../../entities/project.entity';
+import { validateAbsolutePath, validateFileExtension } from '../../utils/file-validation';
 
 /**
  * VideoService handles business logic for video upload and project management
@@ -70,22 +71,37 @@ export class VideoService {
         name: string,
         file: Express.Multer.File,
     ): Promise<ProjectResponse> {
-        // Use original file path directly - no copy needed for desktop use case
-        // Note: file.path contains the absolute path to the original file
-        const videoPath = file.path || file.originalname;
+        // Validate and sanitize file path (Issue #2: Security)
+        // Ensure we have a valid file path, prefer file.path over user-controlled originalname
+        if (!file.path) {
+            throw new BadRequestException('File upload failed: no file path provided');
+        }
+
+        // Validate file path is absolute and safe
+        const videoPath = validateAbsolutePath(file.path);
+
+        // Validate file extension (Issue #11: Pre-validation)
+        const allowedExtensions = ['.mp4', '.mov', '.avi', '.mkv'];
+        try {
+            validateFileExtension(videoPath, allowedExtensions);
+        } catch (error) {
+            throw new BadRequestException(error.message);
+        }
 
         this.logger.log(`Creating project "${name}" with video: ${videoPath}`);
 
-        // Extract video metadata
+        // Extract video metadata (Issue #3: Fail-fast on errors)
         let metadata;
         try {
             metadata = await this.ffmpegService.extractMetadata(videoPath);
         } catch (error) {
-            this.logger.warn(
-                `Failed to extract metadata for ${videoPath}: ${error.message}`,
+            this.logger.error(
+                `FFmpeg metadata extraction failed for ${videoPath}: ${error.message}`,
             );
-            // Continue without metadata rather than failing the entire request
-            metadata = null;
+            // FAIL FAST: Don't create project with corrupted/invalid video
+            throw new BadRequestException(
+                `Invalid video file: ${error.message}. Please upload a valid MP4/MOV file.`,
+            );
         }
 
         // Create project entity
@@ -100,11 +116,18 @@ export class VideoService {
         });
 
         // Save to database
-        // TypeORM save() has complex signature that TypeScript sometimes infers incorrectly as T[]
-        // We know it returns a single Project since we pass a single entity
-        const savedProject = (await this.projectRepository.save(project)) as unknown as Project;
+        // Issue #1: Remove dangerous type cast
+        // TypeORM's save() can return T | T[] depending on input
+        // We pass a single entity, so result is always a single Project
+        // Use proper type guard instead of blind cast
+        const saveResult = await this.projectRepository.save(project);
+        const savedProject: Project = Array.isArray(saveResult) ? saveResult[0] : saveResult;
 
-        this.logger.log(`Project created and saved: ${savedProject.id}`);
+        if (!savedProject || !savedProject.id) {
+            throw new Error('Failed to save project to database');
+        }
+
+        this.logger.log(`Project created successfully: ${savedProject.id} - ${savedProject.name}`);
 
         // Return DTO
         return {

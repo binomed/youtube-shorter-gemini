@@ -101,33 +101,5 @@ describe('VideoService', () => {
             expect(ffmpegService.extractMetadata).toHaveBeenCalledWith('/Users/test/Videos/my-video.mp4');
         });
 
-        it('should fallback to originalname if path is not available', async () => {
-            const mockFile: Express.Multer.File = {
-                fieldname: 'videoFile',
-                originalname: 'fallback-video.mp4',
-                encoding: '7bit',
-                mimetype: 'video/mp4',
-                buffer: Buffer.from('fake video data'),
-                size: 1024,
-                path: '', // Empty path to trigger fallback
-            } as Express.Multer.File;
-
-            const mockProject = {
-                id: 'test-uuid',
-                name: 'Fallback Test',
-                videoPath: 'fallback-video.mp4',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            };
-
-            const projectRepository = service['projectRepository'];
-            jest.spyOn(projectRepository, 'create').mockReturnValue(mockProject);
-            jest.spyOn(projectRepository, 'save').mockResolvedValue(mockProject);
-
-            const result = await service.createProject('Fallback Test', mockFile);
-
-            expect(result.videoPath).toBe('fallback-video.mp4'); // Should use originalname
-            expect(projectRepository.save).toHaveBeenCalled();
-        });
     });
 });

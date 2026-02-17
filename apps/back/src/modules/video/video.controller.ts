@@ -9,8 +9,10 @@ import {
     Body,
     HttpException,
     HttpStatus,
+    UsePipes,
+    ValidationPipe,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config'; 
+import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateProjectDto } from '@youtube-shorter/shared';
 import { VideoService } from './video.service';
@@ -49,6 +51,7 @@ export class VideoController {
      * videoFile: <binary MP4 file>
      */
     @Post()
+    @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
     @UseInterceptors(FileInterceptor('videoFile'))
     async createProject(
         @Body() createProjectDto: CreateProjectDto,
