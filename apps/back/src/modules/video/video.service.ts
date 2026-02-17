@@ -4,6 +4,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ProjectResponse } from '@youtube-shorter/shared';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { Project } from '../../entities/project.entity';
 
@@ -116,17 +117,4 @@ export class VideoService {
             ...(savedProject.codec && { codec: savedProject.codec }),
         };
     }
-}
-
-/**
- * Project response DTO
- */
-export interface ProjectResponse {
-    id: string;
-    name: string;
-    videoPath: string;
-    createdAt: string;
-    duration?: number;
-    resolution?: string;
-    codec?: string;
 }
