@@ -1,8 +1,9 @@
 // Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
+import { FFmpegService } from '../../workers/ffmpeg.service';
 
 /**
  * VideoService handles business logic for video upload and project management
@@ -24,6 +25,10 @@ import { v4 as uuidv4 } from 'uuid';
  */
 @Injectable()
 export class VideoService {
+    private readonly logger = new Logger(VideoService.name);
+
+    constructor(private readonly ffmpegService: FFmpegService) { }
+
     /**
      * Create a new project with uploaded video
      * 
@@ -33,8 +38,8 @@ export class VideoService {
      * Steps:
      * 1. Generate unique project ID
      * 2. Store reference to original file path
-     * 3. Create project record in database
-     * 4. Trigger metadata extraction (future: async via JobService)
+     * 3. Extract video metadata (duration, resolution, codec)
+     * 4. Create project record in database
      * 
      * @param name - Project name
      * @param file - Uploaded video file (contains original path)
@@ -50,15 +55,34 @@ export class VideoService {
         // Note: file.path contains the absolute path to the original file
         const videoPath = file.path || file.originalname;
 
+        this.logger.log(`Creating project "${name}" with video: ${videoPath}`);
+
+        // Extract video metadata
+        let metadata;
+        try {
+            metadata = await this.ffmpegService.extractMetadata(videoPath);
+        } catch (error) {
+            this.logger.warn(
+                `Failed to extract metadata for ${videoPath}: ${error.message}`,
+            );
+            // Continue without metadata rather than failing the entire request
+            metadata = null;
+        }
+
         // TODO: Store project in database (requires TypeORM repository injection)
-        // TODO: Extract metadata via FFmpegService
-        // For now, return minimal response
         const project: ProjectResponse = {
             id: projectId,
             name,
             videoPath,
             createdAt: new Date().toISOString(),
+            ...(metadata && {
+                duration: metadata.duration,
+                resolution: metadata.resolution,
+                codec: metadata.codec,
+            }),
         };
+
+        this.logger.log(`Project created: ${projectId}`);
 
         return project;
     }

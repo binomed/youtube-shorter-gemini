@@ -20,6 +20,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@ffmpeg/util": "^0.12.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
@@ -76,7 +78,7 @@
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
     "transformIgnorePatterns": [
-      "node_modules/(?!uuid)"
+      "node_modules/(?!(uuid|@ffmpeg))"
     ]
   }
 }

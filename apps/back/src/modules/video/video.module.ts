@@ -4,13 +4,14 @@
 import { Module } from '@nestjs/common';
 import { VideoController } from './video.controller';
 import { VideoService } from './video.service';
+import { FFmpegService } from '../../workers/ffmpeg.service';
 
 /**
  * VideoModule handles video upload, processing, and project management
  * 
  * Responsibilities:
  * - Video file upload (multipart/form-data)
- * - File format and size validation (MP4/MOV, max 500MB)
+ * - File format and size validation (MP4/MOV, configurable max 2GB)
  * - Project creation and persistence
  * - Integration with FFmpegService for metadata extraction
  * 
@@ -18,7 +19,7 @@ import { VideoService } from './video.service';
  */
 @Module({
     controllers: [VideoController],
-    providers: [VideoService],
+    providers: [VideoService, FFmpegService],
     exports: [VideoService],
 })
 export class VideoModule { }

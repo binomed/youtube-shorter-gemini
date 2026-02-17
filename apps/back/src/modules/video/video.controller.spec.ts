@@ -8,6 +8,9 @@ import { VideoController } from './video.controller';
 import { VideoService } from './video.service';
 import { CreateProjectDto } from '@youtube-shorter/shared';
 
+// Use manual mock to avoid Jest ESM issues with @ffmpeg/ffmpeg
+jest.mock('../../workers/ffmpeg.service');
+
 describe('VideoController', () => {
     let controller: VideoController;
     let service: VideoService;

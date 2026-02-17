@@ -3,16 +3,30 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { VideoService } from './video.service';
+import { FFmpegService } from '../../workers/ffmpeg.service';
+
+// Use manual mock to avoid Jest ESM issues with @ffmpeg/ffmpeg
+jest.mock('../../workers/ffmpeg.service');
 
 describe('VideoService', () => {
     let service: VideoService;
+    let ffmpegService: FFmpegService;
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
-            providers: [VideoService],
+            providers: [
+                VideoService,
+                {
+                    provide: FFmpegService,
+                    useValue: {
+                        extractMetadata: jest.fn(),
+                    },
+                },
+            ],
         }).compile();
 
         service = module.get<VideoService>(VideoService);
+        ffmpegService = module.get<FFmpegService>(FFmpegService);
     });
 
     it('should be defined', () => {
@@ -20,7 +34,7 @@ describe('VideoService', () => {
     });
 
     describe('createProject', () => {
-        it('should create project with original file path', async () => {
+        it('should create project with original file path and metadata', async () => {
             const mockFile: Express.Multer.File = {
                 fieldname: 'videoFile',
                 originalname: 'test-video.mp4',
@@ -31,6 +45,18 @@ describe('VideoService', () => {
                 path: '/Users/test/Videos/my-video.mp4', // Original file path
             } as Express.Multer.File;
 
+            const mockMetadata = {
+                duration: 120.5,
+                resolution: '1920x1080',
+                codec: 'h264',
+                width: 1920,
+                height: 1080,
+            };
+
+            jest.spyOn(ffmpegService, 'extractMetadata').mockResolvedValue(
+                mockMetadata,
+            );
+
             const result = await service.createProject('Test Project', mockFile);
 
             // Verify project creation
@@ -38,6 +64,12 @@ describe('VideoService', () => {
             expect(result).toHaveProperty('name', 'Test Project');
             expect(result).toHaveProperty('videoPath', '/Users/test/Videos/my-video.mp4');
             expect(result).toHaveProperty('createdAt');
+
+            // Verify metadata was extracted
+            expect(result).toHaveProperty('duration', 120.5);
+            expect(result).toHaveProperty('resolution', '1920x1080');
+            expect(result).toHaveProperty('codec', 'h264');
+            expect(ffmpegService.extractMetadata).toHaveBeenCalledWith('/Users/test/Videos/my-video.mp4');
         });
 
         it('should fallback to originalname if path is not available', async () => {
