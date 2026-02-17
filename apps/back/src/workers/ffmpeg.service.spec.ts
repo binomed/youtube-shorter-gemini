@@ -4,6 +4,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FFmpegService } from './ffmpeg.service';
 
+// Use manual mock to avoid Jest ESM issues with @ffmpeg/ffmpeg
+jest.mock('./ffmpeg.service');
+
 describe('FFmpegService', () => {
     let service: FFmpegService;
 
