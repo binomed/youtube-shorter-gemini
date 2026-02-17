@@ -44,8 +44,8 @@ development_status:
   0-1-monorepo-scaffolding: done
   0-2-quality-gates-testing-setup: done
   epic-0-retrospective: optional
-  epic-1: backlog
-  1-1-project-creation-video-ingestion: backlog
+  epic-1: in-progress
+  1-1-project-creation-video-ingestion: in-progress
   1-2-privacy-awareness-consent: backlog
   epic-1-retrospective: optional
   epic-2: backlog
