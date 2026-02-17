@@ -7,6 +7,7 @@ import { ProgressController } from './progress.controller';
 import { VideoService } from './video.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { ProgressService } from './progress.service';
+import { CleanupService } from './cleanup.service';
 
 /**
  * VideoModule handles video upload, processing, and project management
@@ -17,6 +18,7 @@ import { ProgressService } from './progress.service';
  * - Project creation and persistence
  * - Integration with FFmpegService for metadata extraction
  * - Real-time progress updates via SSE (ProgressController - for future async operations)
+ * - Privacy-compliant cleanup (CleanupService - deletes DB records, not user files)
  * 
  * Note: ProgressService/ProgressController exist as infrastructure for future
  * async operations (Story 2+: rendering, AI analysis). Not actively used in Story 1.1
@@ -26,7 +28,7 @@ import { ProgressService } from './progress.service';
  */
 @Module({
     controllers: [VideoController, ProgressController],
-    providers: [VideoService, FFmpegService, ProgressService],
-    exports: [VideoService],
+    providers: [VideoService, FFmpegService, ProgressService, CleanupService],
+    exports: [VideoService, CleanupService],
 })
 export class VideoModule { }
