@@ -4,7 +4,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { VideoService } from './video.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
-import { ProgressService } from './progress.service';
 
 // Use manual mock to avoid Jest ESM issues with @ffmpeg/ffmpeg
 jest.mock('../../workers/ffmpeg.service');
@@ -12,7 +11,6 @@ jest.mock('../../workers/ffmpeg.service');
 describe('VideoService', () => {
     let service: VideoService;
     let ffmpegService: FFmpegService;
-    let progressService: ProgressService;
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
@@ -24,19 +22,11 @@ describe('VideoService', () => {
                         extractMetadata: jest.fn(),
                     },
                 },
-                {
-                    provide: ProgressService,
-                    useValue: {
-                        emitProgress: jest.fn(),
-                        emitError: jest.fn(),
-                    },
-                },
             ],
         }).compile();
 
         service = module.get<VideoService>(VideoService);
         ffmpegService = module.get<FFmpegService>(FFmpegService);
-        progressService = module.get<ProgressService>(ProgressService);
     });
 
     it('should be defined', () => {

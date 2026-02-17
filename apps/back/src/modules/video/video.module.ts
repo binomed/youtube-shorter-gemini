@@ -16,7 +16,11 @@ import { ProgressService } from './progress.service';
  * - File format and size validation (MP4/MOV, configurable max 2GB)
  * - Project creation and persistence
  * - Integration with FFmpegService for metadata extraction
- * - Real-time progress updates via Server-Sent Events (SSE)
+ * - Real-time progress updates via SSE (ProgressController - for future async operations)
+ * 
+ * Note: ProgressService/ProgressController exist as infrastructure for future
+ * async operations (Story 2+: rendering, AI analysis). Not actively used in Story 1.1
+ * where processing is synchronous (<1s).
  * 
  * @module
  */
