@@ -209,7 +209,7 @@ export class FFmpegService {
 
             // Read metadata output
             const metadataBuffer = await this.ffmpeg.readFile('metadata.json');
-            const metadataJson = new TextDecoder().decode(metadataBuffer);
+            const metadataJson = new TextDecoder().decode(metadataBuffer as Uint8Array);
             const metadata = JSON.parse(metadataJson);
 
             // Extract video stream

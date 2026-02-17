@@ -99,7 +99,9 @@ export class VideoService {
         });
 
         // Save to database
-        const savedProject = await this.projectRepository.save(project);
+        // TypeORM save() has complex signature that TypeScript sometimes infers incorrectly as T[]
+        // We know it returns a single Project since we pass a single entity
+        const savedProject = (await this.projectRepository.save(project)) as unknown as Project;
 
         this.logger.log(`Project created and saved: ${savedProject.id}`);
 

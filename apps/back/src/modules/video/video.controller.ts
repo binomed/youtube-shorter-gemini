@@ -13,7 +13,16 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { VideoService } from './video.service';
-import { CreateProjectDto } from '@youtube-shorter/shared';
+import { IsNotEmpty, MaxLength } from 'class-validator';
+
+/**
+ * DTO for creating a new project
+ */
+class CreateProjectDto {
+    @IsNotEmpty({ message: 'Project name is required' })
+    @MaxLength(255, { message: 'Project name cannot exceed 255 characters' })
+    name!: string;
+}
 
 /**
  * VideoController handles HTTP endpoints for video upload and project management

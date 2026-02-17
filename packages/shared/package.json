@@ -11,10 +11,10 @@
         "test": "jest"
     },
     "devDependencies": {
-        "typescript": "latest",
+        "@types/jest": "^30.0.0",
         "jest": "^30.0.0",
         "ts-jest": "^29.2.5",
-        "@types/jest": "^30.0.0"
+        "typescript": "latest"
     },
     "jest": {
         "preset": "ts-jest",
@@ -25,5 +25,9 @@
         "testMatch": [
             "**/*.spec.ts"
         ]
+    },
+    "dependencies": {
+        "class-transformer": "^0.5.1",
+        "class-validator": "^0.14.3"
     }
 }
