@@ -2,8 +2,10 @@
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 import { Injectable, Logger } from '@nestjs/common';
-import { v4 as uuidv4 } from 'uuid';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { FFmpegService } from '../../workers/ffmpeg.service';
+import { Project } from '../../entities/project.entity';
 
 /**
  * VideoService handles business logic for video upload and project management
@@ -11,6 +13,7 @@ import { FFmpegService } from '../../workers/ffmpeg.service';
  * Responsibilities:
  * - Create project records with video file references
  * - Coordinate with FFmpegService for metadata extraction
+ * - Persist projects to SQLite database via TypeORM
  * 
  * Design Decision: For desktop local use case, we store the original file path
  * directly instead of copying to a temporary directory. This avoids:
@@ -32,7 +35,11 @@ import { FFmpegService } from '../../workers/ffmpeg.service';
 export class VideoService {
     private readonly logger = new Logger(VideoService.name);
 
-    constructor(private readonly ffmpegService: FFmpegService) { }
+    constructor(
+        @InjectRepository(Project)
+        private readonly projectRepository: Repository<Project>,
+        private readonly ffmpegService: FFmpegService,
+    ) { }
 
     /**
      * Create a new project with uploaded video
@@ -49,11 +56,10 @@ export class VideoService {
      * when processing takes longer (rendering, AI analysis).
      * 
      * Steps:
-     * 1. Generate unique project ID
-     * 2. Store reference to original file path
-     * 3. Extract video metadata (duration, resolution, codec)
-     * 4. Create project record in database
-     * 5. Return complete project
+     * 1. Store reference to original file path
+     * 2. Extract video metadata (duration, resolution, codec)
+     * 3. Create and save project to database
+     * 4. Return complete project
      * 
      * @param name - Project name
      * @param file - Uploaded video file (contains original path)
@@ -63,8 +69,6 @@ export class VideoService {
         name: string,
         file: Express.Multer.File,
     ): Promise<ProjectResponse> {
-        const projectId = uuidv4();
-
         // Use original file path directly - no copy needed for desktop use case
         // Note: file.path contains the absolute path to the original file
         const videoPath = file.path || file.originalname;
@@ -83,22 +87,32 @@ export class VideoService {
             metadata = null;
         }
 
-        // TODO: Store project in database (requires TypeORM repository injection)
-        const project: ProjectResponse = {
-            id: projectId,
+        // Create project entity
+        const project = this.projectRepository.create({
             name,
             videoPath,
-            createdAt: new Date().toISOString(),
             ...(metadata && {
                 duration: metadata.duration,
                 resolution: metadata.resolution,
                 codec: metadata.codec,
             }),
+        });
+
+        // Save to database
+        const savedProject = await this.projectRepository.save(project);
+
+        this.logger.log(`Project created and saved: ${savedProject.id}`);
+
+        // Return DTO
+        return {
+            id: savedProject.id,
+            name: savedProject.name,
+            videoPath: savedProject.videoPath,
+            createdAt: savedProject.createdAt.toISOString(),
+            ...(savedProject.duration && { duration: savedProject.duration }),
+            ...(savedProject.resolution && { resolution: savedProject.resolution }),
+            ...(savedProject.codec && { codec: savedProject.codec }),
         };
-
-        this.logger.log(`Project created: ${projectId}`);
-
-        return project;
     }
 }
 
@@ -114,4 +128,3 @@ export interface ProjectResponse {
     resolution?: string;
     codec?: string;
 }
-

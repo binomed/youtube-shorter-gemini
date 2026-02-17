@@ -2,12 +2,15 @@
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, LessThan } from 'typeorm';
+import { Project } from '../../entities/project.entity';
 
 /**
  * CleanupService handles file and data cleanup for privacy compliance (FR-03)
  * 
  * Story 1.1 Scope (Desktop Local Files):
- * - Deletes project records from database
+ * - Deletes project records from SQLite database via TypeORM
  * - DOES NOT delete original video files (user's own files on disk)
  * - Original files remain owned and managed by user
  * 
@@ -27,11 +30,16 @@ import { Injectable, Logger } from '@nestjs/common';
 export class CleanupService {
     private readonly logger = new Logger(CleanupService.name);
 
+    constructor(
+        @InjectRepository(Project)
+        private readonly projectRepository: Repository<Project>,
+    ) { }
+
     /**
      * Delete project and associated data
      * 
-     * Story 1.1: Only deletes database record
-     * - Removes project from database
+     * Story 1.1: Deletes database record via TypeORM
+     * - Removes project from SQLite database
      * - Does NOT delete original video file (user's file)
      * 
      * Future Epics: Will also delete:
@@ -45,13 +53,17 @@ export class CleanupService {
     async deleteProject(projectId: string): Promise<void> {
         this.logger.log(`Deleting project: ${projectId}`);
 
-        // TODO: Implement database deletion when TypeORM repository is available
-        // await this.projectRepository.delete(projectId);
+        // Delete from database
+        const result = await this.projectRepository.delete(projectId);
+
+        if (result.affected === 0) {
+            this.logger.warn(`Project not found: ${projectId}`);
+        } else {
+            this.logger.log(`Project deleted from database: ${projectId}`);
+        }
 
         // Important: Do NOT delete original video file for desktop local files
         // The video belongs to the user and is outside our app's management scope
-
-        this.logger.log(`Project deleted: ${projectId}`);
     }
 
     /**
@@ -59,33 +71,40 @@ export class CleanupService {
      * 
      * Used when user wants to completely remove all data (privacy compliance).
      * 
-     * @returns Promise<void>
+     * @returns Promise<number> - Number of projects deleted
      */
-    async deleteAllProjects(): Promise<void> {
+    async deleteAllProjects(): Promise<number> {
         this.logger.log('Deleting all projects');
 
-        // TODO: Implement bulk deletion when TypeORM repository is available
-        // await this.projectRepository.delete({});
+        // Delete all from database
+        const result = await this.projectRepository.delete({});
 
-        this.logger.log('All projects deleted');
+        this.logger.log(`All projects deleted: ${result.affected} records`);
+
+        return result.affected || 0;
     }
 
     /**
-     * Future: Clean up old/inactive projects
+     * Clean up old/inactive projects
      * 
-     * Will be implemented in future epics for:
-     * - Session-based cleanup (delete after X hours inactivity)
-     * - Downloaded YouTube videos cleanup
-     * - Rendered output cleanup
+     * Deletes projects older than specified age.
+     * Useful for privacy compliance and storage management.
      * 
-     * Not needed for Story 1.1 (desktop local files, no temporary storage).
+     * @param maxAgeHours - Maximum age in hours before deletion
+     * @returns Promise<number> - Number of projects deleted
      */
-    async cleanupInactive(maxAgeHours: number): Promise<void> {
-        this.logger.log(`Cleanup inactive projects older than ${maxAgeHours} hours`);
+    async cleanupInactive(maxAgeHours: number): Promise<number> {
+        this.logger.log(`Cleaning up projects older than ${maxAgeHours} hours`);
 
-        // TODO: Implement in Epic 2+ when dealing with downloaded/temporary files
-        // For Story 1.1: No action needed
+        const cutoffDate = new Date();
+        cutoffDate.setHours(cutoffDate.getHours() - maxAgeHours);
 
-        this.logger.log('Cleanup completed (no-op for Story 1.1)');
+        const result = await this.projectRepository.delete({
+            createdAt: LessThan(cutoffDate),
+        });
+
+        this.logger.log(`Cleaned up ${result.affected} inactive projects`);
+
+        return result.affected || 0;
     }
 }

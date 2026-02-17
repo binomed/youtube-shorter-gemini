@@ -2,14 +2,26 @@
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { CleanupService } from './cleanup.service';
+import { Project } from '../../entities/project.entity';
 
 describe('CleanupService', () => {
     let service: CleanupService;
 
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
-            providers: [CleanupService],
+            providers: [
+                CleanupService,
+                {
+                    provide: getRepositoryToken(Project),
+                    useValue: {
+                        delete: jest.fn().mockResolvedValue({ affected: 1 }),
+                        find: jest.fn(),
+                        findOne: jest.fn(),
+                    },
+                },
+            ],
         }).compile();
 
         service = module.get<CleanupService>(CleanupService);

@@ -4,16 +4,38 @@
  */
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { VideoModule } from './modules/video/video.module';
+import { Project } from './entities/project.entity';
 
+/**
+ * Root application module for YouTube Shorter Gemini backend
+ * 
+ * Configures:
+ * - Environment variables (ConfigModule)
+ * - SQLite database with TypeORM (synchronize: true for dev)
+ * - Video upload and processing (VideoModule)
+ */
 @Module({
   imports: [
+    // Environment configuration
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
     }),
+
+    // TypeORM SQLite database
+    TypeOrmModule.forRoot({
+      type: 'sqlite',
+      database: 'data/youtube-shorter.db', // Stored in apps/back/data/
+      entities: [Project],
+      synchronize: true, // Auto-create schema (dev only - use migrations in prod)
+      logging: process.env.NODE_ENV !== 'production',
+    }),
+
+    // Feature modules
     VideoModule,
   ],
   controllers: [AppController],
