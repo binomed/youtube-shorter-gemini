@@ -1,27 +1,65 @@
 # youtube-shorter-gemini
 
-`youtube-shorter-gemini` est un outil de productivité pour transformer des vidéos YouTube longues en Shorts verticaux via l'IA Gemini.
+`youtube-shorter-gemini` is a productivity tool to transform long YouTube videos into vertical Shorts using Gemini AI.
 
 ## 🚀 Vision
-Automatiser la détection et l'assemblage de moments clés, la séparation audio et le sous-titrage dynamique en local.
+Automate key moment detection and assembly, audio separation, and dynamic captioning locally.
 
-## 🛠 Stack Technique
-- **Monorepo :** Turborepo + npm workspaces
-- **Backend :** NestJS + SQLite + FFmpeg
-- **Frontend :** Lit + Lit Signals + Tailwind CSS 4.x + Shoelace
-- **IA :** Gemini (Cloud/Local)
+## 🛠 Tech Stack
+- **Monorepo:** Turborepo + npm workspaces
+- **Backend:** NestJS + SQLite + FFmpeg
+- **Frontend:** Lit + Lit Signals + Tailwind CSS 4.x + Shoelace
+- **AI:** Gemini (Cloud/Local)
 
-## 📁 Structure du Projet
-- `apps/back` : API Backend (NestJS)
-- `apps/front` : Client Web (Lit)
-- `packages/shared` : Types et DTOs partagés
-- `.agent/skills` : Custom skills pour Antigravity ([voir documentation](.agent/skills/README.md))
-- `.agent/workflows` : Workflows BMAD pour le développement
+## 📁 Project Structure
+- `apps/back`: Backend API (NestJS)
+- `apps/front`: Web Client (Lit)
+- `packages/shared`: Shared Types and DTOs
+- `.agent/skills`: Custom skills for Antigravity ([see documentation](.agent/skills/README.md))
+- `.agent/workflows`: BMAD Workflows for development
+
+## 📋 Prerequisites
+
+### 1. Node.js & npm
+Ensure Node.js (v20+) and npm are installed.
+
+### 2. FFmpeg (MANDATORY)
+The project uses `ffprobe` and `ffmpeg` system binaries for video processing. **The backend application will not start without FFmpeg.**
+
+**MacOS (Homebrew):**
+```bash
+brew install ffmpeg
+```
+
+**Verification:**
+```bash
+ffmpeg -version
+ffprobe -version
+```
 
 ## 🛠 Installation
+
 ```bash
+# Install dependencies (at root)
 npm install
+```
+
+## 🚀 Getting Started
+
+### Development Mode (Monorepo)
+To launch backend and frontend in parallel:
+```bash
 npm run dev
+```
+
+### Backend Only
+```bash
+npm run dev --workspace=back
+```
+
+### Frontend Only
+```bash
+npm run dev --workspace=front
 ```
 
 ## 🧪 Tests

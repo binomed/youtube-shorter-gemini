@@ -2,84 +2,84 @@
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    CreateDateColumn,
-    UpdateDateColumn,
-    Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { IsNotEmpty, MaxLength } from 'class-validator';
 
 /**
  * Project entity representing a video editing project in the youtube-shorter-gemini system.
- * 
+ *
  * Each project contains a reference to an uploaded video file and its extracted metadata.
  * Projects are the top-level container for video processing workflows.
- * 
+ *
  * @entity
  */
 @Entity('projects')
 export class Project {
-    /**
-     * Unique identifier for the project (UUID v4)
-     */
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  /**
+   * Unique identifier for the project (UUID v4)
+   */
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    /**
-     * User-provided project name
-     * @example "My Awesome Shorts Project"
-     */
-    @Column({ type: 'varchar', length: 255 })
-    @IsNotEmpty({ message: 'Project name is required' })
-    @MaxLength(255, { message: 'Project name cannot exceed 255 characters' })
-    name: string;
+  /**
+   * User-provided project name
+   * @example "My Awesome Shorts Project"
+   */
+  @Column({ type: 'varchar', length: 255 })
+  @IsNotEmpty({ message: 'Project name is required' })
+  @MaxLength(255, { message: 'Project name cannot exceed 255 characters' })
+  name: string;
 
-    /**
-     * Path to the video file
-     * 
-     * For desktop local use case (Story 1.1): References user's original file path
-     * For future YouTube downloads (Epic 2+): Will store temporary download path
-     * 
-     * @example "/Users/john/Videos/my-video.mp4" (desktop)
-     * @example "/tmp/youtube-shorter/downloads/abc123/video.mp4" (future)
-     */
-    @Column({ type: 'varchar', length: 500 })
-    videoPath: string;
+  /**
+   * Path to the video file
+   *
+   * For desktop local use case (Story 1.1): References user's original file path
+   * For future YouTube downloads (Epic 2+): Will store temporary download path
+   *
+   * @example "/Users/john/Videos/my-video.mp4" (desktop)
+   * @example "/tmp/youtube-shorter/downloads/abc123/video.mp4" (future)
+   */
+  @Column({ type: 'varchar', length: 500 })
+  videoPath: string;
 
-    /**
-     * Video duration in seconds (extracted by FFmpeg)
-     * @example 125.5
-     */
-    @Column({ type: 'float', nullable: true })
-    duration?: number;
+  /**
+   * Video duration in seconds (extracted by FFmpeg)
+   * @example 125.5
+   */
+  @Column({ type: 'float', nullable: true })
+  duration?: number;
 
-    /**
-     * Video resolution (width x height)
-     * @example "1920x1080"
-     */
-    @Column({ type: 'varchar', length: 50, nullable: true })
-    resolution?: string;
+  /**
+   * Video resolution (width x height)
+   * @example "1920x1080"
+   */
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  resolution?: string;
 
-    /**
-     * Video codec name
-     * @example "h264"
-     */
-    @Column({ type: 'varchar', length: 50, nullable: true })
-    codec?: string;
+  /**
+   * Video codec name
+   * @example "h264"
+   */
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  codec?: string;
 
-    /**
-     * Timestamp when the project was created
-     * Indexed for efficient cleanup queries
-     */
-    @Index()
-    @CreateDateColumn()
-    createdAt: Date;
+  /**
+   * Timestamp when the project was created
+   * Indexed for efficient cleanup queries
+   */
+  @Index()
+  @CreateDateColumn()
+  createdAt: Date;
 
-    /**
-     * Timestamp when the project was last updated
-     */
-    @UpdateDateColumn()
-    updatedAt: Date;
+  /**
+   * Timestamp when the project was last updated
+   */
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

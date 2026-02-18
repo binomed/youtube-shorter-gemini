@@ -9,59 +9,64 @@ import { basename, extname, resolve } from 'path';
 
 /**
  * Sanitize file path to prevent path traversal attacks
- * 
+ *
  * @param filePath - Path to sanitize
  * @returns Sanitized path (basename only) or throws if invalid
  * @throws Error if path contains dangerous characters
  */
 export function sanitizeFilePath(filePath: string): string {
-    if (!filePath) {
-        throw new Error('File path cannot be empty');
-    }
+  if (!filePath) {
+    throw new Error('File path cannot be empty');
+  }
 
-    // Remove any path traversal attempts
-    const sanitized = basename(filePath);
+  // Remove any path traversal attempts
+  const sanitized = basename(filePath);
 
-    // Check for dangerous characters
-    if (sanitized.includes('..') || sanitized.includes('\0')) {
-        throw new Error('Invalid file path: contains dangerous characters');
-    }
+  // Check for dangerous characters
+  if (sanitized.includes('..') || sanitized.includes('\0')) {
+    throw new Error('Invalid file path: contains dangerous characters');
+  }
 
-    return sanitized;
+  return sanitized;
 }
 
 /**
  * Validate that file path is absolute and safe
- * 
+ *
  * @param filePath - Path to validate
  * @returns Resolved absolute path
  * @throws Error if path is not absolute or unsafe
  */
 export function validateAbsolutePath(filePath: string): string {
-    const resolved = resolve(filePath);
+  const resolved = resolve(filePath);
 
-    // Ensure path is absolute
-    if (!resolved.startsWith('/')) {
-        throw new Error('File path must be absolute');
-    }
+  // Ensure path is absolute
+  if (!resolved.startsWith('/')) {
+    throw new Error('File path must be absolute');
+  }
 
-    return resolved;
+  return resolved;
 }
 
 /**
  * Validate file extension against allowed list
- * 
+ *
  * @param filePath - File path to check
  * @param allowedExtensions - Array of allowed extensions (e.g., ['.mp4', '.mov'])
  * @returns true if valid
  * @throws Error if extension not allowed
  */
-export function validateFileExtension(filePath: string, allowedExtensions: string[]): boolean {
-    const ext = extname(filePath).toLowerCase();
+export function validateFileExtension(
+  filePath: string,
+  allowedExtensions: string[],
+): boolean {
+  const ext = extname(filePath).toLowerCase();
 
-    if (!allowedExtensions.includes(ext)) {
-        throw new Error(`Invalid file extension: ${ext}. Allowed: ${allowedExtensions.join(', ')}`);
-    }
+  if (!allowedExtensions.includes(ext)) {
+    throw new Error(
+      `Invalid file extension: ${ext}. Allowed: ${allowedExtensions.join(', ')}`,
+    );
+  }
 
-    return true;
+  return true;
 }

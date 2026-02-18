@@ -12,7 +12,7 @@ import { Project } from './entities/project.entity';
 
 /**
  * Root application module for YouTube Shorter Gemini backend
- * 
+ *
  * Configures:
  * - Environment variables (ConfigModule)
  * - SQLite database with TypeORM (synchronize: true for dev)
@@ -43,4 +43,4 @@ import { Project } from './entities/project.entity';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

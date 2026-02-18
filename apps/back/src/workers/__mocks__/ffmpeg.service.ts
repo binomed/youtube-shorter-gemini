@@ -3,9 +3,9 @@
 
 /**
  * Mock FFmpegService for unit testing
- * 
+ *
  * Avoids Jest ESM module issues with @ffmpeg/ffmpeg package
  */
 export class FFmpegService {
-    extractMetadata = jest.fn();
+  extractMetadata = jest.fn();
 }

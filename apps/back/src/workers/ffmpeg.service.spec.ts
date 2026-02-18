@@ -2,52 +2,116 @@
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { FFmpegService } from './ffmpeg.service';
+import * as child_process from 'child_process';
+import util from 'util';
 
-// Use manual mock to avoid Jest ESM issues with @ffmpeg/ffmpeg
-jest.mock('./ffmpeg.service');
+// Mock child_process and util.promisify
+jest.mock('child_process');
+jest.mock('util', () => ({
+  ...jest.requireActual('util'),
+  promisify: jest.fn(),
+}));
 
 describe('FFmpegService', () => {
-    let service: FFmpegService;
+  let service: FFmpegService;
+  let mockExecAsync: jest.Mock;
 
-    beforeEach(async () => {
-        const module: TestingModule = await Test.createTestingModule({
-            providers: [FFmpegService],
-        }).compile();
+  beforeEach(async () => {
+    // Create mock for execAsync
+    mockExecAsync = jest.fn();
+    (util.promisify as unknown as jest.Mock).mockReturnValue(mockExecAsync);
 
-        service = module.get<FFmpegService>(FFmpegService);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        FFmpegService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<FFmpegService>(FFmpegService);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('extractMetadata', () => {
+    const mockVideoPath = '/path/to/video.mp4';
+
+    it('should extract metadata successfully', async () => {
+      const mockOutput = {
+        format: { duration: '120.5' },
+        streams: [
+          {
+            codec_type: 'video',
+            width: 1920,
+            height: 1080,
+            codec_name: 'h264',
+          },
+        ],
+      };
+
+      mockExecAsync.mockResolvedValue({ stdout: JSON.stringify(mockOutput) });
+
+      const result = await service.extractMetadata(mockVideoPath);
+
+      expect(result).toEqual({
+        duration: 120.5,
+        resolution: '1920x1080',
+        codec: 'h264',
+        width: 1920,
+        height: 1080,
+      });
+      expect(mockExecAsync).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `ffprobe -v quiet -print_format json -show_format -show_streams "${mockVideoPath}"`,
+        ),
+      );
     });
 
-    it('should be defined', () => {
-        expect(service).toBeDefined();
+    it('should return null if no video stream found', async () => {
+      const mockOutput = {
+        format: { duration: '10' },
+        streams: [
+          {
+            codec_type: 'audio', // Only audio
+          },
+        ],
+      };
+
+      mockExecAsync.mockResolvedValue({ stdout: JSON.stringify(mockOutput) });
+
+      const result = await service.extractMetadata(mockVideoPath);
+
+      expect(result).toBeNull();
     });
 
-    describe('extractMetadata', () => {
-        it('should extract metadata from video file', async () => {
-            // Note: This is a unit test stub. Full integration testing with actual
-            // video files should be done in e2e tests to avoid large test fixtures.
-            // For now, we verify the service is properly structured.
+    it('should return null for invalid metadata format', async () => {
+      mockExecAsync.mockResolvedValue({ stdout: '{}' });
 
-            expect(service.extractMetadata).toBeDefined();
-            expect(typeof service.extractMetadata).toBe('function');
-        });
+      const result = await service.extractMetadata(mockVideoPath);
 
-        it('should return metadata with correct structure', async () => {
-            // Mock test - verifying return type structure
-            // Real file testing deferred to integration tests
-            const mockMetadata = {
-                duration: 120.5,
-                resolution: '1920x1080',
-                codec: 'h264',
-                width: 1920,
-                height: 1080,
-            };
-
-            expect(mockMetadata).toHaveProperty('duration');
-            expect(mockMetadata).toHaveProperty('resolution');
-            expect(mockMetadata).toHaveProperty('codec');
-            expect(mockMetadata).toHaveProperty('width');
-            expect(mockMetadata).toHaveProperty('height');
-        });
+      expect(result).toBeNull();
     });
+
+    it('should throw error if ffprobe fails', async () => {
+      const errorMessage = 'Command failed';
+      mockExecAsync.mockRejectedValue(new Error(errorMessage));
+
+      await expect(service.extractMetadata(mockVideoPath)).rejects.toThrow(
+        `Metadata extraction failed: ${errorMessage}`,
+      );
+    });
+  });
 });
