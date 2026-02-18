@@ -61,6 +61,19 @@
   --yts-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --yts-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
   --yts-shadow-glow: 0 0 20px var(--yts-accent-glow);
+
+  /* Neon Glass Theme V2 - Refined */
+  --yts-glass-bg: rgba(30, 35, 50, 0.7);
+  /* Lighter and more opaque */
+  --yts-glass-border: rgba(99, 102, 241, 0.5);
+  /* Stronger border */
+  --yts-neon-blue: #4f46e5;
+  /* Stronger Indigo/Blue */
+  --yts-neon-glow: 0 0 20px rgba(79, 70, 229, 0.6);
+  /* Intensified glow */
+  --yts-gradient-primary: linear-gradient(135deg, #4338ca, #6366f1);
+  /* Deep Royal Blue */
+  --yts-input-bg: rgba(255, 255, 255, 0.05);
 }
 
 /* ========== Global Styles ========== */
@@ -101,13 +114,16 @@ body {
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--yts-bg-secondary);
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--yts-border);
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--yts-text-muted);
 }

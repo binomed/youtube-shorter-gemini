@@ -24,97 +24,183 @@ export class ShortPlayer extends LitElement {
     :host {
       display: block;
       width: 100%;
-      aspect-ratio: 9 / 16;
-      background-color: var(--yts-bg-primary, black);
-      border-radius: var(--yts-radius-lg);
-      overflow: hidden;
+      height: 100%;
+      max-width: 400px; /* Typical phone width */
+      aspect-ratio: 9/16;
       position: relative;
-      box-shadow: var(--yts-shadow-md);
     }
 
-    .video-placeholder {
+    .player-container {
       width: 100%;
       height: 100%;
+      background: #000;
+      border-radius: 24px;
+      overflow: hidden;
+      position: relative;
+      border: 4px solid rgba(50, 50, 50, 0.5); /* Device bezel look */
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    }
+
+    /* Video Placeholder */
+    .video-surface {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(45deg, #1a1a2e, #2d2d44);
-      color: var(--yts-text-muted);
-      font-size: var(--yts-font-size-sm);
+      color: #475569;
+      font-size: 14px;
+    }
+    
+    /* Top Overlay (Header) */
+    .top-overlay {
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        padding: 0 20px;
+        display: flex;
+        justify-content: space-between;
+        color: white;
+        z-index: 10;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     }
 
-    .overlay {
+    /* Floating Text Bubble */
+    .text-bubble {
       position: absolute;
-      bottom: 0;
+      bottom: 160px; /* Moved up to clear play button */
+      left: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.15); /* Glassy bubble */
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      padding: 16px 40px 16px 16px; /* Extra padding on right for icon */
+      color: white;
+      font-size: 20px; /* Larger text for realism */
+      font-weight: 600;
+      line-height: 1.4;
+      z-index: 20;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      transition: all 0.2s ease;
+      cursor: text;
+    }
+    
+    .text-bubble:focus-within {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.6);
+        outline: none;
+    }
+    
+    .bubble-pointer {
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        color: white;
+        opacity: 0.8;
+        cursor: pointer;
+        background: rgba(0,0,0,0.2);
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Controls Overlay */
+    .controls-overlay {
+      position: absolute;
+      bottom: 40px;
       left: 0;
       right: 0;
-      padding: var(--yts-spacing-md);
-      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
       display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      z-index: 20;
     }
-
-    .controls {
-      display: flex;
-      gap: var(--yts-spacing-sm);
+    
+    .play-btn {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(4px);
+        border-radius: 50%;
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid rgba(255,255,255,0.1);
     }
-
-    .floating-text {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background-color: rgba(0, 0, 0, 0.6);
-      padding: var(--yts-spacing-sm) var(--yts-spacing-md);
-      border-radius: var(--yts-radius-md);
-      border: 2px solid transparent;
-      color: white;
-      font-weight: 600;
-      font-size: var(--yts-font-size-lg);
-      cursor: text;
-      transition: all var(--yts-transition-fast);
-      text-align: center;
-      max-width: 80%;
+    
+    .play-btn:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: scale(1.05);
     }
-
-    .floating-text:hover, .floating-text:focus {
-      border-color: var(--yts-accent);
-      background-color: rgba(0, 0, 0, 0.8);
+    
+    .progress-bar {
+        width: 80%;
+        height: 4px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 2px;
+        position: relative;
     }
-
-    .play-button {
-      font-size: 2rem;
-      color: var(--yts-text-inverse, white);
+    
+    .progress-fill {
+        width: 30%;
+        height: 100%;
+        background: white;
+        border-radius: 2px;
     }
+    
   `;
 
   @property({ type: String }) src = '';
-  @property({ type: String }) caption = 'Tap to edit caption';
+  @property({ type: String }) caption = '';
 
   render() {
     return html`
-      <div class="video-placeholder">
-        <!-- Video element will go here -->
-        Video Preview: ${this.src}
-      </div>
-
-      <div 
-        class="floating-text" 
-        contenteditable="true"
-        role="textbox"
-        aria-label="Video Caption"
-      >
-        ${this.caption}
-      </div>
-
-      <div class="overlay">
-        <div class="controls">
-          <sl-icon-button class="play-button" name="play-fill" label="Play"></sl-icon-button>
+      <div class="player-container">
+      
+        <!-- Top Info -->
+        <div class="top-overlay">
+           <span>YouTube Short</span>
+           <sl-icon name="info-circle"></sl-icon>
         </div>
-        <div class="meta">
-          <!-- Duration or other meta -->
+
+        <!-- Video Content -->
+        <div class="video-surface">
+          <!-- Real video would go here -->
+          <img 
+            src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" 
+            style="width:100%; height:100%; object-fit:cover; opacity:0.6;"
+            alt="Demo Video"
+          />
         </div>
+
+        <!-- Editable Text Bubble -->
+        <div class="text-bubble" contenteditable="true" spellcheck="false">
+          ${this.caption}
+          <div class="bubble-pointer">
+             <sl-icon name="pencil-fill" style="font-size:12px;"></sl-icon>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-overlay">
+          <div class="play-btn">
+             <sl-icon name="play-fill" style="color: white; font-size: 32px;"></sl-icon>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill"></div>
+          </div>
+        </div>
+        
       </div>
     `;
   }

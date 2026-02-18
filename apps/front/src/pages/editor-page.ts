@@ -1,154 +1,219 @@
-/*
- * Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
- * Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
- */
 import { LitElement, html, css } from 'lit';
-import { customElement } from 'lit/decorators.js';
-import '../components/short-player';
-import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
-import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
-import '@shoelace-style/shoelace/dist/components/tab/tab.js';
+import { customElement, state } from 'lit/decorators.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
+import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
+import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
+import '@shoelace-style/shoelace/dist/components/tab/tab.js';
+import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 import '@shoelace-style/shoelace/dist/components/range/range.js';
+import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+import '../components/short-player.js';
 
-/**
- * Editor page component.
- * 
- * Features:
- * - Video preview using ShortPlayer
- * - Editing controls (future implementation)
- * - Project metadata display
- * 
- * @element editor-page
- */
 @customElement('editor-page')
 export class EditorPage extends LitElement {
   static styles = css`
     :host {
       display: block;
       height: 100vh;
+      width: 100vw;
+      background: radial-gradient(circle at 50% 50%, #232334 0%, #111116 100%);
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
       overflow: hidden;
-      background-color: var(--yts-bg-primary);
     }
 
     .layout {
       display: grid;
-      grid-template-columns: 280px 1fr 320px;
+      grid-template-columns: 280px 1fr 340px;
       height: 100%;
+      gap: 24px;
+      padding: 24px;
+      box-sizing: border-box;
     }
 
-    /* Left Sidebar: Source */
-    .sidebar-left {
-      background-color: var(--yts-bg-secondary);
-      border-right: 1px solid var(--yts-border);
-      padding: var(--yts-spacing-md);
-      overflow-y: auto;
-    }
-
-    .sidebar-header {
-      font-size: var(--yts-font-size-lg);
-      font-weight: 600;
-      margin-bottom: var(--yts-spacing-md);
-      color: var(--yts-text-primary);
-    }
-
-    .segment-list {
+    /* Glass Panel Utilities */
+    .glass-panel {
+      background: var(--yts-glass-bg, rgba(30, 35, 50, 0.7));
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--yts-glass-border, rgba(99, 102, 241, 0.3));
+      border-radius: 20px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: var(--yts-spacing-md);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     }
-
-    .segment-card {
-      background-color: var(--yts-bg-card);
-      border-radius: var(--yts-radius-md);
-      overflow: hidden;
-      cursor: pointer;
-      transition: all var(--yts-transition-fast);
-      border: 1px solid transparent;
-    }
-
-    .segment-card:hover {
-      border-color: var(--yts-accent);
-      transform: translateY(-2px);
-    }
-
-    .segment-thumb {
-      height: 100px;
-      background-color: #000;
-      position: relative;
-    }
-
-    .segment-info {
-      padding: var(--yts-spacing-sm);
-    }
-
-    .segment-title {
-      font-size: var(--yts-font-size-sm);
+    
+    .panel-header {
+      font-size: 16px;
       font-weight: 500;
-      margin-bottom: var(--yts-spacing-xs);
-    }
-
-    .segment-meta {
-      font-size: var(--yts-font-size-xs);
-      color: var(--yts-text-muted);
-    }
-
-    /* Center: Reel */
-    .reel-container {
-      background-color: #000;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: var(--yts-spacing-xl) 0;
-      overflow-y: auto;
-      gap: var(--yts-spacing-xl);
-    }
-
-    .short-wrapper {
-      width: 100%;
-      max-width: 40vh; /* Approximate phone width relative to height */
-      flex-shrink: 0;
-    }
-
-    /* Right Sidebar: Tools */
-    .sidebar-right {
-      background-color: var(--yts-bg-secondary);
-      border-left: 1px solid var(--yts-border);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .tools-header {
-      padding: var(--yts-spacing-md);
-      border-bottom: 1px solid var(--yts-border);
+      color: #94a3b8;
+      margin-bottom: 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .tools-content {
-      padding: var(--yts-spacing-md);
-      flex: 1;
+    /* Left Sidebar: Source Segments */
+    .sidebar-left {
       overflow-y: auto;
     }
 
-    .tool-section {
-      margin-bottom: var(--yts-spacing-xl);
+    .segment-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
-    .tool-title {
-      font-size: var(--yts-font-size-sm);
+    .segment-card {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      gap: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .segment-card:hover {
+      background: rgba(99, 102, 241, 0.1);
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .segment-thumb {
+      width: 80px;
+      height: 45px;
+      background: #0f172a;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #475569;
+    }
+    
+    .segment-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    
+    .segment-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: #f1f5f9;
+        margin-bottom: 4px;
+    }
+    
+    .segment-meta {
+        font-size: 11px;
+        color: #64748b;
+    }
+
+    /* Center: Reel */
+    .reel-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .short-title {
+        position: absolute;
+        top: 0;
+        left: 0;
+        font-size: 24px;
+        font-weight: 600;
+        color: white;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    }
+
+    /* Right Sidebar: Tools */
+    .sidebar-right {
+      padding: 0; /* Tabs will handle padding */
+      overflow: hidden;
+    }
+    
+    .tools-header {
+        padding: 20px 20px 0 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .export-btn {
+      background: var(--yts-neon-blue, #4f46e5);
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
       font-weight: 600;
-      margin-bottom: var(--yts-spacing-md);
-      color: var(--yts-text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
+      transition: all 0.2s;
+    }
+    
+    .export-btn:hover {
+        box-shadow: 0 0 20px rgba(79, 70, 229, 0.6);
+        transform: translateY(-1px);
     }
 
-    sl-range {
-      margin-bottom: var(--yts-spacing-md);
-      --track-color-active: var(--yts-accent);
-      --thumb-size: 16px;
+    /* Custom Shoelace Tabs styling */
+    sl-tab-group {
+        height: 100%;
+        --indicator-color: var(--yts-neon-blue, #6366f1);
+        --track-color: rgba(255,255,255,0.05); /* Separator line */
+        padding-left: 20px; /* Left margin request */
+    }
+    
+    sl-tab {
+        color: #94a3b8;
+        font-weight: 500;
+        margin-right: 32px; /* Increased spacing between tabs */
+    }
+    
+    sl-tab[active] {
+        color: #f8fafc;
+        font-weight: 600;
+    }
+    
+    sl-tab-panel {
+        padding: 20px;
+        height: calc(100% - 50px);
+        overflow-y: auto;
+    }
+
+    .captions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .caption-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        color: #cbd5e1;
+        font-size: 13px;
+    }
+    
+    .caption-time {
+        color: #64748b;
+        font-family: monospace;
+        font-size: 11px;
+    }
+    
+    .caption-text {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
   `;
 
@@ -156,15 +221,15 @@ export class EditorPage extends LitElement {
     return html`
       <div class="layout">
         <!-- Left: Source segments -->
-        <aside class="sidebar-left">
-          <div class="sidebar-header">Source Segments</div>
+        <aside class="glass-panel sidebar-left">
+          <div class="panel-header">Source Segments</div>
           <div class="segment-list">
-            ${[1, 2, 3, 4].map(i => html`
+            ${[1, 2, 3, 4, 5].map(i => html`
               <div class="segment-card">
                 <div class="segment-thumb"></div>
                 <div class="segment-info">
                   <div class="segment-title">Viral Moment ${i}</div>
-                  <div class="segment-meta">00:12 - 00:45 • High Potential</div>
+                  <div class="segment-meta">00:${10 * i} - 00:${10 * i + 15}</div>
                 </div>
               </div>
             `)}
@@ -173,44 +238,39 @@ export class EditorPage extends LitElement {
 
         <!-- Center: Reel -->
         <main class="reel-container">
-          <div class="short-wrapper">
-            <short-player src="demo1.mp4" caption="This is the first generated short"></short-player>
-          </div>
-          <div class="short-wrapper">
-             <short-player src="demo2.mp4" caption="Another viral clip here"></short-player>
-          </div>
+          <!-- Short Player Component -->
+          <short-player src="demo.mp4" caption="Irens thelne vante huigre Stens.. in abet lhe voe tenid anger nap."></short-player>
         </main>
 
         <!-- Right: Tools -->
-        <aside class="sidebar-right">
+        <aside class="glass-panel sidebar-right">
           <div class="tools-header">
-            <span style="font-weight:600">Editor Tools</span>
-            <sl-button variant="primary" size="small">Export All</sl-button>
+            <span style="font-weight:600; color:#f8fafc;">Audio</span>
+            <button class="export-btn">Export</button>
           </div>
           
-          <div class="tools-content">
-            <sl-tab-group>
-              <sl-tab slot="nav" panel="audio">Audio</sl-tab>
-              <sl-tab slot="nav" panel="captions">Captions</sl-tab>
-              <sl-tab slot="nav" panel="style">Style</sl-tab>
-              
-              <sl-tab-panel name="audio">
-                <div class="tool-section">
-                  <div class="tool-title">Mixer</div>
-                  <sl-range label="Voice Volume" min="0" max="100" value="80"></sl-range>
-                  <sl-range label="Music Volume" min="0" max="100" value="30"></sl-range>
-                </div>
-              </sl-tab-panel>
-              
-              <sl-tab-panel name="captions">
-                <div class="tool-section">
-                  <div class="tool-title">Typography</div>
-                  <!-- Font controls would go here -->
-                  <sl-button size="small" variant="default" style="width:100%">Auto-Caption</sl-button>
-                </div>
-              </sl-tab-panel>
-            </sl-tab-group>
-          </div>
+          <sl-tab-group>
+            <sl-tab slot="nav" panel="captions">Captions</sl-tab>
+            <sl-tab slot="nav" panel="style">Style</sl-tab>
+            
+            <sl-tab-panel name="captions">
+               <div class="captions-list">
+                 ${[1, 2, 3, 4, 5].map(i => html`
+                    <div class="caption-item">
+                        <sl-icon name="lock" style="color:#64748b; font-size: 14px;"></sl-icon>
+                        <div class="caption-text">Caption line number ${i} text content...</div>
+                        <div class="caption-time">00:${i * 5}</div>
+                    </div>
+                 `)}
+               </div>
+            </sl-tab-panel>
+            
+            <sl-tab-panel name="style">
+               <div style="color:#94a3b8; font-size:13px; text-align:center; padding-top:20px;">
+                  Style controls coming soon...
+               </div>
+            </sl-tab-panel>
+          </sl-tab-group>
         </aside>
       </div>
     `;
