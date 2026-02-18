@@ -25,4 +25,10 @@ export interface ProjectResponse {
 
     /** Video codec (optional, e.g. "h264") */
     codec?: string;
+
+    /** User has acknowledged data deletion policy */
+    deletionPolicyAcknowledged?: boolean;
+
+    /** User consent for AI learning */
+    aiLearningConsent?: boolean;
 }

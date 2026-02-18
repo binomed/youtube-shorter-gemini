@@ -45,6 +45,8 @@ describe('VideoController', () => {
   describe('createProject', () => {
     const mockCreateProjectDto: CreateProjectDto = {
       name: 'Test Project',
+      deletionPolicyAcknowledged: true,
+      aiLearningConsent: false,
     };
 
     const mockFile: Express.Multer.File = {
@@ -76,7 +78,7 @@ describe('VideoController', () => {
         data: mockProject,
       });
       expect(service.createProject).toHaveBeenCalledWith(
-        'Test Project',
+        mockCreateProjectDto,
         mockFile,
       );
     });
@@ -107,7 +109,7 @@ describe('VideoController', () => {
 
     it('should throw error if no file provided', async () => {
       await expect(
-        controller.createProject(mockCreateProjectDto, undefined),
+        controller.createProject(mockCreateProjectDto, undefined as any),
       ).rejects.toThrow(
         new HttpException('Video file is required', HttpStatus.BAD_REQUEST),
       );
@@ -123,7 +125,7 @@ describe('VideoController', () => {
         controller.createProject(mockCreateProjectDto, invalidFile),
       ).rejects.toThrow(
         new HttpException(
-          'Invalid file format. Only MP4 and MOV files are accepted.',
+          'Invalid file format. Only .mp4, .mov, .avi, .mkv files are accepted.',
           HttpStatus.BAD_REQUEST,
         ),
       );

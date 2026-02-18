@@ -2,41 +2,118 @@
  * Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
  * Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
  */
+@import "tailwindcss";
+
+/* ========== Design Tokens ========== */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  /* Colors - Dark Theme (default) */
+  --yts-bg-primary: #0a0a0f;
+  --yts-bg-secondary: #12121a;
+  --yts-bg-card: #1a1a2e;
+  --yts-bg-hover: #252540;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  --yts-text-primary: #f0f0f5;
+  --yts-text-secondary: #9ca3af;
+  --yts-text-muted: #6b7280;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  --yts-accent: #6366f1;
+  --yts-accent-hover: #818cf8;
+  --yts-accent-glow: rgba(99, 102, 241, 0.3);
+
+  --yts-success: #22c55e;
+  --yts-warning: #f59e0b;
+  --yts-error: #ef4444;
+
+  --yts-border: #2d2d44;
+  --yts-border-focus: #6366f1;
+
+  /* Spacing */
+  --yts-spacing-xs: 0.25rem;
+  --yts-spacing-sm: 0.5rem;
+  --yts-spacing-md: 1rem;
+  --yts-spacing-lg: 1.5rem;
+  --yts-spacing-xl: 2rem;
+  --yts-spacing-2xl: 3rem;
+
+  /* Border Radius */
+  --yts-radius-sm: 0.375rem;
+  --yts-radius-md: 0.5rem;
+  --yts-radius-lg: 0.75rem;
+  --yts-radius-xl: 1rem;
+
+  /* Typography */
+  --yts-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --yts-font-size-xs: 0.75rem;
+  --yts-font-size-sm: 0.875rem;
+  --yts-font-size-base: 1rem;
+  --yts-font-size-lg: 1.125rem;
+  --yts-font-size-xl: 1.25rem;
+  --yts-font-size-2xl: 1.5rem;
+  --yts-font-size-3xl: 2rem;
+
+  /* Transitions */
+  --yts-transition-fast: 150ms ease;
+  --yts-transition-normal: 250ms ease;
+  --yts-transition-slow: 350ms ease;
+
+  /* Shadows */
+  --yts-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --yts-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --yts-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --yts-shadow-glow: 0 0 20px var(--yts-accent-glow);
+}
+
+/* ========== Global Styles ========== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--yts-font-family);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--yts-text-primary);
+  background-color: var(--yts-bg-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+  text-rendering: optimizeLegibility;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
+/* ========== Focus Styles (WCAG 2.1 AA) ========== */
+:focus-visible {
+  outline: 2px solid var(--yts-accent);
+  outline-offset: 2px;
+  border-radius: var(--yts-radius-sm);
+}
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--yts-bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--yts-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--yts-text-muted);
+}
+
+/* ========== Selection ========== */
+::selection {
+  background: var(--yts-accent);
+  color: white;
 }

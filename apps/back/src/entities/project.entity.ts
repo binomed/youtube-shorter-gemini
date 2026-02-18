@@ -37,6 +37,20 @@ export class Project {
   name: string;
 
   /**
+   * User has acknowledged that data is processed locally and can be deleted
+   * FR-03 compliance
+   */
+  @Column({ type: 'boolean', default: false })
+  deletionPolicyAcknowledged: boolean;
+
+  /**
+   * User consent for sharing anonymized data for AI learning
+   * FR-13 compliance
+   */
+  @Column({ type: 'boolean', default: false })
+  aiLearningConsent: boolean;
+
+  /**
    * Path to the video file
    *
    * For desktop local use case (Story 1.1): References user's original file path

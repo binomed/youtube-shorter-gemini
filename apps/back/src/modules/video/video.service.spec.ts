@@ -57,6 +57,12 @@ describe('VideoService', () => {
         path: '/Users/test/Videos/my-video.mp4', // Original file path
       } as Express.Multer.File;
 
+      const mockCreateProjectDto = {
+        name: 'My Video Project',
+        deletionPolicyAcknowledged: true,
+        aiLearningConsent: false,
+      };
+
       const mockMetadata = {
         duration: 120.5,
         resolution: '1920x1080',
@@ -72,6 +78,8 @@ describe('VideoService', () => {
         duration: 120.5,
         resolution: '1920x1080',
         codec: 'h264',
+        deletionPolicyAcknowledged: true,
+        aiLearningConsent: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -83,7 +91,7 @@ describe('VideoService', () => {
       jest.spyOn(projectRepository, 'create').mockReturnValue(mockProject);
       jest.spyOn(projectRepository, 'save').mockResolvedValue(mockProject);
 
-      const result = await service.createProject('My Video Project', mockFile);
+      const result = await service.createProject(mockCreateProjectDto, mockFile);
 
       // Verify project creation
       expect(result).toEqual({
@@ -94,6 +102,8 @@ describe('VideoService', () => {
         duration: 120.5,
         resolution: '1920x1080',
         codec: 'h264',
+        deletionPolicyAcknowledged: true,
+        aiLearningConsent: false,
       });
       expect(projectRepository.save).toHaveBeenCalledWith(mockProject);
 

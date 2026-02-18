@@ -1,10 +1,10 @@
 // Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ProjectResponse } from '@youtube-shorter/shared';
+import { ProjectResponse, CreateProjectDto } from '@youtube-shorter/shared';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { Project } from '../../entities/project.entity';
 import {
@@ -44,7 +44,7 @@ export class VideoService {
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
     private readonly ffmpegService: FFmpegService,
-  ) {}
+  ) { }
 
   /**
    * Create a new project with uploaded video
@@ -66,14 +66,16 @@ export class VideoService {
    * 3. Create and save project to database
    * 4. Return complete project
    *
-   * @param name - Project name
+   * @param createProjectDto - Project creation data including consents
    * @param file - Uploaded video file (contains original path)
    * @returns Created project with metadata
    */
   async createProject(
-    name: string,
+    createProjectDto: CreateProjectDto,
     file: Express.Multer.File,
   ): Promise<ProjectResponse> {
+    const { name, deletionPolicyAcknowledged, aiLearningConsent } = createProjectDto;
+
     // Validate and sanitize file path (Issue #2: Security)
     // Ensure we have a valid file path, prefer file.path over user-controlled originalname
     if (!file.path) {
@@ -114,6 +116,8 @@ export class VideoService {
     const project = this.projectRepository.create({
       name,
       videoPath,
+      deletionPolicyAcknowledged,
+      aiLearningConsent: aiLearningConsent || false,
       ...(metadata && {
         duration: metadata.duration,
         resolution: metadata.resolution,
@@ -145,9 +149,55 @@ export class VideoService {
       name: savedProject.name,
       videoPath: savedProject.videoPath,
       createdAt: savedProject.createdAt.toISOString(),
+      deletionPolicyAcknowledged: savedProject.deletionPolicyAcknowledged,
+      aiLearningConsent: savedProject.aiLearningConsent,
       ...(savedProject.duration && { duration: savedProject.duration }),
       ...(savedProject.resolution && { resolution: savedProject.resolution }),
       ...(savedProject.codec && { codec: savedProject.codec }),
     };
+  }
+
+  /**
+   * Get a project by ID
+   *
+   * @param id - Project UUID
+   * @returns Project response DTO
+   * @throws NotFoundException if project not found
+   */
+  async getProject(id: string): Promise<ProjectResponse> {
+    const project = await this.projectRepository.findOne({ where: { id } });
+
+    if (!project) {
+      throw new NotFoundException(`Project with ID "${id}" not found`);
+    }
+
+    return {
+      id: project.id,
+      name: project.name,
+      videoPath: project.videoPath,
+      createdAt: project.createdAt.toISOString(),
+      deletionPolicyAcknowledged: project.deletionPolicyAcknowledged,
+      aiLearningConsent: project.aiLearningConsent,
+      ...(project.duration && { duration: project.duration }),
+      ...(project.resolution && { resolution: project.resolution }),
+      ...(project.codec && { codec: project.codec }),
+    };
+  }
+
+  /**
+   * Get the validated video file path for a project
+   *
+   * @param id - Project UUID
+   * @returns Absolute path to the video file
+   * @throws NotFoundException if project not found
+   */
+  async getVideoPath(id: string): Promise<string> {
+    const project = await this.projectRepository.findOne({ where: { id } });
+
+    if (!project) {
+      throw new NotFoundException(`Project with ID "${id}" not found`);
+    }
+
+    return project.videoPath;
   }
 }
