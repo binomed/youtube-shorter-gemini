@@ -3,7 +3,7 @@
  * Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
  */
 import axios, { type AxiosRequestConfig } from 'axios';
-import { CreateProjectDto, type ProjectResponse } from '@youtube-shorter/shared';
+import { CreateProjectDto, type ProjectResponse, type ShortResponse, type AnalysisResponse } from '@youtube-shorter/shared';
 
 /**
  * API response wrapper from backend
@@ -22,7 +22,8 @@ export type UploadProgressCallback = (percentage: number) => void;
  * ProjectService handles communication with the backend API
  *
  * Uses Axios for robust HTTP requests and upload progress tracking.
- * Provides methods for configuration retrieval and project creation.
+ * Provides methods for configuration retrieval, project creation,
+ * and AI analysis.
  *
  * @service
  */
@@ -35,12 +36,6 @@ export class ProjectService {
 
     /**
      * Get upload configuration from backend
-     *
-     * Fetches dynamic limits (max file size) and allowed formats from the server.
-     * This ensures the frontend validation matches backend logic.
-     *
-     * @returns Configuration object
-     * @throws Error if configuration cannot be loaded
      */
     async getConfig(): Promise<{
         maxVideoSizeMb: number;
@@ -62,15 +57,6 @@ export class ProjectService {
 
     /**
      * Create a new project by uploading a video file
-     *
-     * Uploads the video file along with metadata (name, consent flags) using multipart/form-data.
-     * Tracks upload progress via Axios's onUploadProgress event.
-     *
-     * @param dto - Project creation DTO (name, consents)
-     * @param videoFile - Video file to upload
-     * @param onProgress - Optional callback for upload progress (0-100)
-     * @returns Created project data
-     * @throws Error if upload fails or server returns an error
      */
     async createProject(
         dto: CreateProjectDto,
@@ -116,7 +102,105 @@ export class ProjectService {
             throw new Error('An unexpected error occurred during upload');
         }
     }
+
+    /**
+     * Trigger AI analysis for a project's video.
+     * The analysis runs server-side (FFmpeg → Gemini → DB).
+     *
+     * @param projectId - UUID of the project
+     * @returns Analysis result with detected shorts
+     */
+    async analyzeProject(projectId: string): Promise<AnalysisResponse> {
+        try {
+            const response = await axios.post<AnalysisResponse>(
+                `${this.baseUrl}/projects/${projectId}/analyze`
+            );
+            return response.data;
+        } catch (error: any) {
+            if (axios.isAxiosError(error)) {
+                const message = error.response?.data?.message || error.message || 'Analysis failed';
+                throw new Error(message);
+            }
+            throw new Error('An unexpected error occurred during analysis');
+        }
+    }
+
+    /**
+     * Get existing shorts for a project.
+     *
+     * @param projectId - UUID of the project
+     * @returns Array of shorts
+     */
+    async getShorts(projectId: string): Promise<ShortResponse[]> {
+        try {
+            const response = await axios.get<ShortResponse[]>(
+                `${this.baseUrl}/projects/${projectId}/shorts`
+            );
+            return response.data;
+        } catch (error: any) {
+            if (axios.isAxiosError(error)) {
+                const message = error.response?.data?.message || error.message || 'Failed to load shorts';
+                throw new Error(message);
+            }
+            throw new Error('An unexpected error occurred');
+        }
+    }
+
+    /**
+     * Get all projects
+     */
+    async getProjects(): Promise<ProjectResponse[]> {
+        try {
+            const response = await axios.get<ApiResponse<ProjectResponse[]>>(
+                `${this.baseUrl}/projects`
+            );
+            return response.data.data;
+        } catch (error: any) {
+            if (axios.isAxiosError(error)) {
+                const message = error.response?.data?.message || error.message || 'Failed to fetch projects';
+                throw new Error(message);
+            }
+            throw new Error('An unexpected error occurred while fetching projects');
+        }
+    }
+
+    /**
+     * Delete a project
+     */
+    async deleteProject(id: string): Promise<void> {
+        try {
+            await axios.delete(`${this.baseUrl}/projects/${id}`);
+        } catch (error: any) {
+            if (axios.isAxiosError(error)) {
+                const message = error.response?.data?.message || error.message || 'Failed to delete project';
+                throw new Error(message);
+            }
+            throw new Error('An unexpected error occurred while deleting project');
+        }
+    }
+
+    /**
+     * Get project by ID
+     *
+     * @param id - Project UUID
+     * @returns Project data
+     */
+    async getProject(id: string): Promise<ProjectResponse> {
+        try {
+            const response = await axios.get<ApiResponse<ProjectResponse>>(
+                `${this.baseUrl}/projects/${id}`
+            );
+            return response.data.data;
+        } catch (error: any) {
+            if (axios.isAxiosError(error)) {
+                const message = error.response?.data?.message || error.message || 'Failed to fetch project';
+                throw new Error(message);
+            }
+            throw new Error('An unexpected error occurred while fetching project');
+        }
+    }
 }
 
 /** Singleton instance */
 export const projectService = new ProjectService();
+

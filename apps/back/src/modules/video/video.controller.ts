@@ -19,6 +19,7 @@ import {
   ValidationPipe,
   NotFoundException,
   StreamableFile,
+  Delete,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { createReadStream, existsSync } from 'fs';
@@ -173,5 +174,33 @@ export class VideoController {
 
     const fileStream = createReadStream(videoPath);
     return new StreamableFile(fileStream);
+  }
+  /**
+   * Get all projects
+   *
+   * @returns List of all projects
+   */
+  @Get()
+  async findAll() {
+    const projects = await this.videoService.findAll();
+    return {
+      success: true,
+      data: projects,
+    };
+  }
+
+  /**
+   * Delete a project
+   *
+   * @param id - Project UUID
+   * @returns Success status
+   */
+  @Delete(':id')
+  async deleteProject(@Param('id') id: string) {
+    await this.videoService.deleteProject(id);
+    return {
+      success: true,
+      message: 'Project deleted successfully',
+    };
   }
 }
