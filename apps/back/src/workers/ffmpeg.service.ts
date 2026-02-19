@@ -32,7 +32,7 @@ export class FFmpegService {
   // Dependencies removed: @ffmpeg/ffmpeg, @ffmpeg/util, fs/promises (for cache)
   // Configuration FFMPEG_CACHE_DIR is now unused but kept in Config for compatibility if needed later.
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly configService: ConfigService) { }
 
   /**
    * Extract metadata from video file using ffprobe
@@ -92,6 +92,59 @@ export class FFmpegService {
       this.logger.error(`Failed to extract metadata: ${error.message}`);
       // Throw error to propagate failure (Fail Fast requirement)
       throw new Error(`Metadata extraction failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract a single frame as a thumbnail from the video
+   *
+   * @param videoPath - Absolute path to video file
+   * @param outputPath - Absolute path where thumbnail should be saved
+   * @param timestamp - Time in seconds to extract frame from
+   * @returns void
+   */
+  async extractThumbnail(videoPath: string, outputPath: string, timestamp: number): Promise<void> {
+    try {
+      // ffmpeg -ss <timestamp> -i <videoPath> -vframes 1 -q:v 2 -y <outputPath>
+      // -ss: seek to position (fast seek before input)
+      // -vframes 1: output one frame
+      // -q:v 2: high quality jpeg (2-5 is good range)
+      // -y: overwrite output
+
+      const command = `ffmpeg -ss ${timestamp} -i "${videoPath}" -vframes 1 -q:v 2 -y "${outputPath}"`;
+
+      this.logger.debug(`Generating thumbnail: ${command}`);
+
+      const execAsync = promisify(exec);
+      await execAsync(command);
+    } catch (error) {
+      this.logger.error(`Failed to extract thumbnail: ${(error as Error).message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Extract audio track from video file
+   *
+   * @param videoPath - Absolute path to video file
+   * @param outputPath - Absolute path where audio should be saved (e.g. .mp3 or .wav)
+   */
+  async extractAudio(videoPath: string, outputPath: string): Promise<void> {
+    try {
+      // ffmpeg -i <videoPath> -vn -acodec libmp3lame -q:a 2 <outputPath>
+      // -vn: disable video recording
+      // -acodec libmp3lame: use mp3 codec
+      // -q:a 2: variable bit rate (VBR) quality level 2 (approx 190kbps)
+
+      const command = `ffmpeg -i "${videoPath}" -vn -acodec libmp3lame -q:a 2 -y "${outputPath}"`;
+
+      this.logger.debug(`Extracting audio: ${command}`);
+
+      const execAsync = promisify(exec);
+      await execAsync(command);
+    } catch (error) {
+      this.logger.error(`Failed to extract audio: ${(error as Error).message}`);
+      throw error;
     }
   }
 }
