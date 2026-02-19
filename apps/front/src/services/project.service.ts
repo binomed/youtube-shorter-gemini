@@ -63,6 +63,7 @@ export class ProjectService {
         videoFile: File,
         onProgress?: UploadProgressCallback,
     ): Promise<ProjectResponse> {
+        console.log('DEBUG: projectService.createProject called', { dto, videoFile });
         const formData = new FormData();
 
         formData.append('name', dto.name);
@@ -87,14 +88,17 @@ export class ProjectService {
                 },
             };
 
+            console.log('DEBUG: Sending axios request to', `${this.baseUrl}/projects`);
             const response = await axios.post<ApiResponse<ProjectResponse>>(
                 `${this.baseUrl}/projects`,
                 formData,
                 config
             );
+            console.log('DEBUG: Axios response received', response.status);
 
             return response.data.data;
         } catch (error: any) {
+            console.error('DEBUG: Axios error', error);
             if (axios.isAxiosError(error)) {
                 const message = error.response?.data?.message || error.message || 'Upload failed';
                 throw new Error(message);

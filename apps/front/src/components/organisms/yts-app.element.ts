@@ -54,17 +54,19 @@ export class YtsApp extends LitElement {
     try {
       // Upload video to backend first
       const dto = { name, deletionPolicyAcknowledged: true, aiLearningConsent: false };
+      console.log('DEBUG: Uploading project with DTO:', dto);
       const projectResponse = await projectService.createProject(dto, file);
-      console.log('Project uploaded successfully:', projectResponse);
+      console.log('DEBUG: Project uploaded successfully:', projectResponse);
 
       // Update global state
       setProject(projectResponse);
 
       // Navigate to analysis page
       Router.go(`/analysis/${projectResponse.id}`);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to upload project:', err);
-      // TODO: Show error toast to user
+      // Show error to user for debugging
+      alert(`Upload Failed: ${err.message || 'Unknown error'}`);
     }
   }
 

@@ -46,3 +46,5 @@ coverage
 
 # BMAD artifacts (keep planning, exclude validation reports)
 _bmad-output/planning-artifacts/validation-report-*
+
+tests
