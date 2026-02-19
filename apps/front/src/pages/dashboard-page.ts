@@ -188,56 +188,72 @@ export class DashboardPage extends LitElement {
       color: var(--yts-text-3); /* Better contrast */
       text-align: center;
     }
-    /* Browser Tab Styling */
+    /* Browser Tab Styling converted to Toggle/Segmented Control */
     sl-tab-group {
       --indicator-color: transparent;
       --track-color: transparent;
-      margin-top: -20px; /* Pull tabs closer to top */
+      margin-top: -20px;
+      margin-bottom: 20px;
     }
 
     sl-tab-group::part(nav) {
-        /* Remove pill styling */
-        padding: 0;
-        margin-bottom: 0;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 999px;
+      padding: 4px;
+      display: inline-flex;
+      position: relative;
     }
 
+    /* Target the HOST element for layout/positioning */
     sl-tab {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-bottom: none;
-      border-radius: 12px 12px 0 0;
-      margin-right: 4px;
+      margin: 0;
+      padding: 0;
+      height: 40px;
+    }
+
+    /* Target the INTERNAL PART for visual styling */
+    sl-tab::part(base) {
+      background: transparent;
+      border: none;
+      border-radius: 999px;
       color: var(--yts-text-3);
       font-weight: 500;
-      transition: all 0.2s ease;
-      padding: 0 24px;
-      height: 48px; /* Fixed height for consistency */
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: 0 24px; /* Move padding to the base part */
+      height: 100%;
+      opacity: 1; /* Override any potential default opacity */
     }
 
-    sl-tab:hover {
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--yts-text-2);
-    }
-
-    sl-tab[active] {
-      background: rgba(99, 102, 241, 0.1); /* Subtle blue tint matching glass card */
-      border: 1px solid var(--yts-border); /* Match card border */
-      border-bottom: 1px solid transparent; /* seamless connection */
+    sl-tab:hover::part(base) {
       color: var(--yts-text-1);
+    }
+
+    /* Active State targeting the PART */
+    sl-tab[active]::part(base) {
+      background: #9D50FF; /* Requested Purple */
+      color: white; /* Important for contrast */
       font-weight: 600;
-      text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
-      position: relative;
-      z-index: 1; /* Sit above the panel border */
-      margin-bottom: -1px; /* Overlap panel border */
-      box-shadow: none; /* Remove toggle shadow */
+      box-shadow: 0 4px 12px rgba(157, 80, 255, 0.4);
+    }
+
+    /* Cleanup focus interactions */
+    sl-tab:focus-visible::part(base) {
+        outline: 2px solid #9D50FF;
+        outline-offset: 2px;
     }
 
     sl-tab-panel::part(base) {
-        padding: 24px 0 0 0;
-        border-top: 1px solid var(--yts-border); /* define top border of content area */
-        margin-top: -1px; /* connected to tabs */
+        padding: 0;
+        border-top: none; 
+        margin-top: 20px;
         position: relative;
         z-index: 0;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
     /* Custom scrollbar for project list */
