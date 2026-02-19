@@ -10,6 +10,9 @@ export default defineConfig({
     plugins: [
         tailwindcss(),
     ],
+    optimizeDeps: {
+        include: ['@youtube-shorter/shared'],
+    },
     server: {
         proxy: {
             '/api': {

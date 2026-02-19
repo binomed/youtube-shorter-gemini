@@ -14,8 +14,10 @@
     "test:a11y": "vitest run test/accessibility.spec.ts"
   },
   "dependencies": {
+    "@lit-labs/signals": "^0.2.0",
     "@shoelace-style/shoelace": "^2.20.1",
     "@tailwindcss/vite": "^4.1.18",
+    "@vaadin/router": "^2.0.1",
     "@youtube-shorter/shared": "*",
     "axios": "^1.13.5",
     "lit": "^3.3.1",
