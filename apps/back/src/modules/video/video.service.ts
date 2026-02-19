@@ -6,10 +6,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectResponse, CreateProjectDto } from '@youtube-shorter/shared';
 import { FFmpegService } from '../../workers/ffmpeg.service';
+import { CleanupService } from './cleanup.service';
 import { Project } from '../../entities/project.entity';
 import {
   validateAbsolutePath,
   validateFileExtension,
+  validateFileSignature,
 } from '../../utils/file-validation';
 
 /**
@@ -44,6 +46,7 @@ export class VideoService {
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
     private readonly ffmpegService: FFmpegService,
+    private readonly cleanupService: CleanupService,
   ) { }
 
   /**
@@ -92,6 +95,9 @@ export class VideoService {
     const allowedExtensions = ['.mp4', '.mov', '.avi', '.mkv'];
     try {
       validateFileExtension(file.originalname || videoPath, allowedExtensions);
+
+      // Issue #3: Secure file validation using magic bytes
+      await validateFileSignature(videoPath);
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -151,6 +157,8 @@ export class VideoService {
       createdAt: savedProject.createdAt.toISOString(),
       deletionPolicyAcknowledged: savedProject.deletionPolicyAcknowledged,
       aiLearningConsent: savedProject.aiLearningConsent,
+      isExported: savedProject.isExported,
+      isAnalyzed: !!savedProject.transcript,
       ...(savedProject.duration && { duration: savedProject.duration }),
       ...(savedProject.resolution && { resolution: savedProject.resolution }),
       ...(savedProject.codec && { codec: savedProject.codec }),
@@ -178,10 +186,43 @@ export class VideoService {
       createdAt: project.createdAt.toISOString(),
       deletionPolicyAcknowledged: project.deletionPolicyAcknowledged,
       aiLearningConsent: project.aiLearningConsent,
+      isExported: project.isExported,
+      isAnalyzed: !!project.transcript,
       ...(project.duration && { duration: project.duration }),
       ...(project.resolution && { resolution: project.resolution }),
       ...(project.codec && { codec: project.codec }),
     };
+  }
+
+  /**
+   * Get all projects sorted by creation date (newest first)
+   */
+  async findAll(): Promise<ProjectResponse[]> {
+    const projects = await this.projectRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+
+    return projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      videoPath: project.videoPath,
+      createdAt: project.createdAt.toISOString(),
+      deletionPolicyAcknowledged: project.deletionPolicyAcknowledged,
+      aiLearningConsent: project.aiLearningConsent,
+      isExported: project.isExported,
+      isAnalyzed: !!project.transcript, // Derived field
+      ...(project.duration && { duration: project.duration }),
+      ...(project.resolution && { resolution: project.resolution }),
+      ...(project.codec && { codec: project.codec }),
+    }));
+  }
+
+  /**
+   * Delete a project and clean up associated data
+   */
+  async deleteProject(id: string): Promise<void> {
+    this.logger.log(`Request to delete project: ${id}`);
+    await this.cleanupService.deleteProject(id);
   }
 
   /**

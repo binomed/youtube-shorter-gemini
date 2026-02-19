@@ -31,4 +31,10 @@ export interface ProjectResponse {
 
     /** User consent for AI learning */
     aiLearningConsent?: boolean;
+
+    /** Project has been exported */
+    isExported?: boolean;
+
+    /** Project has been analyzed (has transcript) */
+    isAnalyzed?: boolean;
 }
