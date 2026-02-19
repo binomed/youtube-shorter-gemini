@@ -3,7 +3,7 @@
  * Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
  */
 import { LitElement, html, css } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state, query } from 'lit/decorators.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 
@@ -20,14 +20,52 @@ import '@shoelace-style/shoelace/dist/components/button/button.js';
  */
 @customElement('short-player')
 export class ShortPlayer extends LitElement {
+  @property({ type: String }) src = '';
+  @property({ type: String }) caption = '';
+
+  @query('video') videoElement!: HTMLVideoElement;
+  @state() private isPlaying = false;
+  @state() private currentTime = 0;
+  @state() private duration = 0;
+
+  private togglePlay() {
+    if (!this.videoElement) return;
+    if (this.videoElement.paused) {
+      this.videoElement.play();
+      this.isPlaying = true;
+    } else {
+      this.videoElement.pause();
+      this.isPlaying = false;
+    }
+  }
+
+  private handleTimeUpdate() {
+    this.currentTime = this.videoElement.currentTime;
+  }
+
+  private handleLoadedMetadata() {
+    this.duration = this.videoElement.duration;
+  }
+
+  private handleEnded() {
+    this.isPlaying = false;
+  }
+
+  private formatTime(seconds: number): string {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
   static styles = css`
     :host {
       display: block;
       width: 100%;
       height: 100%;
-      max-width: 400px; /* Typical phone width */
+      max-width: 405px; /* 720p portrait width (720 * 9/16 = 405) */
       aspect-ratio: 9/16;
       position: relative;
+      margin: 0 auto; /* Center in parent */
     }
 
     .player-container {
@@ -51,6 +89,7 @@ export class ShortPlayer extends LitElement {
       justify-content: center;
       color: #475569;
       font-size: 14px;
+      cursor: pointer;
     }
     
     /* Top Overlay (Header) */
@@ -114,28 +153,30 @@ export class ShortPlayer extends LitElement {
     /* Controls Overlay */
     .controls-overlay {
       position: absolute;
-      bottom: 40px;
+      bottom: 30px;
       left: 0;
       right: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
       z-index: 20;
+      padding: 0 20px;
     }
     
     .play-btn {
         background: rgba(255, 255, 255, 0.2);
         backdrop-filter: blur(4px);
         border-radius: 50%;
-        width: 64px;
-        height: 64px;
+        width: 56px;
+        height: 56px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         transition: all 0.2s;
         border: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 8px; /* Space between btn and bar */
     }
     
     .play-btn:hover {
@@ -143,27 +184,41 @@ export class ShortPlayer extends LitElement {
         transform: scale(1.05);
     }
     
+    .progress-container {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .time-display {
+        font-family: monospace;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        min-width: 80px;
+        text-align: center;
+    }
+    
     .progress-bar {
-        width: 80%;
+        flex: 1;
         height: 4px;
         background: rgba(255,255,255,0.2);
         border-radius: 2px;
         position: relative;
+        cursor: pointer;
     }
     
     .progress-fill {
-        width: 30%;
         height: 100%;
         background: white;
         border-radius: 2px;
+        transition: width 0.1s linear;
     }
-    
   `;
 
-  @property({ type: String }) src = '';
-  @property({ type: String }) caption = '';
-
   render() {
+    const progressPercent = this.duration > 0 ? (this.currentTime / this.duration) * 100 : 0;
+
     return html`
       <div class="player-container">
       
@@ -174,13 +229,16 @@ export class ShortPlayer extends LitElement {
         </div>
 
         <!-- Video Content -->
-        <div class="video-surface">
-          <!-- Real video would go here -->
-          <img 
-            src="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" 
-            style="width:100%; height:100%; object-fit:cover; opacity:0.6;"
-            alt="Demo Video"
-          />
+        <div class="video-surface" @click="${this.togglePlay}">
+          <video 
+            src="${this.src}" 
+            style="width: 100%; height: 100%; object-fit: cover;" 
+            loop 
+            playsinline
+            @timeupdate="${this.handleTimeUpdate}"
+            @loadedmetadata="${this.handleLoadedMetadata}"
+            @ended="${this.handleEnded}"
+          ></video>
         </div>
 
         <!-- Editable Text Bubble -->
@@ -193,16 +251,30 @@ export class ShortPlayer extends LitElement {
 
         <!-- Controls -->
         <div class="controls-overlay">
-          <div class="play-btn">
-             <sl-icon name="play-fill" style="color: white; font-size: 32px;"></sl-icon>
+          <div class="play-btn" @click="${(e: Event) => { e.stopPropagation(); this.togglePlay(); }}">
+             <sl-icon name="${this.isPlaying ? 'pause-fill' : 'play-fill'}" style="color: white; font-size: 28px;"></sl-icon>
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill"></div>
+          
+          <div class="progress-container">
+             <div class="time-display">
+                ${this.formatTime(this.currentTime)} / ${this.formatTime(this.duration)}
+             </div>
+             <div class="progress-bar" @click="${this.seek}">
+                <div class="progress-fill" style="width: ${progressPercent}%"></div>
+             </div>
           </div>
         </div>
         
       </div>
     `;
+  }
+
+  private seek(e: MouseEvent) {
+    if (!this.duration || !this.videoElement) return;
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = x / rect.width;
+    this.videoElement.currentTime = percent * this.duration;
   }
 }
 

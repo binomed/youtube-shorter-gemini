@@ -1,5 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { SignalWatcher } from '@lit-labs/signals';
+import { Router, type BeforeEnterObserver, type RouterLocation } from '@vaadin/router';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
@@ -8,9 +10,64 @@ import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 import '@shoelace-style/shoelace/dist/components/range/range.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '../components/short-player.js';
+import { projectService } from '../services/project.service.js';
+import { projectSignal, setProject } from '../state/project.state.js';
+import type { ShortResponse } from '@youtube-shorter/shared';
 
 @customElement('editor-page')
-export class EditorPage extends LitElement {
+export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnterObserver {
+  @state() private shorts: ShortResponse[] = [];
+  @state() private loading = true;
+
+  async onBeforeEnter(location: RouterLocation) {
+    const projectId = location.params.projectId as string;
+
+    // Fetch project if not already loaded or if ID mismatch
+    const currentProject = (projectSignal as any).value;
+    if (!currentProject || currentProject.id !== projectId) {
+      try {
+        const project = await projectService.getProject(projectId);
+        setProject(project);
+      } catch (e) {
+        console.error('Failed to load project:', e);
+        // TODO: Navigate to dashboard or show error
+      }
+    }
+
+    // Load shorts for the project
+    await this.loadShorts();
+  }
+
+  private playShort(short: ShortResponse) {
+    const player = this.shadowRoot?.querySelector('short-player') as any;
+    if (player && player.videoElement) {
+      player.videoElement.currentTime = short.startTime;
+      player.videoElement.play();
+    }
+  }
+
+  private async loadShorts() {
+    const projectId = (projectSignal as any).value?.id;
+    if (!projectId) {
+      this.loading = false;
+      return;
+    }
+    try {
+      this.shorts = await projectService.getShorts(projectId);
+    } catch (e) {
+      console.error('Failed to load shorts:', e);
+    }
+    this.loading = false;
+  }
+
+  /**
+   * Format seconds to MM:SS display
+   */
+  private formatTime(seconds: number): string {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
   static styles = css`
     :host {
       display: block;
@@ -20,6 +77,15 @@ export class EditorPage extends LitElement {
       color: #e2e8f0;
       font-family: 'Inter', sans-serif;
       overflow: hidden;
+    .home-button-icon {
+      color: #94a3b8;
+      font-size: 20px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .home-button-icon:hover {
+      color: #f8fafc;
     }
 
     .layout {
@@ -50,8 +116,9 @@ export class EditorPage extends LitElement {
       color: #94a3b8;
       margin-bottom: 20px;
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-start; /* Changed from space-between */
       align-items: center;
+      gap: 12px;
     }
 
     /* Left Sidebar: Source Segments */
@@ -65,181 +132,56 @@ export class EditorPage extends LitElement {
       gap: 12px;
     }
 
-    .segment-card {
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 12px;
-      padding: 12px;
-      display: flex;
-      gap: 12px;
-      cursor: pointer;
-      border: 1px solid transparent;
-      transition: all 0.2s ease;
-    }
-
-    .segment-card:hover {
-      background: rgba(99, 102, 241, 0.1);
-      border-color: rgba(99, 102, 241, 0.4);
-    }
-
-    .segment-thumb {
-      width: 80px;
-      height: 45px;
-      background: #0f172a;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #475569;
-    }
-    
-    .segment-info {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-    
-    .segment-title {
-        font-size: 13px;
-        font-weight: 500;
-        color: #f1f5f9;
-        margin-bottom: 4px;
-    }
-    
-    .segment-meta {
-        font-size: 11px;
-        color: #64748b;
-    }
-
-    /* Center: Reel */
-    .reel-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-    
-    .short-title {
-        position: absolute;
-        top: 0;
-        left: 0;
-        font-size: 24px;
-        font-weight: 600;
-        color: white;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-    }
-
-    /* Right Sidebar: Tools */
-    .sidebar-right {
-      padding: 0; /* Tabs will handle padding */
-      overflow: hidden;
-    }
-    
-    .tools-header {
-        padding: 20px 20px 0 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-    }
-
-    .export-btn {
-      background: var(--yts-neon-blue, #4f46e5);
-      border: none;
-      color: white;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 13px;
-      cursor: pointer;
-      box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
-      transition: all 0.2s;
-    }
-    
-    .export-btn:hover {
-        box-shadow: 0 0 20px rgba(79, 70, 229, 0.6);
-        transform: translateY(-1px);
-    }
-
-    /* Custom Shoelace Tabs styling */
-    sl-tab-group {
-        height: 100%;
-        --indicator-color: var(--yts-neon-blue, #6366f1);
-        --track-color: rgba(255,255,255,0.05); /* Separator line */
-        padding-left: 20px; /* Left margin request */
-    }
-    
-    sl-tab {
-        color: #94a3b8;
-        font-weight: 500;
-        margin-right: 32px; /* Increased spacing between tabs */
-    }
-    
-    sl-tab[active] {
-        color: #f8fafc;
-        font-weight: 600;
-    }
-    
-    sl-tab-panel {
-        padding: 20px;
-        height: calc(100% - 50px);
-        overflow-y: auto;
-    }
-
-    .captions-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-    }
-
-    .caption-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-        color: #cbd5e1;
-        font-size: 13px;
-    }
-    
-    .caption-time {
-        color: #64748b;
-        font-family: monospace;
-        font-size: 11px;
-    }
-    
-    .caption-text {
-        flex: 1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+    /* ... */
   `;
 
   render() {
     return html`
       <div class="layout">
-        <!-- Left: Source segments -->
+        <!-- Left: Source segments (Shorts from Gemini) -->
         <aside class="glass-panel sidebar-left">
-          <div class="panel-header">Source Segments</div>
+          <div class="panel-header">
+            <sl-icon 
+              name="house-door-fill" 
+              class="home-button-icon" 
+              @click="${() => Router.go('/')}"
+              title="Back to Dashboard"
+            ></sl-icon>
+            <span>Source Segments</span>
+          </div>
           <div class="segment-list">
-            ${[1, 2, 3, 4, 5].map(i => html`
-              <div class="segment-card">
-                <div class="segment-thumb"></div>
-                <div class="segment-info">
-                  <div class="segment-title">Viral Moment ${i}</div>
-                  <div class="segment-meta">00:${10 * i} - 00:${10 * i + 15}</div>
-                </div>
-              </div>
-            `)}
+            ${this.loading
+        ? html`<div style="color:#64748b; text-align:center; padding:20px;">Loading shorts...</div>`
+        : this.shorts.length === 0
+          ? html`<div style="color:#64748b; text-align:center; padding:20px;">No shorts detected yet.</div>`
+          : this.shorts.map(s => html`
+                  <div class="segment-card" @click="${() => this.playShort(s)}">
+                    <div class="segment-thumb">
+                      ${s.thumbnailUrl
+              ? html`<img src="${s.thumbnailUrl}" alt="${s.title}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`
+              : ''
+            }
+                    </div>
+                    <div class="segment-info">
+                      <div class="segment-title">${s.title}</div>
+                      <div class="segment-meta">${this.formatTime(s.startTime)} - ${this.formatTime(s.endTime)}</div>
+                    </div>
+                  </div>
+                `)
+      }
           </div>
         </aside>
 
         <!-- Center: Reel -->
         <main class="reel-container">
           <!-- Short Player Component -->
-          <short-player src="demo.mp4" caption="Irens thelne vante huigre Stens.. in abet lhe voe tenid anger nap."></short-player>
+          ${(projectSignal as any).value
+        ? html`<short-player 
+                src="/api/projects/${(projectSignal as any).value.id}/video" 
+                caption="Irens thelne vante huigre Stens.. in abet lhe voe tenid anger nap."
+              ></short-player>`
+        : html`<div>Loading project...</div>`
+      }
         </main>
 
         <!-- Right: Tools -->
