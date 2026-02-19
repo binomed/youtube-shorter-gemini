@@ -114,7 +114,19 @@ export class AnalysisService {
                 message: 'Analyzing video content (visuals + audio)...',
             });
 
-            const detected = await this.geminiService.detectShortsCandidates(frames, duration, transcript);
+            let detected: DetectedSegment[] = [];
+            try {
+                detected = await this.geminiService.detectShortsCandidates(frames, duration, transcript);
+            } catch (error: any) {
+                if (error.name === 'GeminiParseError') {
+                    this.emitProgress(progress$, {
+                        phase: 'error',
+                        progress: 80,
+                        message: `AI error: failed to understand the video structure. Please try again.`,
+                    });
+                }
+                throw error;
+            }
 
             this.emitProgress(progress$, {
                 phase: 'analyzing',
