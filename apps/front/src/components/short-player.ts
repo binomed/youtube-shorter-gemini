@@ -22,6 +22,8 @@ import '@shoelace-style/shoelace/dist/components/button/button.js';
 export class ShortPlayer extends LitElement {
   @property({ type: String }) src = '';
   @property({ type: String }) caption = '';
+  @property({ type: Number }) startTime = 0;
+  @property({ type: Number }) endTime = 0;
 
   @query('video') videoElement!: HTMLVideoElement;
   @state() private isPlaying = false;
@@ -39,9 +41,37 @@ export class ShortPlayer extends LitElement {
     }
   }
 
-  private handleTimeUpdate() {
+  private handleTimeUpdate = () => {
     this.currentTime = this.videoElement.currentTime;
+
+    // Enforce end time if set
+    if (this.endTime > 0 && this.currentTime >= this.endTime) {
+      this.videoElement.currentTime = this.startTime;
+      this.videoElement.play();
+    }
+
+    // Enforce start time (prevent playing before start)
+    if (this.startTime > 0 && this.currentTime < this.startTime) {
+      this.videoElement.currentTime = this.startTime;
+    }
   }
+
+  /**
+   * Public method to play a specific segment
+   */
+  public playSegment(startTime: number, endTime: number) {
+    this.startTime = startTime;
+    this.endTime = endTime;
+
+    if (this.videoElement) {
+      this.videoElement.currentTime = startTime;
+      this.videoElement.play()
+        .catch(e => console.error('[ShortPlayer] Play failed', e));
+      this.isPlaying = true;
+    }
+  }
+
+
 
   private handleLoadedMetadata() {
     this.duration = this.videoElement.duration;
@@ -217,14 +247,26 @@ export class ShortPlayer extends LitElement {
   `;
 
   render() {
-    const progressPercent = this.duration > 0 ? (this.currentTime / this.duration) * 100 : 0;
+    const isSegment = this.endTime > 0 && this.endTime > this.startTime;
+    const effectiveDuration = isSegment ? (this.endTime - this.startTime) : this.duration;
+
+    // Calculate relative current time for display
+    let effectiveCurrentTime = this.currentTime;
+    if (isSegment) {
+      effectiveCurrentTime = Math.max(0, this.currentTime - this.startTime);
+    }
+
+    // Progress is relative to the segment
+    const progressPercent = effectiveDuration > 0
+      ? (effectiveCurrentTime / effectiveDuration) * 100
+      : 0;
 
     return html`
       <div class="player-container">
       
         <!-- Top Info -->
         <div class="top-overlay">
-           <span>YouTube Short</span>
+           <span>${isSegment ? 'Viral Moment' : 'YouTube Short'}</span>
            <sl-icon name="info-circle"></sl-icon>
         </div>
 
@@ -257,10 +299,10 @@ export class ShortPlayer extends LitElement {
           
           <div class="progress-container">
              <div class="time-display">
-                ${this.formatTime(this.currentTime)} / ${this.formatTime(this.duration)}
+                ${this.formatTime(effectiveCurrentTime)} / ${this.formatTime(effectiveDuration)}
              </div>
              <div class="progress-bar" @click="${this.seek}">
-                <div class="progress-fill" style="width: ${progressPercent}%"></div>
+                <div class="progress-fill" style="width: ${Math.min(100, Math.max(0, progressPercent))}%"></div>
              </div>
           </div>
         </div>
@@ -270,11 +312,26 @@ export class ShortPlayer extends LitElement {
   }
 
   private seek(e: MouseEvent) {
-    if (!this.duration || !this.videoElement) return;
+    if (!this.duration || !this.videoElement) {
+      return;
+    }
+
     const rect = (e.target as HTMLElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percent = x / rect.width;
-    this.videoElement.currentTime = percent * this.duration;
+
+    const isSegment = this.endTime > 0 && this.endTime > this.startTime;
+
+    if (isSegment) {
+      // Seek relative to segment
+      const segmentDuration = this.endTime - this.startTime;
+      const targetTime = this.startTime + (percent * segmentDuration);
+      this.videoElement.currentTime = targetTime;
+    } else {
+      // Seek relative to full video
+      const targetTime = percent * this.duration;
+      this.videoElement.currentTime = targetTime;
+    }
   }
 }
 

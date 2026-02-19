@@ -17,6 +17,7 @@ import type { ShortResponse } from '@youtube-shorter/shared';
 @customElement('editor-page')
 export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnterObserver {
   @state() private shorts: ShortResponse[] = [];
+  @state() private currentShort: ShortResponse | null = null;
   @state() private loading = true;
 
   async onBeforeEnter(location: RouterLocation) {
@@ -39,10 +40,10 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   }
 
   private playShort(short: ShortResponse) {
-    const player = this.shadowRoot?.querySelector('short-player') as any;
-    if (player && player.videoElement) {
-      player.videoElement.currentTime = short.startTime;
-      player.videoElement.play();
+    this.currentShort = short;
+    const player = this.shadowRoot?.querySelector('short-player') as any; // Cast to access custom method
+    if (player && player.playSegment) {
+      player.playSegment(short.startTime, short.endTime);
     }
   }
 
@@ -179,6 +180,8 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         ? html`<short-player 
                 src="/api/projects/${(projectSignal as any).value.id}/video" 
                 caption="Irens thelne vante huigre Stens.. in abet lhe voe tenid anger nap."
+                .startTime=${this.currentShort?.startTime || 0}
+                .endTime=${this.currentShort?.endTime || 0}
               ></short-player>`
         : html`<div>Loading project...</div>`
       }

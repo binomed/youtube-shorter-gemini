@@ -20,9 +20,10 @@ import {
   NotFoundException,
   StreamableFile,
   Delete,
+  Req,
 } from '@nestjs/common';
-import type { Response } from 'express';
-import { createReadStream, existsSync } from 'fs';
+import type { Response, Request } from 'express';
+import { createReadStream, existsSync, statSync } from 'fs';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -160,6 +161,7 @@ export class VideoController {
   async streamVideo(
     @Param('id') id: string,
     @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
   ): Promise<StreamableFile> {
     const videoPath = await this.videoService.getVideoPath(id);
 
@@ -167,13 +169,35 @@ export class VideoController {
       throw new NotFoundException('Video file not found on disk');
     }
 
-    res.set({
-      'Content-Type': 'video/mp4',
-      'Content-Disposition': 'inline',
-    });
+    const stat = statSync(videoPath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
 
-    const fileStream = createReadStream(videoPath);
-    return new StreamableFile(fileStream);
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = end - start + 1;
+      const file = createReadStream(videoPath, { start, end });
+
+      res.set({
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'video/mp4',
+      });
+      res.status(HttpStatus.PARTIAL_CONTENT);
+
+      return new StreamableFile(file);
+    } else {
+      res.set({
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4',
+      });
+
+      const file = createReadStream(videoPath);
+      return new StreamableFile(file);
+    }
   }
   /**
    * Get all projects
