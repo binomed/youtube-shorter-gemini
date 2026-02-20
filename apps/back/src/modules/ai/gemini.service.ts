@@ -3,7 +3,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import { GoogleGenerativeAI, GenerativeModel, SchemaType } from '@google/generative-ai';
 
 /**
  * Detected Shorts segment structure from Gemini response.
@@ -51,15 +51,37 @@ export class GeminiService {
 
         this.genAI = new GoogleGenerativeAI(apiKey || '');
 
-        // Use configurable model, default to gemini-3-flash (stable Dec 2025)
-        const modelName = this.configService.get<string>('GEMINI_MODEL', 'gemini-2.5-flash');
+        // Use configurable model, default to gemini-2.5-pro for complex frame analysis (flash sometimes struggles with JSON + >100 frames)
+        const modelName = this.configService.get<string>('GEMINI_MODEL', 'gemini-2.5-pro');
         this.model = this.genAI.getGenerativeModel({
             model: modelName,
             generationConfig: {
                 temperature: 0.4, // Optimized for viral moment detection and creativity
                 topP: 0.95,
-                maxOutputTokens: 4096, // Ample space for long responses
+                maxOutputTokens: 8192, // Bumped to 8192 for large video frame counts
                 responseMimeType: 'application/json',
+                responseSchema: {
+                    type: SchemaType.ARRAY,
+                    description: "List of highly engaging short video segments",
+                    items: {
+                        type: SchemaType.OBJECT,
+                        properties: {
+                            startTime: { type: SchemaType.NUMBER, description: "Start time of the segment in seconds (e.g., 25.5)" },
+                            endTime: { type: SchemaType.NUMBER, description: "End time of the segment in seconds (e.g., 40.0)" },
+                            confidence: { type: SchemaType.NUMBER, description: "Viral potential confidence score (0 to 100)" },
+                            reason: { type: SchemaType.STRING, description: "Explanation of why this segment is engaging" },
+                            smartCropData: {
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    centerX: { type: SchemaType.NUMBER, description: "Center X coordinate of the main subject (0.0 to 1.0). Track the subject carefully." },
+                                    width: { type: SchemaType.NUMBER, description: "Width ratio for the vertical crop (usually 0.5625 for 9:16)" }
+                                },
+                                required: ["centerX", "width"]
+                            }
+                        },
+                        required: ["startTime", "endTime", "confidence", "reason", "smartCropData"]
+                    }
+                }
             },
         });
 
