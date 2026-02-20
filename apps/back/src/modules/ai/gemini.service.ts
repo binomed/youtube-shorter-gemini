@@ -13,6 +13,7 @@ export interface DetectedSegment {
     endTime: number;
     confidence: number;
     reason: string;
+    subjectPosition?: string;
     smartCropData?: {
         centerX: number;
         width: number;
@@ -26,6 +27,7 @@ export class GeminiParseError extends Error {
     constructor(message: string, public readonly rawResponse: string) {
         super(message);
         this.name = 'GeminiParseError';
+        Object.setPrototypeOf(this, new.target.prototype);
     }
 }
 
@@ -51,8 +53,8 @@ export class GeminiService {
 
         this.genAI = new GoogleGenerativeAI(apiKey || '');
 
-        // Use configurable model, default to gemini-2.5-pro for complex frame analysis (flash sometimes struggles with JSON + >100 frames)
-        const modelName = this.configService.get<string>('GEMINI_MODEL', 'gemini-2.5-pro');
+        // Use configurable model, default to gemini-3-flash
+        const modelName = this.configService.get<string>('GEMINI_MODEL', 'gemini-3-flash');
         this.model = this.genAI.getGenerativeModel({
             model: modelName,
             generationConfig: {
@@ -89,14 +91,6 @@ export class GeminiService {
         this.logger.log(`Gemini initialized with model: ${modelName}`);
     }
 
-    /**
-     * Analyze video frames to detect interesting moments for Shorts.
-     * Returns array of suggested segments with timestamps and reasons.
-     *
-     * @param videoFrames - Array of base64-encoded JPEG frames
-     * @param videoDuration - Total video duration in seconds
-     * @returns Array of detected segments
-     */
     /**
      * Generate SRT subtitles from audio buffer using Gemini.
      */
@@ -136,7 +130,13 @@ export class GeminiService {
                 return (parsed.srt || '').trim();
             } catch (e) {
                 // Fallback for non-JSON or malformed JSON
-                return text.replace(/```json\n?|```/g, '').trim();
+                const cleanText = text.replace(/```json\n?|```/g, '').trim();
+                try {
+                    const fallbackParsed = JSON.parse(cleanText);
+                    return (fallbackParsed.srt || '').trim();
+                } catch (fallbackError) {
+                    throw new GeminiParseError('Could not process subtitle JSON format', cleanText);
+                }
             }
         } catch (error) {
             this.logger.error(`Subtitle generation failed: ${(error as Error).message}`);
@@ -179,10 +179,20 @@ export class GeminiService {
         const maxRetries = 3;
         for (let attempt = 0; attempt <= maxRetries; attempt++) {
             try {
-                this.logger.log(`Sending ${videoFrames.length} frames to Gemini (attempt ${attempt + 1})...`);
+                this.logger.debug(`Sending ${videoFrames.length} frames to Gemini (attempt ${attempt + 1})...`);
                 const result = await this.model.generateContent(parts);
+
+                // Safeguard against blocked responses
+                if (result.response.promptFeedback?.blockReason) {
+                    throw new Error(`Gemini request blocked: ${result.response.promptFeedback.blockReason}`);
+                }
+
+                if (!result.response.candidates || result.response.candidates.length === 0) {
+                    throw new Error('Gemini returned no candidates');
+                }
+
                 const response = result.response.text();
-                this.logger.log(`[Gemini] Shorts detection raw response: ${response}`);
+                this.logger.debug(`[Gemini] Shorts detection raw response: ${response.substring(0, 500)}...`);
 
                 const segments = this.parseSegmentsResponse(response);
 
@@ -192,27 +202,29 @@ export class GeminiService {
                 // However, the user wants to be sure, so we could technically retry once if 0 segments found?
                 // Let's stick to parsing errors for now as requested.
 
-                this.logger.log(`Detected ${segments.length} potential Shorts segments`);
+                this.logger.debug(`Detected ${segments.length} potential Shorts segments`);
                 return segments;
-            } catch (error: any) {
-                const isParsingError = error instanceof GeminiParseError || error.name === 'GeminiParseError';
-                const status = error?.status || error?.statusCode;
+            } catch (error: unknown) {
+                const err = error as any;
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                const isParsingError = error instanceof GeminiParseError || err?.name === 'GeminiParseError';
+                const status = err?.status || err?.statusCode;
                 const isRetryableApiError = status === 429 || status === 503
-                    || error?.message?.includes('429') || error?.message?.includes('Quota')
-                    || error?.message?.includes('503') || error?.message?.includes('Service Unavailable');
+                    || errorMessage.includes('429') || errorMessage.includes('Quota')
+                    || errorMessage.includes('503') || errorMessage.includes('Service Unavailable');
 
                 const shouldRetry = (isParsingError || isRetryableApiError) && attempt < maxRetries;
 
                 if (shouldRetry) {
-                    const delay = Math.pow(2, attempt + 1) * 10;
-                    const reason = isParsingError ? 'parsing failed' : `API error ${status}`;
-                    this.logger.warn(`Gemini attempt ${attempt + 1} failed (${reason}), retrying in ${delay}s...`);
-                    await new Promise(resolve => setTimeout(resolve, delay * 1000));
+                    const delaySeconds = Math.pow(2, attempt) * 2; // 2s, 4s, 8s
+                    const reason = isParsingError ? 'parsing failed' : `API error ${status || 'unknown'}`;
+                    this.logger.warn(`Gemini attempt ${attempt + 1} failed (${reason}), retrying in ${delaySeconds}s...`);
+                    await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
                     continue;
                 }
 
                 if (isParsingError) {
-                    this.logger.error(`Gemini parsing failed after retries: ${error.message}`);
+                    this.logger.error(`Gemini parsing failed after retries: ${errorMessage}`);
                     throw error;
                 }
 
@@ -221,7 +233,7 @@ export class GeminiService {
                     throw new Error('Gemini API is currently unavailable. Please wait a few minutes and try again, or switch to a different model (e.g. gemini-2.5-flash).');
                 }
 
-                this.logger.error(`Gemini API error: ${(error as Error).message}`);
+                this.logger.error(`Gemini API error: ${errorMessage}`);
                 throw error;
             }
         }
@@ -271,7 +283,7 @@ IMPORTANT: Return a valid JSON array. If no segments are found, return [].`;
      */
     parseSegmentsResponse(response: string): DetectedSegment[] {
         try {
-            this.logger.log(`[Gemini] Parsing response: ${response}`);
+            this.logger.debug(`[Gemini] Parsing response: ${response.substring(0, 200)}...`);
 
             // 1. Initial cleanup: remove potential markdown wrappers if model disobeyed JSON mode
             let jsonText = response.trim();
@@ -280,31 +292,12 @@ IMPORTANT: Return a valid JSON array. If no segments are found, return [].`;
                 if (match) jsonText = match[1];
             }
 
-            // 2. Aggressive repair for truncated JSON
-            // If it ends with a string property but no closing quote/brace
-            if (jsonText.includes('"') && !jsonText.endsWith(']') && !jsonText.endsWith('}')) {
-                // Count open braces/brackets
-                const openBraces = (jsonText.match(/{/g) || []).length;
-                const closeBraces = (jsonText.match(/}/g) || []).length;
-                const openBrackets = (jsonText.match(/\[/g) || []).length;
-                const closeBrackets = (jsonText.match(/\]/g) || []).length;
-
-                // Close unclosed quote if detected in the last few chars
-                if ((jsonText.match(/"/g) || []).length % 2 !== 0) {
-                    jsonText += '"';
-                }
-
-                // Add missing braces/brackets
-                for (let i = 0; i < openBraces - closeBraces; i++) jsonText += '}';
-                for (let i = 0; i < openBrackets - closeBrackets; i++) jsonText += ']';
-            }
-
             let parsed;
             try {
                 parsed = JSON.parse(jsonText);
             } catch (e) {
-                this.logger.warn(`JSON parse failed, attempting loose cleanup. Error: ${(e as Error).message}`);
-                // Simple attempt to extract anything that looks like an array
+                this.logger.warn(`JSON parse failed, attempting loose extraction. Error: ${(e as Error).message}`);
+                // Safe and simple attempt to extract anything that looks like an array
                 const jsonMatch = jsonText.match(/\[[\s\S]*\]/);
                 if (jsonMatch) {
                     parsed = JSON.parse(jsonMatch[0]);
@@ -330,13 +323,25 @@ IMPORTANT: Return a valid JSON array. If no segments are found, return [].`;
                         typeof seg.endTime === 'number' &&
                         seg.endTime > seg.startTime,
                 )
-                .map((seg: Record<string, unknown>) => ({
-                    startTime: Number(seg.startTime),
-                    endTime: Number(seg.endTime),
-                    confidence: Number(seg.confidence) || 50,
-                    reason: (seg.reason as string) || 'Interesting moment detected',
-                    smartCropData: typeof seg.smartCropData === 'object' ? seg.smartCropData as any : undefined,
-                }));
+                .map((seg: Record<string, unknown>) => {
+                    let centerX = 0.5;
+                    let width = 0.5625;
+
+                    if (seg.smartCropData && typeof seg.smartCropData === 'object') {
+                        const crop = seg.smartCropData as any;
+                        if (typeof crop.centerX === 'number') centerX = crop.centerX;
+                        if (typeof crop.width === 'number') width = crop.width;
+                    }
+
+                    return {
+                        startTime: Number(seg.startTime),
+                        endTime: Number(seg.endTime),
+                        confidence: Number(seg.confidence) || 50,
+                        reason: (seg.reason as string) || 'Interesting moment detected',
+                        subjectPosition: typeof seg.subjectPosition === 'string' ? seg.subjectPosition : undefined,
+                        smartCropData: { centerX, width },
+                    };
+                });
         } catch (error) {
             throw new GeminiParseError((error as Error).message, response);
         }

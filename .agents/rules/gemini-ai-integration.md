@@ -1,6 +1,6 @@
 ---
 trigger: glob
-globs: apps/backend/src/modules/ai/**.ts
+globs: apps/back/src/modules/ai/**.ts
 ---
 
 # Gemini IA Custom Skill

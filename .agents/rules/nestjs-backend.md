@@ -1,6 +1,6 @@
 ---
 trigger: glob
-globs: apps/backend/src/**/*.ts
+globs: apps/back/src/**/*.ts
 ---
 
 # NestJS Custom Skill
