@@ -70,16 +70,17 @@ export class GeminiService {
                             endTime: { type: SchemaType.NUMBER, description: "End time of the segment in seconds (e.g., 40.0)" },
                             confidence: { type: SchemaType.NUMBER, description: "Viral potential confidence score (0 to 100)" },
                             reason: { type: SchemaType.STRING, description: "Explanation of why this segment is engaging" },
+                            subjectPosition: { type: SchemaType.STRING, description: "Detailed description of where the main person is standing or moving in the video frames (e.g., 'Standing on the left', 'Perfectly centered', 'On the right'). You MUST look at the images." },
                             smartCropData: {
                                 type: SchemaType.OBJECT,
                                 properties: {
-                                    centerX: { type: SchemaType.NUMBER, description: "Center X coordinate of the main subject (0.0 to 1.0). Track the subject carefully." },
+                                    centerX: { type: SchemaType.NUMBER, description: "Center X coordinate of the main subject (0.0 to 1.0) derived mathematically from subjectPosition. E.g. 0.2 for far left, 0.8 for far right. DO NOT DEFAULT TO 0.5." },
                                     width: { type: SchemaType.NUMBER, description: "Width ratio for the vertical crop (usually 0.5625 for 9:16)" }
                                 },
                                 required: ["centerX", "width"]
                             }
                         },
-                        required: ["startTime", "endTime", "confidence", "reason", "smartCropData"]
+                        required: ["startTime", "endTime", "confidence", "reason", "subjectPosition", "smartCropData"]
                     }
                 }
             },
@@ -256,7 +257,8 @@ ${transcript ? `- Transcript/Subtitles: see below\n\n${transcript.slice(0, 10000
     "endTime": 63.2,
     "confidence": 92,
     "reason": "Strong visual hook with a fast-paced punchline.",
-    "smartCropData": { "centerX": 0.35, "width": 0.5625 }
+    "subjectPosition": "The speaker is standing on the left side of the screen.",
+    "smartCropData": { "centerX": 0.25, "width": 0.5625 }
   }
 ]
 
