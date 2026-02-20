@@ -6,13 +6,21 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { VideoService } from './video.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { Project } from '../../entities/project.entity';
+import { CleanupService } from './cleanup.service';
 
 // Use manual mock to avoid Jest ESM issues with @ffmpeg/ffmpeg
 jest.mock('../../workers/ffmpeg.service');
 
+// Mock file validation to avoid failing on dummy mock file paths
+jest.mock('../../utils/file-validation', () => ({
+  ...jest.requireActual('../../utils/file-validation'),
+  validateFileSignature: jest.fn().mockResolvedValue(true),
+}));
+
 describe('VideoService', () => {
   let service: VideoService;
   let ffmpegService: FFmpegService;
+  let cleanupService: CleanupService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -34,11 +42,18 @@ describe('VideoService', () => {
             extractMetadata: jest.fn(),
           },
         },
+        {
+          provide: CleanupService,
+          useValue: {
+            deleteProject: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<VideoService>(VideoService);
     ffmpegService = module.get<FFmpegService>(FFmpegService);
+    cleanupService = module.get<CleanupService>(CleanupService);
   });
 
   it('should be defined', () => {
@@ -80,6 +95,7 @@ describe('VideoService', () => {
         codec: 'h264',
         deletionPolicyAcknowledged: true,
         aiLearningConsent: false,
+        isExported: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -104,6 +120,8 @@ describe('VideoService', () => {
         codec: 'h264',
         deletionPolicyAcknowledged: true,
         aiLearningConsent: false,
+        isExported: false,
+        isAnalyzed: false,
       });
       expect(projectRepository.save).toHaveBeenCalledWith(mockProject);
 
