@@ -106,6 +106,7 @@ export class GeminiService {
             ]);
 
             const text = result.response.text().trim();
+            this.logger.log(`[Gemini] Subtitles raw response: ${text}`);
             this.logger.debug(`Text return by gemini `, text);
             try {
                 const parsed = JSON.parse(text);
@@ -158,6 +159,7 @@ export class GeminiService {
                 this.logger.log(`Sending ${videoFrames.length} frames to Gemini (attempt ${attempt + 1})...`);
                 const result = await this.model.generateContent(parts);
                 const response = result.response.text();
+                this.logger.log(`[Gemini] Shorts detection raw response: ${response}`);
 
                 const segments = this.parseSegmentsResponse(response);
 
@@ -209,7 +211,7 @@ export class GeminiService {
      * Uses few-shot and chain-of-thought patterns from the Gemini skill.
      */
     private buildDetectionPrompt(duration: number, interval: number, transcript?: string): string {
-        return `You are an expert video editor for YouTube Shorts. Analyze these video frames ${transcript ? 'and the provided audio transcript' : ''} to identify the most engaging 30-60 second segments.
+        return `You are an expert video editor for YouTube Shorts and TikTok. Analyze these video frames ${transcript ? 'and the provided audio transcript' : ''} to identify the most engaging, punchy 15-35 second segments ("petits bouts").
 
 **Context:**
 - Total video duration: ${duration} seconds
@@ -217,20 +219,22 @@ export class GeminiService {
 ${transcript ? `- Transcript/Subtitles: see below\n\n${transcript.slice(0, 10000)}\n(transcript truncated if too long)` : ''}
 
 **Your task:**
-1. Identify 3-5 detected viral moments.
-2. For each moment, distinctively suggest "smart crop" coordinates to keep the subject centered in a 9:16 vertical frame (1080x1920).
+1. Identify 3-5 high-retention viral moments. Focus on short, dynamic punchlines, interesting facts, or strong hooks. Avoid dragging concepts over 40 seconds.
+2. For each moment, distinctively suggest "smart crop" metadata to keep the main subject centered in a 9:16 vertical frame.
    - The source is likely 16:9 landscape.
-   - You need to determine the \`centerX\` (0.0 to 1.0) of the subject.
-   - \`width\` should typically be 0.5625 (9/16) of the original width to fill the height, or adjusted if needed.
+   - Analyze the visual frames in the segment: Where is the main speaker? Are they on the left side, right side, or moving?
+   - Set \`centerX\` (0.0 to 1.0) to the exact actual position of the main speaker/subject (e.g., 0.25 if offset to the left, 0.75 if offset to the right). 
+   - CRITICAL: DO NOT default to 0.5 unless the subject is perfectly dead-center.
+   - \`width\` should typically be 0.5625 (9/16) of the original width to fill the height.
 
 **Output format (JSON array only):**
 [
   {
     "startTime": 45.5,
-    "endTime": 78.2,
-    "confidence": 85,
-    "reason": "Strong visual hook",
-    "smartCropData": { "centerX": 0.5, "width": 0.5625 }
+    "endTime": 63.2,
+    "confidence": 92,
+    "reason": "Strong visual hook with a fast-paced punchline.",
+    "smartCropData": { "centerX": 0.35, "width": 0.5625 }
   }
 ]
 
@@ -243,7 +247,7 @@ IMPORTANT: Return a valid JSON array. If no segments are found, return [].`;
      */
     parseSegmentsResponse(response: string): DetectedSegment[] {
         try {
-            this.logger.debug(`Raw Gemini response: ${response}`);
+            this.logger.log(`[Gemini] Parsing response: ${response}`);
 
             // 1. Initial cleanup: remove potential markdown wrappers if model disobeyed JSON mode
             let jsonText = response.trim();

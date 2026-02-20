@@ -19,7 +19,7 @@ async function bootstrap() {
           ),
         }),
         new winston.transports.File({
-          filename: path.join(__dirname, '..', 'logs', 'app.log'),
+          filename: path.join(process.cwd(), 'logs', 'app.log'), // Use process.cwd() for reliable path
           format: winston.format.combine(
             winston.format.timestamp(),
             winston.format.json(),
@@ -28,6 +28,8 @@ async function bootstrap() {
       ],
     }),
   });
+  const logPath = path.join(process.cwd(), 'logs', 'app.log');
+  console.log(`[Bootstrap] Logger initialized. Writing logs to: ${logPath}`);
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

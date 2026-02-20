@@ -61,7 +61,10 @@ export class AnalysisService {
             const metadata = await this.ffmpegService.extractMetadata(project.videoPath);
             const duration = metadata?.duration || 60;
 
-            const frames = await this.extractFramesForAnalysis(project.videoPath, duration, 25);
+            // Extract 1 frame every 3 seconds for detailed visual tracking without overloading Gemini
+            const maxFrames = Math.floor(duration / 3);
+            const frames = await this.extractFramesForAnalysis(project.videoPath, duration, maxFrames);
+            this.logger.log(`[Analysis] Extracted ${frames.length} frames. Duration: ${duration}s.`);
 
             this.emitProgress(progress$, {
                 phase: 'extracting_frames',
@@ -97,7 +100,8 @@ export class AnalysisService {
                 if (transcript) {
                     project.transcript = transcript;
                     await this.projectRepository.save(project);
-                    this.logger.log(`Transcript saved for project ${projectId} (${transcript.length} chars)`);
+                    await this.projectRepository.save(project);
+                    this.logger.log(`[Analysis] Transcript saved for project ${projectId} (${transcript.length} chars). Preview: ${transcript.substring(0, 50)}...`);
                 }
 
                 // Cleanup audio file
@@ -128,6 +132,7 @@ export class AnalysisService {
                 throw error;
             }
 
+            this.logger.log(`[Analysis] Gemini detected ${detected.length} potential Shorts.`);
             this.emitProgress(progress$, {
                 phase: 'analyzing',
                 progress: 80,

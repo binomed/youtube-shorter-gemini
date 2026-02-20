@@ -104,6 +104,11 @@ Convert work into an exploitable video file.
 **Goal:** High-quality MP4 file export ready for publication.
 **FRs covered:** FR15
 
+### Epic 6: App Configuration Settings
+Allow users to tweak the analysis & generation parameters.
+**Goal:** A settings tab/modal to change AI models, frame intervals, etc.
+**FRs covered:** N/A (Enhancement)
+
 ---
 
 ## Epic 0: Technical Foundation & Project Scaffolding
@@ -248,3 +253,18 @@ So that I can publish it on social media.
 **When** I click on "Export"
 **Then** FFmpeg processes the render locally.
 **And** a 9:16 vertical MP4 file with burned-in subtitles is saved to my machine.
+
+---
+
+## Epic 6: App Configuration Settings
+
+### Story 6.1: Global Settings Interface
+As a power user,
+I want to be able to configure AI and video processing parameters (e.g. Gemini model choice, frame extraction interval),
+So that I can fine-tune the performance and quality of the analysis to my specific needs.
+
+**Acceptance Criteria:**
+**Given** the application home page or navigation menu
+**When** I navigate to the "Settings" or "Configuration" section
+**Then** I see options to modify key parameters (e.g., "Frame Extraction Interval (seconds)", "Gemini Model").
+**And** changes I make are saved persistently and applied to all future video analyses.
