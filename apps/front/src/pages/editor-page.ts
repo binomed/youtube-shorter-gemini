@@ -24,7 +24,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     const projectId = location.params.projectId as string;
 
     // Fetch project if not already loaded or if ID mismatch
-    const currentProject = (projectSignal as any).value;
+    const currentProject = projectSignal.get();
     if (!currentProject || currentProject.id !== projectId) {
       try {
         const project = await projectService.getProject(projectId);
@@ -41,14 +41,14 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
   private playShort(short: ShortResponse) {
     this.currentShort = short;
-    const player = this.shadowRoot?.querySelector('short-player') as any; // Cast to access custom method
+    const player = this.shadowRoot?.querySelector('short-player') as unknown as { playSegment: (s: number, e: number) => void }; // Cast to access custom method
     if (player && player.playSegment) {
       player.playSegment(short.startTime, short.endTime);
     }
   }
 
   private async loadShorts() {
-    const projectId = (projectSignal as any).value?.id;
+    const projectId = projectSignal.get()?.id;
     if (!projectId) {
       this.loading = false;
       return;
@@ -176,9 +176,9 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         <!-- Center: Reel -->
         <main class="reel-container">
           <!-- Short Player Component -->
-          ${(projectSignal as any).value
+          ${projectSignal.get()
         ? html`<short-player 
-                src="/api/projects/${(projectSignal as any).value.id}/video" 
+                src="/api/projects/${projectSignal.get()?.id}/video" 
                 caption="Irens thelne vante huigre Stens.. in abet lhe voe tenid anger nap."
                 .startTime=${this.currentShort?.startTime || 0}
                 .endTime=${this.currentShort?.endTime || 0}

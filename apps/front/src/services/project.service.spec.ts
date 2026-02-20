@@ -22,7 +22,7 @@ describe('ProjectService', () => {
 
         // Default isAxiosError implementation for tests
         mockedAxios.isAxiosError.mockImplementation((payload) => {
-            return !!(payload && (payload as any).isAxiosError);
+            return !!(payload && (payload as { isAxiosError?: boolean }).isAxiosError);
         });
     });
 
@@ -81,7 +81,7 @@ describe('ProjectService', () => {
             mockedAxios.post.mockImplementation((_url, _data, config) => {
                 // Simulate progress
                 if (config?.onUploadProgress) {
-                    config.onUploadProgress({ loaded: 50, total: 100, bytes: 50 } as any);
+                    config.onUploadProgress({ loaded: 50, total: 100, bytes: 50 } as unknown as import('axios').AxiosProgressEvent);
                 }
                 return Promise.resolve({ data: { success: true, data: {} } });
             });

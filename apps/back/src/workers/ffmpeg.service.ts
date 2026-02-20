@@ -32,7 +32,7 @@ export class FFmpegService {
   // Dependencies removed: @ffmpeg/ffmpeg, @ffmpeg/util, fs/promises (for cache)
   // Configuration FFMPEG_CACHE_DIR is now unused but kept in Config for compatibility if needed later.
 
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {}
 
   /**
    * Extract metadata from video file using ffprobe
@@ -103,7 +103,11 @@ export class FFmpegService {
    * @param timestamp - Time in seconds to extract frame from
    * @returns void
    */
-  async extractThumbnail(videoPath: string, outputPath: string, timestamp: number): Promise<void> {
+  async extractThumbnail(
+    videoPath: string,
+    outputPath: string,
+    timestamp: number,
+  ): Promise<void> {
     try {
       // ffmpeg -ss <timestamp> -i <videoPath> -vframes 1 -q:v 2 -y <outputPath>
       // -ss: seek to position (fast seek before input)
@@ -118,7 +122,9 @@ export class FFmpegService {
       const execAsync = promisify(exec);
       await execAsync(command);
     } catch (error) {
-      this.logger.error(`Failed to extract thumbnail: ${(error as Error).message}`);
+      this.logger.error(
+        `Failed to extract thumbnail: ${(error as Error).message}`,
+      );
       throw error;
     }
   }

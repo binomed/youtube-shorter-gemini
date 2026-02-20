@@ -97,7 +97,7 @@ export class ProjectService {
             console.log('DEBUG: Axios response received', response.status);
 
             return response.data.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('DEBUG: Axios error', error);
             if (axios.isAxiosError(error)) {
                 const message = error.response?.data?.message || error.message || 'Upload failed';
@@ -120,7 +120,7 @@ export class ProjectService {
                 `${this.baseUrl}/projects/${projectId}/analyze`
             );
             return response.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (axios.isAxiosError(error)) {
                 const message = error.response?.data?.message || error.message || 'Analysis failed';
                 throw new Error(message);
@@ -141,7 +141,7 @@ export class ProjectService {
                 `${this.baseUrl}/projects/${projectId}/shorts`
             );
             return response.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (axios.isAxiosError(error)) {
                 const message = error.response?.data?.message || error.message || 'Failed to load shorts';
                 throw new Error(message);
@@ -159,7 +159,7 @@ export class ProjectService {
                 `${this.baseUrl}/projects`
             );
             return response.data.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (axios.isAxiosError(error)) {
                 const message = error.response?.data?.message || error.message || 'Failed to fetch projects';
                 throw new Error(message);
@@ -174,7 +174,7 @@ export class ProjectService {
     async deleteProject(id: string): Promise<void> {
         try {
             await axios.delete(`${this.baseUrl}/projects/${id}`);
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (axios.isAxiosError(error)) {
                 const message = error.response?.data?.message || error.message || 'Failed to delete project';
                 throw new Error(message);
@@ -195,7 +195,7 @@ export class ProjectService {
                 `${this.baseUrl}/projects/${id}`
             );
             return response.data.data;
-        } catch (error: any) {
+        } catch (error: unknown) {
             if (axios.isAxiosError(error)) {
                 const message = error.response?.data?.message || error.message || 'Failed to fetch project';
                 throw new Error(message);

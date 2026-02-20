@@ -107,7 +107,10 @@ describe('VideoService', () => {
       jest.spyOn(projectRepository, 'create').mockReturnValue(mockProject);
       jest.spyOn(projectRepository, 'save').mockResolvedValue(mockProject);
 
-      const result = await service.createProject(mockCreateProjectDto, mockFile);
+      const result = await service.createProject(
+        mockCreateProjectDto,
+        mockFile,
+      );
 
       // Verify project creation
       expect(result).toEqual({

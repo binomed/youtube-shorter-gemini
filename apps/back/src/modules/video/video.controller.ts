@@ -43,7 +43,7 @@ export class VideoController {
   constructor(
     private readonly videoService: VideoService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   /**
    * Get upload configuration
@@ -55,7 +55,10 @@ export class VideoController {
     return {
       success: true,
       data: {
-        maxVideoSizeMb: this.configService.get<number>('MAX_VIDEO_SIZE_MB', 2048),
+        maxVideoSizeMb: this.configService.get<number>(
+          'MAX_VIDEO_SIZE_MB',
+          2048,
+        ),
         allowedExtensions: ALLOWED_VIDEO_EXTENSIONS,
         allowedMimeTypes: ALLOWED_VIDEO_MIME_TYPES,
       },

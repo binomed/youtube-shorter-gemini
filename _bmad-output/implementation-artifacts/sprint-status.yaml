@@ -40,16 +40,16 @@ tracking_system: file-system
 story_location: /Users/jeanfrancoisgarreau/Projets/youtube-shorter-gemini/_bmad-output/implementation-artifacts
 
 development_status:
-  epic-0: in-progress
+  epic-0: done
   0-1-monorepo-scaffolding: done
   0-2-quality-gates-testing-setup: done
-  epic-0-retrospective: optional
-  epic-1: in-progress
+  epic-0-retrospective: done
+  epic-1: done
   1-1-project-creation-video-ingestion: done
   1-2-privacy-awareness-consent: done
-  epic-1-retrospective: optional
-  epic-2: backlog
-  2-1-automated-viral-analysis: backlog
+  epic-1-retrospective: done
+  epic-2: in-progress
+  2-1-automated-viral-analysis: done
   epic-2-retrospective: optional
   epic-3: backlog
   3-1-audio-stem-separation: backlog

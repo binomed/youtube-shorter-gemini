@@ -63,3 +63,18 @@ export interface AnalysisProgressEvent {
     /** Human-readable status message */
     message: string;
 }
+
+/**
+ * Detected Shorts segment structure from Gemini response.
+ */
+export interface DetectedSegment {
+    startTime: number;
+    endTime: number;
+    confidence: number;
+    reason: string;
+    subjectPosition?: string;
+    smartCropData?: {
+        centerX: number;
+        width: number;
+    };
+}

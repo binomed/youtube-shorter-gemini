@@ -16,13 +16,13 @@ export const projectSignal = signal<ProjectResponse | null>(null);
  * Updates the current project in the global state.
  * @param project The project data to set
  */
-export const setProject = (project: ProjectResponse | null) => {
-    (projectSignal as any).value = project;
+export const setProject = (project: ProjectResponse | null): void => {
+    projectSignal.set(project);
 };
 
 /**
  * Clears the current project from the global state.
  */
-export const clearProject = () => {
-    (projectSignal as any).value = null;
+export const clearProject = (): void => {
+    projectSignal.set(null);
 };

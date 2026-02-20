@@ -1,6 +1,6 @@
 # Story 2.1: automated-viral-analysis
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -29,32 +29,33 @@ So that I don't waste time searching for key moments manually.
 
 ## Tasks / Subtasks
 
-- [ ] Backend: Gemini Integration Service
-  - [ ] Create `GeminiService` in `apps/back/src/modules/ai/`
-  - [ ] Implement `analyzeVideo(videoPath: string)` using Vertex AI / Gemini API
-  - [ ] Define Prompt Engineering for viral segment extractions
-  - [ ] Parse JSON response from Gemini
-  - [ ] Handle API errors and retries
+- [x] Backend: Gemini Integration Service
+  - [x] Create `GeminiService` in `apps/back/src/modules/ai/`
+  - [x] Implement `analyzeVideo(videoPath: string)` using Vertex AI / Gemini API
+  - [x] Define Prompt Engineering for viral segment extractions
+  - [x] Parse JSON response from Gemini
+  - [x] Handle API errors and retries
 
-- [ ] Backend: Analysis Endpoints
-  - [ ] Create `AnalysisController` (POST `/api/projects/:id/analyze`)
-  - [ ] Store results in `Segment` entity (Create `Segment` entity)
-  - [ ] Return segments to frontend
+- [x] Backend: Analysis Endpoints
+  - [x] Create `AnalysisController` (POST `/api/projects/:id/analyze`)
+  - [x] Store results in `Segment` entity (Create `Segment` entity)
+  - [x] Return segments to frontend
 
-- [ ] Backend: Data Model
-  - [ ] Create `Segment` entity in `apps/back/src/entities/segment.entity.ts`
-  - [ ] Fields: id, projectId, title, description, startTime, endTime, viralScore
+- [x] Backend: Data Model
+  - [x] Create `Segment` entity in `apps/back/src/entities/segment.entity.ts`
+  - [x] Fields: id, projectId, title, description, startTime, endTime, viralScore
 
-- [ ] Frontend: Analysis Trigger & Display
-  - [ ] Add "Analyze with AI" button in Dashboard/Editor
-  - [ ] Connect "Source Segments" sidebar to real data
-  - [ ] Implement loading state (skeleton or spinner)
-  - [ ] Display Segment Cards with data
-  - [ ] Implement seek-on-click
+- [x] Frontend: Analysis Trigger & Display
+  - [x] Add "Analyze with AI" button in Dashboard/Editor
+  - [x] Connect "Source Segments" sidebar to real data
+  - [x] Implement loading state (skeleton or spinner)
+  - [x] Display Segment Cards with data
+  - [x] Implement seek-on-click
 
-- [ ] Shared: DTOs
-  - [ ] `CreateSegmentDto`
-  - [ ] `SegmentResponseDto`
+- [x] Shared: DTOs
+  - [x] `CreateSegmentDto`
+  - [x] `SegmentResponseDto`
+
 
 - [ ] Integration Testing
   - [ ] Mock Gemini API for backend tests

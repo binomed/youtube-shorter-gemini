@@ -1,7 +1,12 @@
 // Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectResponse, CreateProjectDto } from '@youtube-shorter/shared';
@@ -47,7 +52,7 @@ export class VideoService {
     private readonly projectRepository: Repository<Project>,
     private readonly ffmpegService: FFmpegService,
     private readonly cleanupService: CleanupService,
-  ) { }
+  ) {}
 
   /**
    * Create a new project with uploaded video
@@ -77,7 +82,8 @@ export class VideoService {
     createProjectDto: CreateProjectDto,
     file: Express.Multer.File,
   ): Promise<ProjectResponse> {
-    const { name, deletionPolicyAcknowledged, aiLearningConsent } = createProjectDto;
+    const { name, deletionPolicyAcknowledged, aiLearningConsent } =
+      createProjectDto;
 
     // Validate and sanitize file path (Issue #2: Security)
     // Ensure we have a valid file path, prefer file.path over user-controlled originalname

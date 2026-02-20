@@ -27,7 +27,7 @@ export interface ErrorResponse {
 export interface ValidationError {
     field: string;
     message: string;
-    value?: any;
+    value?: unknown;
 }
 
 /**

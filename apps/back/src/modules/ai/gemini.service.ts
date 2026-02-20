@@ -3,32 +3,25 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GoogleGenerativeAI, GenerativeModel, SchemaType } from '@google/generative-ai';
-
-/**
- * Detected Shorts segment structure from Gemini response.
- */
-export interface DetectedSegment {
-    startTime: number;
-    endTime: number;
-    confidence: number;
-    reason: string;
-    subjectPosition?: string;
-    smartCropData?: {
-        centerX: number;
-        width: number;
-    };
-}
+import {
+  GoogleGenerativeAI,
+  GenerativeModel,
+  SchemaType,
+} from '@google/generative-ai';
+import type { DetectedSegment } from '@youtube-shorter/shared';
 
 /**
  * Custom error thrown when Gemini response cannot be parsed as JSON.
  */
 export class GeminiParseError extends Error {
-    constructor(message: string, public readonly rawResponse: string) {
-        super(message);
-        this.name = 'GeminiParseError';
-        Object.setPrototypeOf(this, new.target.prototype);
-    }
+  constructor(
+    message: string,
+    public readonly rawResponse: string,
+  ) {
+    super(message);
+    this.name = 'GeminiParseError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
 }
 
 /**
@@ -40,213 +33,290 @@ export class GeminiParseError extends Error {
  */
 @Injectable()
 export class GeminiService {
-    private readonly logger = new Logger(GeminiService.name);
-    private readonly genAI: GoogleGenerativeAI;
-    private readonly model: GenerativeModel;
+  private readonly logger = new Logger(GeminiService.name);
+  private readonly genAI: GoogleGenerativeAI;
+  private readonly model: GenerativeModel;
 
-    constructor(private readonly configService: ConfigService) {
-        const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+  constructor(private readonly configService: ConfigService) {
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
 
-        if (!apiKey) {
-            this.logger.warn('GEMINI_API_KEY not found, Gemini features disabled');
-        }
-
-        this.genAI = new GoogleGenerativeAI(apiKey || '');
-
-        // Use configurable model, default to gemini-3-flash
-        const modelName = this.configService.get<string>('GEMINI_MODEL', 'gemini-3-flash');
-        this.model = this.genAI.getGenerativeModel({
-            model: modelName,
-            generationConfig: {
-                temperature: 0.4, // Optimized for viral moment detection and creativity
-                topP: 0.95,
-                maxOutputTokens: 8192, // Bumped to 8192 for large video frame counts
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: SchemaType.ARRAY,
-                    description: "List of highly engaging short video segments",
-                    items: {
-                        type: SchemaType.OBJECT,
-                        properties: {
-                            startTime: { type: SchemaType.NUMBER, description: "Start time of the segment in seconds (e.g., 25.5)" },
-                            endTime: { type: SchemaType.NUMBER, description: "End time of the segment in seconds (e.g., 40.0)" },
-                            confidence: { type: SchemaType.NUMBER, description: "Viral potential confidence score (0 to 100)" },
-                            reason: { type: SchemaType.STRING, description: "Explanation of why this segment is engaging" },
-                            subjectPosition: { type: SchemaType.STRING, description: "Detailed description of where the main person is standing or moving in the video frames (e.g., 'Standing on the left', 'Perfectly centered', 'On the right'). You MUST look at the images." },
-                            smartCropData: {
-                                type: SchemaType.OBJECT,
-                                properties: {
-                                    centerX: { type: SchemaType.NUMBER, description: "Center X coordinate of the main subject (0.0 to 1.0) derived mathematically from subjectPosition. E.g. 0.2 for far left, 0.8 for far right. DO NOT DEFAULT TO 0.5." },
-                                    width: { type: SchemaType.NUMBER, description: "Width ratio for the vertical crop (usually 0.5625 for 9:16)" }
-                                },
-                                required: ["centerX", "width"]
-                            }
-                        },
-                        required: ["startTime", "endTime", "confidence", "reason", "subjectPosition", "smartCropData"]
-                    }
-                }
-            },
-        });
-
-        this.logger.log(`Gemini initialized with model: ${modelName}`);
+    if (!apiKey) {
+      this.logger.warn('GEMINI_API_KEY not found, Gemini features disabled');
     }
 
-    /**
-     * Generate SRT subtitles from audio buffer using Gemini.
-     */
-    async generateSubtitles(audioBuffer: Buffer): Promise<string> {
-        // Use Gemini 1.5 Flash for efficient audio processing
-        const model = this.genAI.getGenerativeModel({
-            model: 'gemini-2.5-flash-lite', // Supports audio
-            generationConfig: {
-                temperature: 0.1,
-                responseMimeType: 'application/json',
-            }
-        });
+    this.genAI = new GoogleGenerativeAI(apiKey || '');
 
-        const prompt = `Listen to this audio and generate subtitles in SRT format.
+    // Use configurable model, default to gemini-3-flash
+    const modelName = this.configService.get<string>(
+      'GEMINI_MODEL',
+      'gemini-3-flash-preview',
+    );
+    this.model = this.genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig: {
+        temperature: 0.4, // Optimized for viral moment detection and creativity
+        topP: 0.95,
+        maxOutputTokens: 8192, // Bumped to 8192 for large video frame counts
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: SchemaType.ARRAY,
+          description: 'List of highly engaging short video segments',
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              startTime: {
+                type: SchemaType.NUMBER,
+                description:
+                  'Start time of the segment in seconds (e.g., 25.5)',
+              },
+              endTime: {
+                type: SchemaType.NUMBER,
+                description: 'End time of the segment in seconds (e.g., 40.0)',
+              },
+              confidence: {
+                type: SchemaType.NUMBER,
+                description: 'Viral potential confidence score (0 to 100)',
+              },
+              reason: {
+                type: SchemaType.STRING,
+                description: 'Explanation of why this segment is engaging',
+              },
+              subjectPosition: {
+                type: SchemaType.STRING,
+                description:
+                  "Detailed description of where the main person is standing or moving in the video frames (e.g., 'Standing on the left', 'Perfectly centered', 'On the right'). You MUST look at the images.",
+              },
+              smartCropData: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  centerX: {
+                    type: SchemaType.NUMBER,
+                    description:
+                      'Center X coordinate of the main subject (0.0 to 1.0) derived mathematically from subjectPosition. E.g. 0.2 for far left, 0.8 for far right. DO NOT DEFAULT TO 0.5.',
+                  },
+                  width: {
+                    type: SchemaType.NUMBER,
+                    description:
+                      'Width ratio for the vertical crop (usually 0.5625 for 9:16)',
+                  },
+                },
+                required: ['centerX', 'width'],
+              },
+            },
+            required: [
+              'startTime',
+              'endTime',
+              'confidence',
+              'reason',
+              'subjectPosition',
+              'smartCropData',
+            ],
+          },
+        },
+      },
+    });
+
+    this.logger.log(`Gemini initialized with model: ${modelName}`);
+  }
+
+  /**
+   * Generate SRT subtitles from audio buffer using Gemini.
+   */
+  async generateSubtitles(audioBuffer: Buffer): Promise<string> {
+    // Use Gemini 1.5 Flash for efficient audio processing
+    const model = this.genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash-lite', // Supports audio
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+      },
+    });
+
+    const prompt = `Listen to this audio and generate subtitles in SRT format.
         
         Rules:
         1. Output valid JSON in the format: { "srt": "string" }
         2. Ensure timestamps are accurate.
         3. Break lines naturally.`;
 
+    try {
+      const result = await model.generateContent([
+        { text: prompt },
+        {
+          inlineData: {
+            mimeType: 'audio/mp3',
+            data: audioBuffer.toString('base64'),
+          },
+        },
+      ]);
+
+      const text = result.response.text().trim();
+      this.logger.log(`[Gemini] Subtitles raw response: ${text}`);
+      this.logger.debug(`Text return by gemini `, text);
+      try {
+        const parsed = JSON.parse(text);
+        return (parsed.srt || '').trim();
+      } catch (e) {
+        // Fallback for non-JSON or malformed JSON
+        const cleanText = text.replace(/```json\n?|```/g, '').trim();
         try {
-            const result = await model.generateContent([
-                { text: prompt },
-                {
-                    inlineData: {
-                        mimeType: 'audio/mp3',
-                        data: audioBuffer.toString('base64')
-                    }
-                }
-            ]);
-
-            const text = result.response.text().trim();
-            this.logger.log(`[Gemini] Subtitles raw response: ${text}`);
-            this.logger.debug(`Text return by gemini `, text);
-            try {
-                const parsed = JSON.parse(text);
-                return (parsed.srt || '').trim();
-            } catch (e) {
-                // Fallback for non-JSON or malformed JSON
-                const cleanText = text.replace(/```json\n?|```/g, '').trim();
-                try {
-                    const fallbackParsed = JSON.parse(cleanText);
-                    return (fallbackParsed.srt || '').trim();
-                } catch (fallbackError) {
-                    throw new GeminiParseError('Could not process subtitle JSON format', cleanText);
-                }
-            }
-        } catch (error) {
-            this.logger.error(`Subtitle generation failed: ${(error as Error).message}`);
-            return ''; // Return empty string on failure to allow analysis to proceed
+          const fallbackParsed = JSON.parse(cleanText);
+          return (fallbackParsed.srt || '').trim();
+        } catch (fallbackError) {
+          throw new GeminiParseError(
+            'Could not process subtitle JSON format',
+            cleanText,
+          );
         }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Subtitle generation failed: ${(error as Error).message}`,
+      );
+      return ''; // Return empty string on failure to allow analysis to proceed
     }
+  }
 
-    /**
-     * Analyze video frames to detect interesting moments for Shorts.
-     * Returns array of suggested segments with timestamps and reasons.
-     *
-     * @param videoFrames - Array of base64-encoded JPEG frames
-     * @param videoDuration - Total video duration in seconds
-     * @param transcript - Optional transcript/SRT context
-     * @returns Array of detected segments
-     */
-    async detectShortsCandidates(
-        videoFrames: string[],
-        videoDuration: number,
-        transcript?: string,
-    ): Promise<DetectedSegment[]> {
-        // Calculate actual interval based on frame count
-        const frameInterval = videoFrames.length > 1
-            ? videoDuration / videoFrames.length
-            : 0;
+  /**
+   * Analyze video frames to detect interesting moments for Shorts.
+   * Returns array of suggested segments with timestamps and reasons.
+   *
+   * @param videoFrames - Array of base64-encoded JPEG frames
+   * @param videoDuration - Total video duration in seconds
+   * @param transcript - Optional transcript/SRT context
+   * @returns Array of detected segments
+   */
+  async detectShortsCandidates(
+    videoFrames: string[],
+    videoDuration: number,
+    transcript?: string,
+  ): Promise<DetectedSegment[]> {
+    // Calculate actual interval based on frame count
+    const frameInterval =
+      videoFrames.length > 1 ? videoDuration / videoFrames.length : 0;
 
-        const prompt = this.buildDetectionPrompt(videoDuration, frameInterval, transcript);
+    const prompt = this.buildDetectionPrompt(
+      videoDuration,
+      frameInterval,
+      transcript,
+    );
 
-        const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
-            { text: prompt },
-            ...videoFrames.map((frame) => ({
-                inlineData: {
-                    mimeType: 'image/jpeg' as const,
-                    data: frame,
-                },
-            })),
-        ];
+    const parts: Array<
+      { text: string } | { inlineData: { mimeType: string; data: string } }
+    > = [
+      { text: prompt },
+      ...videoFrames.map((frame) => ({
+        inlineData: {
+          mimeType: 'image/jpeg' as const,
+          data: frame,
+        },
+      })),
+    ];
 
-        // Retry with exponential backoff for quota/rate-limit errors
-        const maxRetries = 3;
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-            try {
-                this.logger.debug(`Sending ${videoFrames.length} frames to Gemini (attempt ${attempt + 1})...`);
-                const result = await this.model.generateContent(parts);
+    // Retry with exponential backoff for quota/rate-limit errors
+    const maxRetries = 3;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        this.logger.debug(
+          `Sending ${videoFrames.length} frames to Gemini (attempt ${attempt + 1})...`,
+        );
+        const result = await this.model.generateContent(parts);
 
-                // Safeguard against blocked responses
-                if (result.response.promptFeedback?.blockReason) {
-                    throw new Error(`Gemini request blocked: ${result.response.promptFeedback.blockReason}`);
-                }
-
-                if (!result.response.candidates || result.response.candidates.length === 0) {
-                    throw new Error('Gemini returned no candidates');
-                }
-
-                const response = result.response.text();
-                this.logger.debug(`[Gemini] Shorts detection raw response: ${response.substring(0, 500)}...`);
-
-                const segments = this.parseSegmentsResponse(response);
-
-                // If we got 0 segments, it might be a silent failure or just no segments.
-                // We only retry if parsing failed or if we suspect the model hallucinated an empty response
-                // (though usually we trust 0 segments if parsing was successful).
-                // However, the user wants to be sure, so we could technically retry once if 0 segments found?
-                // Let's stick to parsing errors for now as requested.
-
-                this.logger.debug(`Detected ${segments.length} potential Shorts segments`);
-                return segments;
-            } catch (error: unknown) {
-                const err = error as any;
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                const isParsingError = error instanceof GeminiParseError || err?.name === 'GeminiParseError';
-                const status = err?.status || err?.statusCode;
-                const isRetryableApiError = status === 429 || status === 503
-                    || errorMessage.includes('429') || errorMessage.includes('Quota')
-                    || errorMessage.includes('503') || errorMessage.includes('Service Unavailable');
-
-                const shouldRetry = (isParsingError || isRetryableApiError) && attempt < maxRetries;
-
-                if (shouldRetry) {
-                    const delaySeconds = Math.pow(2, attempt) * 2; // 2s, 4s, 8s
-                    const reason = isParsingError ? 'parsing failed' : `API error ${status || 'unknown'}`;
-                    this.logger.warn(`Gemini attempt ${attempt + 1} failed (${reason}), retrying in ${delaySeconds}s...`);
-                    await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
-                    continue;
-                }
-
-                if (isParsingError) {
-                    this.logger.error(`Gemini parsing failed after retries: ${errorMessage}`);
-                    throw error;
-                }
-
-                if (isRetryableApiError) {
-                    this.logger.error('Gemini API unavailable after retries');
-                    throw new Error('Gemini API is currently unavailable. Please wait a few minutes and try again, or switch to a different model (e.g. gemini-2.5-flash).');
-                }
-
-                this.logger.error(`Gemini API error: ${errorMessage}`);
-                throw error;
-            }
+        // Safeguard against blocked responses
+        if (result.response.promptFeedback?.blockReason) {
+          throw new Error(
+            `Gemini request blocked: ${result.response.promptFeedback.blockReason}`,
+          );
         }
 
-        return []; // Unreachable, but TypeScript needs it
+        if (
+          !result.response.candidates ||
+          result.response.candidates.length === 0
+        ) {
+          throw new Error('Gemini returned no candidates');
+        }
+
+        const response = result.response.text();
+        this.logger.debug(
+          `[Gemini] Shorts detection raw response: ${response.substring(0, 500)}...`,
+        );
+
+        const segments = this.parseSegmentsResponse(response);
+
+        // If we got 0 segments, it might be a silent failure or just no segments.
+        // We only retry if parsing failed or if we suspect the model hallucinated an empty response
+        // (though usually we trust 0 segments if parsing was successful).
+        // However, the user wants to be sure, so we could technically retry once if 0 segments found?
+        // Let's stick to parsing errors for now as requested.
+
+        this.logger.debug(
+          `Detected ${segments.length} potential Shorts segments`,
+        );
+        return segments;
+      } catch (error: unknown) {
+        const err = error as any;
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const isParsingError =
+          error instanceof GeminiParseError || err?.name === 'GeminiParseError';
+        const status = err?.status || err?.statusCode;
+        const isRetryableApiError =
+          status === 429 ||
+          status === 503 ||
+          errorMessage.includes('429') ||
+          errorMessage.includes('Quota') ||
+          errorMessage.includes('503') ||
+          errorMessage.includes('Service Unavailable');
+
+        const shouldRetry =
+          (isParsingError || isRetryableApiError) && attempt < maxRetries;
+
+        if (shouldRetry) {
+          const delaySeconds = Math.pow(2, attempt) * 2; // 2s, 4s, 8s
+          const reason = isParsingError
+            ? 'parsing failed'
+            : `API error ${status || 'unknown'}`;
+          this.logger.warn(
+            `Gemini attempt ${attempt + 1} failed (${reason}), retrying in ${delaySeconds}s...`,
+          );
+          await new Promise((resolve) =>
+            setTimeout(resolve, delaySeconds * 1000),
+          );
+          continue;
+        }
+
+        if (isParsingError) {
+          this.logger.error(
+            `Gemini parsing failed after retries: ${errorMessage}`,
+          );
+          throw error;
+        }
+
+        if (isRetryableApiError) {
+          this.logger.error('Gemini API unavailable after retries');
+          throw new Error(
+            'Gemini API is currently unavailable. Please wait a few minutes and try again, or switch to a different model (e.g. gemini-2.5-flash).',
+          );
+        }
+
+        this.logger.error(`Gemini API error: ${errorMessage}`);
+        throw error;
+      }
     }
 
-    /**
-     * Build the detection prompt with clear instructions and output format.
-     * Uses few-shot and chain-of-thought patterns from the Gemini skill.
-     */
-    private buildDetectionPrompt(duration: number, interval: number, transcript?: string): string {
-        return `You are an expert video editor for YouTube Shorts and TikTok. Analyze these video frames ${transcript ? 'and the provided audio transcript' : ''} to identify the most engaging, punchy 15-35 second segments ("petits bouts").
+    return []; // Unreachable, but TypeScript needs it
+  }
+
+  /**
+   * Build the detection prompt with clear instructions and output format.
+   * Uses few-shot and chain-of-thought patterns from the Gemini skill.
+   */
+  private buildDetectionPrompt(
+    duration: number,
+    interval: number,
+    transcript?: string,
+  ): string {
+    return `You are an expert video editor for YouTube Shorts and TikTok. Analyze these video frames ${transcript ? 'and the provided audio transcript' : ''} to identify the most engaging, punchy 15-35 second segments ("petits bouts").
 
 **Context:**
 - Total video duration: ${duration} seconds
@@ -275,75 +345,86 @@ ${transcript ? `- Transcript/Subtitles: see below\n\n${transcript.slice(0, 10000
 ]
 
 IMPORTANT: Return a valid JSON array. If no segments are found, return [].`;
-    }
+  }
 
-    /**
-     * Parse Gemini's text response into structured segments.
-     * Handles markdown code blocks and malformed JSON gracefully.
-     */
-    parseSegmentsResponse(response: string): DetectedSegment[] {
-        try {
-            this.logger.debug(`[Gemini] Parsing response: ${response.substring(0, 200)}...`);
+  /**
+   * Parse Gemini's text response into structured segments.
+   * Handles markdown code blocks and malformed JSON gracefully.
+   */
+  parseSegmentsResponse(response: string): DetectedSegment[] {
+    try {
+      this.logger.debug(
+        `[Gemini] Parsing response: ${response.substring(0, 200)}...`,
+      );
 
-            // 1. Initial cleanup: remove potential markdown wrappers if model disobeyed JSON mode
-            let jsonText = response.trim();
-            if (jsonText.startsWith('```')) {
-                const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-                if (match) jsonText = match[1];
-            }
+      // 1. Initial cleanup: remove potential markdown wrappers if model disobeyed JSON mode
+      let jsonText = response.trim();
+      if (jsonText.startsWith('```')) {
+        const match = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+        if (match) jsonText = match[1];
+      }
 
-            let parsed;
-            try {
-                parsed = JSON.parse(jsonText);
-            } catch (e) {
-                this.logger.warn(`JSON parse failed, attempting loose extraction. Error: ${(e as Error).message}`);
-                // Safe and simple attempt to extract anything that looks like an array
-                const jsonMatch = jsonText.match(/\[[\s\S]*\]/);
-                if (jsonMatch) {
-                    parsed = JSON.parse(jsonMatch[0]);
-                } else {
-                    throw e;
-                }
-            }
-
-            // Validate structure
-            if (!Array.isArray(parsed)) {
-                // If it's an object with a segments array (sometimes model does this even in JSON mode)
-                if (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).segments)) {
-                    parsed = (parsed as any).segments;
-                } else {
-                    throw new Error('Response is not an array');
-                }
-            }
-
-            return parsed
-                .filter(
-                    (seg: Record<string, unknown>) =>
-                        typeof seg.startTime === 'number' &&
-                        typeof seg.endTime === 'number' &&
-                        seg.endTime > seg.startTime,
-                )
-                .map((seg: Record<string, unknown>) => {
-                    let centerX = 0.5;
-                    let width = 0.5625;
-
-                    if (seg.smartCropData && typeof seg.smartCropData === 'object') {
-                        const crop = seg.smartCropData as any;
-                        if (typeof crop.centerX === 'number') centerX = crop.centerX;
-                        if (typeof crop.width === 'number') width = crop.width;
-                    }
-
-                    return {
-                        startTime: Number(seg.startTime),
-                        endTime: Number(seg.endTime),
-                        confidence: Number(seg.confidence) || 50,
-                        reason: (seg.reason as string) || 'Interesting moment detected',
-                        subjectPosition: typeof seg.subjectPosition === 'string' ? seg.subjectPosition : undefined,
-                        smartCropData: { centerX, width },
-                    };
-                });
-        } catch (error) {
-            throw new GeminiParseError((error as Error).message, response);
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonText);
+      } catch (e) {
+        this.logger.warn(
+          `JSON parse failed, attempting loose extraction. Error: ${(e as Error).message}`,
+        );
+        // Safe and simple attempt to extract anything that looks like an array
+        const jsonMatch = jsonText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        } else {
+          throw e;
         }
+      }
+
+      // Validate structure
+      if (!Array.isArray(parsed)) {
+        // If it's an object with a segments array (sometimes model does this even in JSON mode)
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          Array.isArray(parsed.segments)
+        ) {
+          parsed = parsed.segments;
+        } else {
+          throw new Error('Response is not an array');
+        }
+      }
+
+      return parsed
+        .filter(
+          (seg: Record<string, unknown>) =>
+            typeof seg.startTime === 'number' &&
+            typeof seg.endTime === 'number' &&
+            seg.endTime > seg.startTime,
+        )
+        .map((seg: Record<string, unknown>) => {
+          let centerX = 0.5;
+          let width = 0.5625;
+
+          if (seg.smartCropData && typeof seg.smartCropData === 'object') {
+            const crop = seg.smartCropData as any;
+            if (typeof crop.centerX === 'number') centerX = crop.centerX;
+            if (typeof crop.width === 'number') width = crop.width;
+          }
+
+          return {
+            startTime: Number(seg.startTime),
+            endTime: Number(seg.endTime),
+            confidence: Number(seg.confidence) || 50,
+            reason: (seg.reason as string) || 'Interesting moment detected',
+            subjectPosition:
+              typeof seg.subjectPosition === 'string'
+                ? seg.subjectPosition
+                : undefined,
+            smartCropData: { centerX, width },
+          };
+        });
+    } catch (error) {
+      throw new GeminiParseError((error as Error).message, response);
     }
+  }
 }

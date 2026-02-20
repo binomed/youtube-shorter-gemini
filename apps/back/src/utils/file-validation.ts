@@ -84,16 +84,18 @@ import { open } from 'fs/promises';
 
 /**
  * Validate file content using magic bytes (file signature)
- * 
+ *
  * Securely checks the first few bytes of the file to verify it matches
  * expected video container formats (MP4, MOV, AVI, MKV).
  * This prevents extension spoofing attacks (e.g., malware.exe renamed to video.mp4).
- * 
+ *
  * @param filePath - Absolute path to the file
  * @returns true if signature is valid
  * @throws Error if signature is invalid or file reading fails
  */
-export async function validateFileSignature(filePath: string): Promise<boolean> {
+export async function validateFileSignature(
+  filePath: string,
+): Promise<boolean> {
   let fileHandle;
   try {
     fileHandle = await open(filePath, 'r');
@@ -125,7 +127,9 @@ export async function validateFileSignature(filePath: string): Promise<boolean> 
       return true;
     }
 
-    throw new Error('Invalid file signature. File content does not match allowed video formats.');
+    throw new Error(
+      'Invalid file signature. File content does not match allowed video formats.',
+    );
   } catch (error) {
     throw new Error(`File validation failed: ${error.message}`);
   } finally {

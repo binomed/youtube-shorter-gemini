@@ -19,9 +19,9 @@ import { FFmpegService } from '../../workers/ffmpeg.service';
  * - AnalysisController: REST + SSE endpoints
  */
 @Module({
-    imports: [TypeOrmModule.forFeature([Short, Project])],
-    controllers: [AnalysisController],
-    providers: [GeminiService, AnalysisService, FFmpegService],
-    exports: [AnalysisService, GeminiService],
+  imports: [TypeOrmModule.forFeature([Short, Project])],
+  controllers: [AnalysisController],
+  providers: [GeminiService, AnalysisService, FFmpegService],
+  exports: [AnalysisService, GeminiService],
 })
-export class AiModule { }
+export class AiModule {}

@@ -7,6 +7,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
 import { Router, type BeforeEnterObserver, type RouterLocation } from '@vaadin/router';
 import type { AnalysisProgressEvent } from '@youtube-shorter/shared';
+import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import { projectService } from '../services/project.service.js';
 import { projectSignal, setProject } from '../state/project.state.js';
 
@@ -211,7 +212,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     const projectId = location.params.projectId as string;
 
     // If no project or different project, fetch it
-    const currentProject = (projectSignal as any).value;
+    const currentProject = projectSignal.get();
     if (!currentProject || currentProject.id !== projectId) {
       this.loadingProject = true;
       try {
@@ -227,7 +228,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     }
 
     // Once loaded (and redundant check), start analysis if no error
-    const project = (projectSignal as any).value;
+    const project = projectSignal.get();
     if (project && !this.error) {
       // We should ensure we don't restart analysis if it's already done?
       // Actually, analysis endpoint might be idempotent or we rely on backend state.
@@ -243,7 +244,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
    * then triggering the POST /analyze endpoint.
    */
   private async startAnalysis() {
-    const project = (projectSignal as any).value;
+    const project = projectSignal.get();
     if (!project?.id) return;
 
     const projectId = project.id;
@@ -322,11 +323,11 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
             `;
     }
 
-    const project = (projectSignal as any).value;
+    const project = projectSignal.get();
 
     return html`
       <a class="home-button" @click="${() => Router.go('/')}">
-        <span>🏠</span> Home
+        <sl-icon name="house-door-fill"></sl-icon> Home
       </a>
       <div class="analysis-container">
         <div class="brand-icon">🧠</div>

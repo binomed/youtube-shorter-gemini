@@ -9,6 +9,7 @@ import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
 import type SlDialog from '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
 import { projectService } from '../services/project.service.js';
+import type { ProjectResponse } from '@youtube-shorter/shared';
 import { classMap } from 'lit/directives/class-map.js';
 
 @customElement('dashboard-page')
@@ -292,7 +293,7 @@ export class DashboardPage extends LitElement {
   @state() private projectName = '';
   @state() private isDragActive = false;
   @state() private selectedFile: File | null = null;
-  @state() private projects: any[] = [];
+  @state() private projects: ProjectResponse[] = [];
   @state() private projectIdToDelete: string | null = null; // Still need this state to track WHICH project to delete
 
   // Issue #7: Optimize DOM Access with @query decorator
