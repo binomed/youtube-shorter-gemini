@@ -2,11 +2,14 @@
  * Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
  * Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { html } from 'lit';
 import { fixture } from '@open-wc/testing-helpers';
 import '../src/components/organisms/yts-project-form.element.js';
 import type { YtsProjectForm } from '../src/components/organisms/yts-project-form.element.js';
+import { projectService } from '../src/services/project.service.js';
+
+vi.mock('axios');
 
 /**
  * Accessibility tests for Lit components using basic checks
@@ -16,6 +19,18 @@ import type { YtsProjectForm } from '../src/components/organisms/yts-project-for
  * This covers basic structural/semantic a11y validation in happy-dom.
  */
 describe('Accessibility Tests', (): void => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        vi.spyOn(projectService, 'getConfig').mockResolvedValue({
+            maxVideoSizeMb: 500,
+            allowedExtensions: ['.mp4', '.mov'],
+            allowedMimeTypes: ['video/mp4', 'video/quicktime'],
+        });
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
     it('project form should have accessible dropzone', async (): Promise<void> => {
         const el = await fixture<YtsProjectForm>(
             html`<yts-project-form></yts-project-form>`,

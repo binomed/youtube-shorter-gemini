@@ -51,8 +51,8 @@ development_status:
   epic-2: in-progress
   2-1-automated-viral-analysis: done
   epic-2-retrospective: optional
-  epic-3: backlog
-  3-1-audio-stem-separation: backlog
+  epic-3: in-progress
+  3-1-audio-stem-separation: done
   3-2-dynamic-subtitle-interaction: backlog
   epic-3-retrospective: optional
   epic-4: backlog

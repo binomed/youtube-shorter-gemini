@@ -3,8 +3,11 @@
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, DataSource } from 'typeorm';
+import { Repository, LessThan, DataSource, EntityManager } from 'typeorm';
 import { Project } from '../../entities/project.entity';
+import { Short } from '../../entities/short.entity';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 /**
  * CleanupService handles file and data cleanup for privacy compliance (FR-03)
@@ -34,7 +37,7 @@ export class CleanupService {
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
     private readonly dataSource: DataSource,
-  ) {}
+  ) { }
 
   /**
    * Delete project and associated data
@@ -67,6 +70,9 @@ export class CleanupService {
         throw new NotFoundException(`Project with ID ${projectId} not found`);
       }
 
+      // Clean up stem files before deleting DB records
+      await this.cleanupStemFiles(projectId, manager);
+
       // Delete with cascade (will handle future foreign key constraints)
       await projectRepo.remove(project);
 
@@ -75,6 +81,41 @@ export class CleanupService {
 
     // Important: Do NOT delete original video file for desktop local files
     // The video belongs to the user and is outside our app's management scope
+  }
+
+  /**
+   * Clean up stem audio files from disk for all shorts in a project.
+   *
+   * Stems are stored in: uploads/stems/<shortId>/
+   * This method removes those directories when a project is deleted.
+   */
+  private async cleanupStemFiles(
+    projectId: string,
+    manager: EntityManager,
+  ): Promise<void> {
+    const shortRepo = manager.getRepository(Short);
+    const shorts = await shortRepo.find({ where: { projectId } });
+
+    for (const short of shorts) {
+      // Clean up stems directory for this short
+      const stemsDir = path.join(process.cwd(), 'uploads', 'stems', short.id);
+      try {
+        await fs.rm(stemsDir, { recursive: true, force: true });
+        this.logger.debug(`Cleaned up stems for short ${short.id}`);
+      } catch {
+        // Ignore if directory doesn't exist
+      }
+
+      // Also clean up thumbnail if exists
+      if (short.thumbnailPath) {
+        try {
+          await fs.unlink(short.thumbnailPath);
+          this.logger.debug(`Cleaned up thumbnail for short ${short.id}`);
+        } catch {
+          // Ignore if file doesn't exist
+        }
+      }
+    }
   }
 
   /**

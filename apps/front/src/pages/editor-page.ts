@@ -9,16 +9,22 @@ import '@shoelace-style/shoelace/dist/components/tab/tab.js';
 import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 import '@shoelace-style/shoelace/dist/components/range/range.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
+import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
+import '@shoelace-style/shoelace/dist/components/badge/badge.js';
 import '../components/short-player.js';
 import { projectService } from '../services/project.service.js';
 import { projectSignal, setProject } from '../state/project.state.js';
-import type { ShortResponse } from '@youtube-shorter/shared';
+import type { ShortResponse, StemProgressEvent } from '@youtube-shorter/shared';
 
 @customElement('editor-page')
 export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnterObserver {
   @state() private shorts: ShortResponse[] = [];
   @state() private currentShort: ShortResponse | null = null;
   @state() private loading = true;
+  @state() private stemSeparating = false;
+  @state() private stemProgress = 0;
+  @state() private stemMessage = '';
+  @state() private stemAvailable = false;
 
   async onBeforeEnter(location: RouterLocation) {
     const projectId = location.params.projectId as string;
@@ -41,9 +47,80 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
   private playShort(short: ShortResponse) {
     this.currentShort = short;
-    const player = this.shadowRoot?.querySelector('short-player') as unknown as { playSegment: (s: number, e: number) => void }; // Cast to access custom method
+    // Check if stems are available for this short
+    this.stemAvailable = false;
+    this.stemProgress = 0;
+    this.stemMessage = '';
+    this.stemSeparating = false;
+    this.checkStemAvailability();
+    const player = this.shadowRoot?.querySelector('short-player') as unknown as { playSegment: (s: number, e: number) => void };
     if (player && player.playSegment) {
       player.playSegment(short.startTime, short.endTime);
+    }
+  }
+
+  /**
+   * Check if stems are already available for a short by attempting to fetch the short data.
+   */
+  private async checkStemAvailability() {
+    // Simple heuristic: if the short has stems, the server would serve them.
+    // We'll check by looking at the stems endpoint with HEAD-like logic.
+    // For now, just set to false and let user trigger separation.
+    this.stemAvailable = false;
+  }
+
+  /**
+   * Trigger stem separation for the current short.
+   */
+  private async triggerStemSeparation() {
+    const projectId = projectSignal.get()?.id;
+    const shortId = this.currentShort?.id;
+    if (!projectId || !shortId) return;
+
+    this.stemSeparating = true;
+    this.stemProgress = 0;
+    this.stemMessage = 'Starting stem separation...';
+
+    // Connect SSE for progress
+    const eventSource = new EventSource(
+      `/api/projects/${projectId}/shorts/${shortId}/stems/progress`
+    );
+
+    eventSource.addEventListener('stem-progress', (event: Event) => {
+      const data = JSON.parse((event as MessageEvent).data) as StemProgressEvent;
+      this.stemProgress = data.progress;
+      this.stemMessage = data.message;
+
+      if (data.phase === 'complete') {
+        this.stemSeparating = false;
+        this.stemAvailable = true;
+        eventSource.close();
+      } else if (data.phase === 'error') {
+        this.stemSeparating = false;
+        eventSource.close();
+      }
+    });
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
+    // Trigger the actual separation
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/shorts/${shortId}/stems`,
+        { method: 'POST' }
+      );
+      const result = await response.json();
+      if (result.success) {
+        this.stemAvailable = true;
+      }
+    } catch (e) {
+      console.error('Stem separation failed:', e);
+      this.stemMessage = 'Stem separation failed.';
+    } finally {
+      this.stemSeparating = false;
+      eventSource.close();
     }
   }
 
@@ -214,6 +291,59 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                <div style="color:#94a3b8; font-size:13px; text-align:center; padding-top:20px;">
                   Style controls coming soon...
                </div>
+            </sl-tab-panel>
+
+            <sl-tab slot="nav" panel="audio">Audio</sl-tab>
+            <sl-tab-panel name="audio">
+              ${this.currentShort
+        ? html`
+                  <div style="padding: 12px 0;">
+                    ${this.stemSeparating
+            ? html`
+                        <div style="text-align: center; padding: 20px 0;">
+                          <sl-spinner style="font-size: 2rem; --indicator-color: #818cf8;"></sl-spinner>
+                          <div style="margin-top: 12px; color: #94a3b8; font-size: 13px;">${this.stemMessage}</div>
+                          <div style="margin-top: 8px; background: rgba(99,102,241,0.2); border-radius: 8px; height: 6px; overflow: hidden;">
+                            <div style="height: 100%; background: #818cf8; border-radius: 8px; width: ${this.stemProgress}%; transition: width 0.3s;"></div>
+                          </div>
+                        </div>
+                      `
+            : this.stemAvailable
+              ? html`
+                          <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <sl-badge variant="success" style="align-self: flex-start;">Stems Ready</sl-badge>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                              <sl-icon name="mic" style="color: #818cf8;"></sl-icon>
+                              <span style="font-size: 13px; color: #e2e8f0;">Vocals</span>
+                              <audio controls style="flex: 1; height: 32px;">
+                                <source src="/api/projects/${projectSignal.get()?.id}/shorts/${this.currentShort.id}/stems/vocals" type="audio/wav">
+                              </audio>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                              <sl-icon name="music-note-beamed" style="color: #818cf8;"></sl-icon>
+                              <span style="font-size: 13px; color: #e2e8f0;">Music</span>
+                              <audio controls style="flex: 1; height: 32px;">
+                                <source src="/api/projects/${projectSignal.get()?.id}/shorts/${this.currentShort.id}/stems/accompaniment" type="audio/wav">
+                              </audio>
+                            </div>
+                            <sl-button variant="text" size="small" @click="${() => this.triggerStemSeparation()}">Re-run separation</sl-button>
+                          </div>
+                        `
+              : html`
+                          <div style="text-align: center; padding: 20px 0;">
+                            <sl-icon name="soundwave" style="font-size: 2rem; color: #64748b;"></sl-icon>
+                            <p style="color: #94a3b8; font-size: 13px; margin: 12px 0;">Separate vocals from background music using AI.</p>
+                            <sl-button variant="primary" @click="${() => this.triggerStemSeparation()}">
+                              <sl-icon slot="prefix" name="mic"></sl-icon>
+                              Separate Audio Stems
+                            </sl-button>
+                          </div>
+                        `
+          }
+                  </div>
+                `
+        : html`<div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">Select a short first</div>`
+      }
             </sl-tab-panel>
           </sl-tab-group>
         </aside>

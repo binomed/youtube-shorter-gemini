@@ -18,9 +18,11 @@ import {
 import type { Response } from 'express';
 import { Observable, Subject, map, finalize } from 'rxjs';
 import { AnalysisService } from './analysis.service';
+import { StemService } from './stem.service';
 import type {
   AnalysisResponse,
   AnalysisProgressEvent,
+  StemProgressEvent,
   ShortResponse,
 } from '@youtube-shorter/shared';
 
@@ -39,8 +41,15 @@ export class AnalysisController {
     string,
     Subject<AnalysisProgressEvent>
   >();
+  private readonly activeStemJobs = new Map<
+    string,
+    Subject<StemProgressEvent>
+  >();
 
-  constructor(private readonly analysisService: AnalysisService) {}
+  constructor(
+    private readonly analysisService: AnalysisService,
+    private readonly stemService: StemService,
+  ) { }
 
   /**
    * Trigger AI analysis for a project's video.
@@ -173,6 +182,126 @@ export class AnalysisController {
     });
 
     const fileStream = createReadStream(thumbnailPath);
+    return new StreamableFile(fileStream);
+  }
+
+  // ─── STEM SEPARATION ENDPOINTS ────────────────────────────────────
+
+  /**
+   * Trigger audio stem separation for a specific short.
+   *
+   * @param id - Project UUID
+   * @param shortId - Short UUID
+   * @returns Success with stem paths
+   */
+  @Post(':id/shorts/:shortId/stems')
+  @HttpCode(HttpStatus.OK)
+  async separateStems(
+    @Param('id') id: string,
+    @Param('shortId') shortId: string,
+  ): Promise<{ success: boolean; data: { vocalsPath?: string; accompanimentPath?: string } }> {
+    this.logger.log(`Starting stem separation for short ${shortId} in project ${id}`);
+
+    // Reuse SSE progress subject if SSE was connected first
+    const stemKey = `${id}:${shortId}`;
+    let progress$ = this.activeStemJobs.get(stemKey);
+    if (!progress$) {
+      progress$ = new Subject<StemProgressEvent>();
+      this.activeStemJobs.set(stemKey, progress$);
+    }
+
+    try {
+      const short = await this.stemService.separateStems(id, shortId, progress$);
+
+      return {
+        success: true,
+        data: {
+          vocalsPath: short.vocalsPath,
+          accompanimentPath: short.accompanimentPath,
+        },
+      };
+    } finally {
+      progress$.complete();
+      this.activeStemJobs.delete(stemKey);
+    }
+  }
+
+  /**
+   * SSE endpoint for real-time stem separation progress.
+   * Connect BEFORE triggering POST stems to receive all events.
+   *
+   * @param id - Project UUID
+   * @param shortId - Short UUID
+   */
+  @Sse(':id/shorts/:shortId/stems/progress')
+  stemProgress(
+    @Param('id') id: string,
+    @Param('shortId') shortId: string,
+  ): Observable<MessageEvent> {
+    this.logger.log(`SSE connection opened for stem separation: ${id}/${shortId}`);
+
+    const stemKey = `${id}:${shortId}`;
+    let progress$ = this.activeStemJobs.get(stemKey);
+    if (!progress$) {
+      progress$ = new Subject<StemProgressEvent>();
+      this.activeStemJobs.set(stemKey, progress$);
+    }
+
+    return progress$.pipe(
+      map((event) => ({
+        data: JSON.stringify(event),
+        type: 'stem-progress',
+      })),
+      finalize(() => {
+        this.logger.log(`SSE connection closed for stem separation: ${id}/${shortId}`);
+      }),
+    );
+  }
+
+  /**
+   * Stream a stem audio file for a specific short.
+   *
+   * @param id - Project UUID
+   * @param shortId - Short UUID
+   * @param stem - stem type: 'vocals' or 'accompaniment'
+   * @param res - Response object
+   * @returns StreamableFile
+   */
+  @Get(':id/shorts/:shortId/stems/:stem')
+  async getStemAudio(
+    @Param('id') id: string,
+    @Param('shortId') shortId: string,
+    @Param('stem') stem: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { createReadStream, existsSync } = await import('fs');
+
+    const shorts = await this.analysisService.getShortsByProject(id);
+    const short = shorts.find((s) => s.id === shortId);
+
+    if (!short) {
+      throw new NotFoundException(`Short ${shortId} not found`);
+    }
+
+    let filePath: string | undefined;
+    if (stem === 'vocals') {
+      filePath = short.vocalsPath;
+    } else if (stem === 'accompaniment') {
+      filePath = short.accompanimentPath;
+    } else {
+      throw new NotFoundException(`Unknown stem type: ${stem}. Use 'vocals' or 'accompaniment'.`);
+    }
+
+    if (!filePath || !existsSync(filePath)) {
+      throw new NotFoundException(`Stem '${stem}' file not found. Run stem separation first.`);
+    }
+
+    res.set({
+      'Content-Type': 'audio/wav',
+      'Content-Disposition': `inline; filename="${stem}.wav"`,
+    });
+
+    const fileStream = createReadStream(filePath);
     return new StreamableFile(fileStream);
   }
 }

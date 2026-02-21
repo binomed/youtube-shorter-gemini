@@ -106,6 +106,18 @@ export class Short {
   orderIndex: number;
 
   /**
+   * Path to the separated vocals audio stem file
+   */
+  @Column({ type: 'varchar', nullable: true })
+  vocalsPath?: string;
+
+  /**
+   * Path to the separated accompaniment (music) audio stem file
+   */
+  @Column({ type: 'varchar', nullable: true })
+  accompanimentPath?: string;
+
+  /**
    * Timestamp when the short was created/detected
    */
   @CreateDateColumn()

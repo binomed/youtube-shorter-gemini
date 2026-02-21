@@ -5,7 +5,7 @@ import type { YtsProjectForm } from './yts-project-form.element.js';
 // Auto-mock axios
 vi.mock('axios');
 
-import { projectService } from '../../services/project.service';
+import { projectService } from '../../services/project.service.js';
 
 
 

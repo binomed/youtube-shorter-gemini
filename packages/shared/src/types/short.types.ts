@@ -78,3 +78,20 @@ export interface DetectedSegment {
         width: number;
     };
 }
+
+/**
+ * SSE progress event during audio stem separation.
+ */
+export interface StemProgressEvent {
+    /** Current phase */
+    phase: 'extracting' | 'separating' | 'saving' | 'complete' | 'error';
+
+    /** Progress percentage (0-100) */
+    progress: number;
+
+    /** Human-readable status message */
+    message: string;
+
+    /** Short ID being processed */
+    shortId: string;
+}

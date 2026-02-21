@@ -22,6 +22,7 @@ describe('CleanupService', () => {
 
     mockRepository = {
       findOne: jest.fn().mockResolvedValue(mockProject),
+      find: jest.fn().mockResolvedValue([]),
       remove: jest.fn().mockResolvedValue(mockProject),
       delete: jest.fn().mockResolvedValue({ affected: 1 }),
     };
