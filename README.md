@@ -37,6 +37,25 @@ ffmpeg -version
 ffprobe -version
 ```
 
+### 3. Demucs (MANDATORY for Audio Separation)
+The project uses **Demucs** (Meta Research) to isolate vocals from background music. This requires Python 3.
+
+**Installation:**
+```bash
+# Ensure Python 3 is installed
+python3 --version
+
+# Install demucs and torchcodec (required for saving audio)
+python3 -m pip install -U demucs torchcodec
+```
+
+**Verification:**
+```bash
+demucs --help
+```
+
+---
+
 ## 🛠 Installation
 
 ```bash
