@@ -1,6 +1,6 @@
 # Story 3.1.5: Consolidation Architecturale, Lisibilité et Qualité
 
-Status: in-progress
+Status: done
 
 ## Story
 

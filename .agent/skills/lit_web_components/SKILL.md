@@ -261,6 +261,90 @@ html`
 import { currentUser } from '../state/app-state.js';
 ```
 
+## CSS Guidelines — Convention `--yts-*` (AC8 Story 3.1.5)
+
+> **Règle fondamentale :** Dans le Shadow DOM des composants Lit, utiliser **exclusivement les variables CSS `--yts-*`** pour les valeurs de design. Tailwind CSS est réservé à la macro-topologie (layouts de pages globaux en dehors du Shadow DOM).
+
+### Pourquoi cette séparation ?
+
+Le Shadow DOM **encapsule les styles** — les classes Tailwind définies à l'extérieur du composant ne traversent pas la frontière du shadow root. Les CSS custom properties (`--yts-*`), en revanche, **héritent naturellement** à travers la frontière Shadow DOM, ce qui en fait le seul mécanisme de theming fiable pour les LitElements.
+
+### Référence des Tokens `--yts-*`
+
+| Variable | Valeur par défaut | Usage |
+|----------|-------------------|-------|
+| `--yts-glass-bg` | `rgba(30, 35, 50, 0.7)` | Fond des panneaux glass |
+| `--yts-glass-border` | `rgba(99, 102, 241, 0.3)` | Bordure des panneaux glass |
+| `--yts-primary` | `#4f46e5` | Couleur d'accent principale (indigo) |
+| `--yts-primary-hover` | `#4338ca` | Hover de l'accent principale |
+| `--yts-text-1` | `#f8fafc` | Texte principal (blanc cassé) |
+| `--yts-text-2` | `#cbd5e1` | Texte secondaire |
+| `--yts-text-3` | `#94a3b8` | Texte tertiaire / labels |
+| `--yts-border` | `rgba(99, 102, 241, 0.6)` | Bordure interactive |
+| `--yts-radius` | `20px` | Border-radius des cards |
+| `--yts-blur` | `24px` | Intensité du backdrop-filter |
+
+### Exemple — ✅ CORRECT : variables CSS dans le Shadow DOM
+
+```typescript
+static styles = css`
+  :host {
+    display: block;
+    /* ✅ Utiliser les variables --yts-* pour les valeurs de design */
+    background: var(--yts-glass-bg, rgba(30, 35, 50, 0.7));
+    border: 1px solid var(--yts-glass-border, rgba(99, 102, 241, 0.3));
+    border-radius: var(--yts-radius, 20px);
+    color: var(--yts-text-1, #f8fafc);
+  }
+
+  .label {
+    color: var(--yts-text-3, #94a3b8);
+    font-size: 13px;
+  }
+
+  .btn-primary {
+    background: var(--yts-primary, #4f46e5);
+  }
+
+  .btn-primary:hover {
+    background: var(--yts-primary-hover, #4338ca);
+  }
+`;
+```
+
+### Exemple — ❌ INCORRECT : valeurs hardcodées ou Tailwind dans Shadow DOM
+
+```typescript
+static styles = css`
+  :host {
+    /* ❌ Couleurs hardcodées : impossible à themer, incohérent */
+    background: rgba(30, 35, 50, 0.7);
+    color: #f8fafc;
+  }
+  /* ❌ Tailwind ne fonctionne PAS dans Shadow DOM */
+  /* .bg-slate-900 { ... } ← ignoré */
+`;
+```
+
+### Où utiliser Tailwind ?
+
+Tailwind est acceptable **uniquement** dans les fichiers de layout global (hors Shadow DOM) :
+- `apps/front/src/index.html` — meta layout
+- Pages de haut niveau avec `display: grid` pour la structure globale (ex: `editor-page.ts` utilise un grid en inline style, non dans Shadow DOM)
+
+### Déclarer les tokens dans `:root`
+
+Les tokens `--yts-*` sont déclarés dans `apps/front/src/index.css` (ou un fichier de thème global). Pour surcharger un token dans un composant spécifique :
+
+```typescript
+static styles = css`
+  :host {
+    /* Surcharge locale du token pour ce composant uniquement */
+    --yts-glass-bg: rgba(99, 102, 241, 0.15); /* plus violet */
+  }
+`;
+```
+
 ## Common Pitfalls
 
 ### ❌ DON'T: Mix reactive patterns
