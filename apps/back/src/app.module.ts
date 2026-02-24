@@ -8,9 +8,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { VideoModule } from './modules/video/video.module';
-import { AiModule } from './modules/ai/ai.module';
+import { AnalysisModule } from './modules/analysis/analysis.module';
+import { ProcessingModule } from './modules/processing/processing.module';
 import { Project } from './entities/project.entity';
 import { Short } from './entities/short.entity';
+import { Job } from './entities/job.entity';
 
 /**
  * Root application module for YouTube Shorter Gemini backend
@@ -32,18 +34,19 @@ import { Short } from './entities/short.entity';
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: 'data/youtube-shorter.db', // Stored in apps/back/data/
-      entities: [Project, Short],
+      entities: [Project, Short, Job],
       // CRITICAL: synchronize MUST be false in production to prevent data loss
       // Schema changes require migrations in production
       synchronize: process.env.NODE_ENV !== 'production',
       logging: process.env.NODE_ENV !== 'production',
     }),
 
-    // Feature modules
+    // Feature modules (refactored from AiModule — Story 3.1.5, ADR-001)
     VideoModule,
-    AiModule,
+    AnalysisModule,
+    ProcessingModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

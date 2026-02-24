@@ -13,7 +13,10 @@
         "dev": "turbo run dev",
         "lint": "turbo run lint",
         "test": "turbo run test",
-        "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+        "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+        "clean:temp": "rimraf apps/back/uploads/stems apps/back/uploads/thumbnails",
+        "clean:dist": "rimraf apps/back/dist apps/front/dist packages/shared/dist",
+        "clean": "npm run clean:temp && npm run clean:dist"
     },
     "keywords": [
         "youtube",
@@ -27,6 +30,7 @@
     "devDependencies": {
         "turbo": "latest",
         "prettier": "latest",
-        "eslint": "latest"
+        "eslint": "latest",
+        "rimraf": "latest"
     }
 }

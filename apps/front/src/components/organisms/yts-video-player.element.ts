@@ -274,86 +274,110 @@ export class YtsVideoPlayer extends LitElement {
                     playsinline
                 ></video>
 
-                <!-- Loading Overlay -->
-                ${this.isLoading && !this.hasError
-                ? html`
-                          <div class="loading-overlay" aria-live="polite">
-                              <div class="spinner"></div>
-                              <span>Loading video...</span>
-                          </div>
-                      `
-                : ''}
-
-                <!-- Error Overlay -->
-                ${this.hasError
-                ? html`
-                          <div class="error-overlay" role="alert">
-                              <span class="error-icon material-symbols-outlined" style="font-size: 48px;">error</span>
-                              <span class="error-text">${this.errorMessage}</span>
-                          </div>
-                      `
-                : ''}
-
-                <!-- Controls -->
-                ${!this.hasError
-                ? html`
-                          <div class="controls">
-                              <input
-                                  class="seek-bar"
-                                  type="range"
-                                  min="0"
-                                  max=${this.duration}
-                                  step="0.1"
-                                  .value=${String(this.currentTime)}
-                                  @input=${this._onSeek}
-                                  aria-label="Seek"
-                              />
-                              <div class="control-row">
-                                  <div class="control-left">
-                                      <button
-                                          class="control-btn"
-                                          @click=${this._togglePlay}
-                                          aria-label=${this.isPlaying
-                        ? 'Pause'
-                        : 'Play'}
-                                      >
-                                          ${this.isPlaying
-                        ? html`<span class="material-symbols-outlined">pause</span>`
-                        : html`<span class="material-symbols-outlined">play_arrow</span>`}
-                                      </button>
-                                      <span class="time-display">
-                                          ${this._formatTime(this.currentTime)} /
-                                          ${this._formatTime(this.duration)}
-                                      </span>
-                                  </div>
-                                  <div class="control-left">
-                                      <button
-                                          class="control-btn"
-                                          @click=${this._toggleMute}
-                                          aria-label=${this.volume === 0
-                        ? 'Unmute'
-                        : 'Mute'}
-                                      >
-                                          ${this.volume === 0
-                        ? html`<span class="material-symbols-outlined">volume_off</span>`
-                        : html`<span class="material-symbols-outlined">volume_up</span>`}
-                                      </button>
-                                      <input
-                                          class="volume-slider"
-                                          type="range"
-                                          min="0"
-                                          max="1"
-                                          step="0.05"
-                                          .value=${String(this.volume)}
-                                          @input=${this._onVolumeChange}
-                                          aria-label="Volume"
-                                      />
-                                  </div>
-                              </div>
-                          </div>
-                      `
-                : ''}
+                ${this.renderLoadingOverlay()}
+                ${this.renderErrorOverlay()}
+                ${this.renderControls()}
             </div>
+            ${this.renderKeyboardHints()}
+        `;
+    }
+
+    /** Renders a spinner overlay while the video is buffering. */
+    private renderLoadingOverlay() {
+        if (!this.isLoading || this.hasError) return '';
+        return html`
+            <div class="loading-overlay" aria-live="polite">
+                <div class="spinner"></div>
+                <span>Loading video...</span>
+            </div>
+        `;
+    }
+
+    /** Renders an error overlay when the video fails to load. */
+    private renderErrorOverlay() {
+        if (!this.hasError) return '';
+        return html`
+            <div class="error-overlay" role="alert">
+                <span class="error-icon material-symbols-outlined" style="font-size: 48px;">error</span>
+                <span class="error-text">${this.errorMessage}</span>
+            </div>
+        `;
+    }
+
+    /** Renders the full controls bar (seek bar + control row). Only shown when no error. */
+    private renderControls() {
+        if (this.hasError) return '';
+        return html`
+            <div class="controls">
+                ${this.renderSeekBar()}
+                ${this.renderControlRow()}
+            </div>
+        `;
+    }
+
+    /** Renders the seek/scrubber bar. */
+    private renderSeekBar() {
+        return html`
+            <input
+                class="seek-bar"
+                type="range"
+                min="0"
+                max=${this.duration}
+                step="0.1"
+                .value=${String(this.currentTime)}
+                @input=${this._onSeek}
+                aria-label="Seek"
+            />
+        `;
+    }
+
+    /** Renders the bottom row: play/pause button, time display, mute button and volume slider. */
+    private renderControlRow() {
+        return html`
+            <div class="control-row">
+                <div class="control-left">
+                    <button
+                        class="control-btn"
+                        @click=${this._togglePlay}
+                        aria-label=${this.isPlaying ? 'Pause' : 'Play'}
+                    >
+                        ${this.isPlaying
+                ? html`<span class="material-symbols-outlined">pause</span>`
+                : html`<span class="material-symbols-outlined">play_arrow</span>`}
+                    </button>
+                    <span class="time-display">
+                        ${this._formatTime(this.currentTime)} /
+                        ${this._formatTime(this.duration)}
+                    </span>
+                </div>
+                <div class="control-left">
+                    <button
+                        class="control-btn"
+                        @click=${this._toggleMute}
+                        aria-label=${this.volume === 0 ? 'Unmute' : 'Mute'}
+                    >
+                        ${this.volume === 0
+                ? html`<span class="material-symbols-outlined">volume_off</span>`
+                : html`<span class="material-symbols-outlined">volume_up</span>`}
+                    </button>
+                    <input
+                        class="volume-slider"
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        .value=${String(this.volume)}
+                        @input=${this._onVolumeChange}
+                        aria-label="Volume"
+                    />
+                </div>
+            </div>
+        `;
+    }
+
+    /** Renders the keyboard shortcut hints below the player. */
+    private renderKeyboardHints() {
+        return html`
             <div class="keyboard-hint">
                 <kbd>Space</kbd> Play/Pause
                 <kbd>J</kbd> -10s
@@ -363,6 +387,7 @@ export class YtsVideoPlayer extends LitElement {
             </div>
         `;
     }
+
 
     // ─── Video Event Handlers ──────────────────
 

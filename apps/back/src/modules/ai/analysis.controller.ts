@@ -82,6 +82,10 @@ export class AnalysisController {
         endTime: s.endTime,
         confidence: s.confidence,
         orderIndex: s.orderIndex,
+        thumbnailUrl: s.thumbnailPath
+          ? `/api/projects/${id}/shorts/${s.id}/thumbnail`
+          : undefined,
+        stemsAvailable: !!(s.vocalsPath && s.accompanimentPath),
         createdAt: s.createdAt.toISOString(),
       }));
 
@@ -146,6 +150,7 @@ export class AnalysisController {
       thumbnailUrl: s.thumbnailPath
         ? `/api/projects/${id}/shorts/${s.id}/thumbnail`
         : undefined,
+      stemsAvailable: !!(s.vocalsPath && s.accompanimentPath),
       createdAt: s.createdAt.toISOString(),
     }));
   }

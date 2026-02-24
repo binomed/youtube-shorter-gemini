@@ -32,6 +32,12 @@ export interface ShortResponse {
     /** URL to get the thumbnail */
     thumbnailUrl?: string;
 
+    /**
+     * Whether audio stems (vocals + accompaniment) have already been separated.
+     * If true, the audio panel can directly show the stems player.
+     */
+    stemsAvailable: boolean;
+
     /** Creation timestamp (ISO 8601) */
     createdAt: string;
 }

@@ -49,14 +49,11 @@ export class YtsApp extends LitElement {
    */
   private async handleProjectCreated(e: CustomEvent) {
     const { name, file } = e.detail;
-    console.log('Project created event received:', { name, file: file.name });
 
     try {
       // Upload video to backend first
       const dto = { name, deletionPolicyAcknowledged: true, aiLearningConsent: false };
-      console.log('DEBUG: Uploading project with DTO:', dto);
       const projectResponse = await projectService.createProject(dto, file);
-      console.log('DEBUG: Project uploaded successfully:', projectResponse);
 
       // Update global state
       setProject(projectResponse);
@@ -65,7 +62,7 @@ export class YtsApp extends LitElement {
       Router.go(`/analysis/${projectResponse.id}`);
     } catch (err: any) {
       console.error('Failed to upload project:', err);
-      // Show error to user for debugging
+      // Show error to user
       alert(`Upload Failed: ${err.message || 'Unknown error'}`);
     }
   }
@@ -75,10 +72,7 @@ export class YtsApp extends LitElement {
    * Navigates to the Editor.
    */
   private handleAnalysisComplete(e: CustomEvent) {
-    console.log('Analysis complete:', e.detail);
-    // Detail should contain projectId (or we can get it from state, but event is improved)
-    // Assuming the event detail has the project ID or we use the current capabilities
-    const projectId = e.detail.projectId || e.detail.id; // Fallback
+    const projectId = e.detail.projectId || e.detail.id;
     if (projectId) {
       Router.go(`/editor/${projectId}`);
     } else {

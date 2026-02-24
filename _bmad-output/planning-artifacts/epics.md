@@ -203,7 +203,21 @@ So that transitions and cuts don't sound abrupt.
 **Then** separate audio stems (voice/music) are generated.
 **And** audio crossfades are applied between cuts.
 
-### Story 3.2: Dynamic Subtitle Interaction
+### Story 3.1.5: Consolidation Architecturale, Lisibilité et Qualité *(Tech Story)*
+As a developer,
+I want to consolidate the project architecture, remove dead code, decompose large components, and reinforce test coverage,
+So that the codebase is resilient and ready for upcoming features (Story 3.2, Epic 4, Epic 5).
+
+**Acceptance Criteria:**
+1. `AiModule` est scindé en `AnalysisModule` (Gemini) et `ProcessingModule` (Demucs/FFmpeg).
+2. `StemService` utilise le pattern SQL-Queue avec une entité `Job` persistée.
+3. Le dossier `modules/ai` dispose de tests unitaires avec mocks complets.
+4. Les composants Lit dont le `render()` dépasse 80 lignes utilisent des méthodes `renderXxx()` sémantiques.
+5. Les `console.log('DEBUG: ...')` et imports inutilisés sont supprimés. Règle ESLint `no-console` activée.
+6. Les pages globales (Dashboard, Analysis, Editor, App) ont des fichiers `.spec.ts`.
+7. Scripts NPM `clean:temp` et `clean:dist` disponibles à la racine.
+8. ADR 004 créé pour le pattern SQL-Queue.
+
 As a creator,
 I want to edit the transcription directly on the video preview,
 So that I can quickly fix spelling errors.

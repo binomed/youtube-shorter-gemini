@@ -47,26 +47,17 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
   private playShort(short: ShortResponse) {
     this.currentShort = short;
-    // Check if stems are available for this short
-    this.stemAvailable = false;
+    // Reset progress state
     this.stemProgress = 0;
     this.stemMessage = '';
     this.stemSeparating = false;
-    this.checkStemAvailability();
+    // Restore persisted stems state from the API response
+    this.stemAvailable = short.stemsAvailable ?? false;
+
     const player = this.shadowRoot?.querySelector('short-player') as unknown as { playSegment: (s: number, e: number) => void };
     if (player && player.playSegment) {
       player.playSegment(short.startTime, short.endTime);
     }
-  }
-
-  /**
-   * Check if stems are already available for a short by attempting to fetch the short data.
-   */
-  private async checkStemAvailability() {
-    // Simple heuristic: if the short has stems, the server would serve them.
-    // We'll check by looking at the stems endpoint with HEAD-like logic.
-    // For now, just set to false and let user trigger separation.
-    this.stemAvailable = false;
   }
 
   /**
@@ -216,19 +207,28 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   render() {
     return html`
       <div class="layout">
-        <!-- Left: Source segments (Shorts from Gemini) -->
-        <aside class="glass-panel sidebar-left">
-          <div class="panel-header">
-            <sl-icon 
-              name="house-door-fill" 
-              class="home-button-icon" 
-              @click="${() => Router.go('/')}"
-              title="Back to Dashboard"
-            ></sl-icon>
-            <span>Source Segments</span>
-          </div>
-          <div class="segment-list">
-            ${this.loading
+        ${this.renderSegmentsSidebar()}
+        ${this.renderReelCenter()}
+        ${this.renderToolsPanel()}
+      </div>
+    `;
+  }
+
+  /** Renders the left sidebar listing the Gemini-detected source segments (shorts). */
+  private renderSegmentsSidebar() {
+    return html`
+      <aside class="glass-panel sidebar-left">
+        <div class="panel-header">
+          <sl-icon
+            name="house-door-fill"
+            class="home-button-icon"
+            @click="${() => Router.go('/')}"
+            title="Back to Dashboard"
+          ></sl-icon>
+          <span>Source Segments</span>
+        </div>
+        <div class="segment-list">
+          ${this.loading
         ? html`<div style="color:#64748b; text-align:center; padding:20px;">Loading shorts...</div>`
         : this.shorts.length === 0
           ? html`<div style="color:#64748b; text-align:center; padding:20px;">No shorts detected yet.</div>`
@@ -247,106 +247,117 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                   </div>
                 `)
       }
-          </div>
-        </aside>
+        </div>
+      </aside>
+    `;
+  }
 
-        <!-- Center: Reel -->
-        <main class="reel-container">
-          <!-- Short Player Component -->
-          ${projectSignal.get()
-        ? html`<short-player 
-                src="/api/projects/${projectSignal.get()?.id}/video" 
+  /** Renders the center reel/preview area with the short-player component. */
+  private renderReelCenter() {
+    return html`
+      <main class="reel-container">
+        ${projectSignal.get()
+        ? html`<short-player
+                src="/api/projects/${projectSignal.get()?.id}/video"
                 caption="Irens thelne vante huigre Stens.. in abet lhe voe tenid anger nap."
                 .startTime=${this.currentShort?.startTime || 0}
                 .endTime=${this.currentShort?.endTime || 0}
               ></short-player>`
         : html`<div>Loading project...</div>`
       }
-        </main>
+      </main>
+    `;
+  }
 
-        <!-- Right: Tools -->
-        <aside class="glass-panel sidebar-right">
-          <div class="tools-header">
-            <span style="font-weight:600; color:#f8fafc;">Audio</span>
-            <button class="export-btn">Export</button>
+  /** Renders the right tools panel (captions, style, audio tabs). */
+  private renderToolsPanel() {
+    return html`
+      <aside class="glass-panel sidebar-right">
+        <div class="tools-header">
+          <span style="font-weight:600; color:#f8fafc;">Audio</span>
+          <button class="export-btn">Export</button>
+        </div>
+
+        <sl-tab-group>
+          <sl-tab slot="nav" panel="captions">Captions</sl-tab>
+          <sl-tab slot="nav" panel="style">Style</sl-tab>
+          <sl-tab slot="nav" panel="audio">Audio</sl-tab>
+
+          <sl-tab-panel name="captions">
+            <div class="captions-list">
+              ${[1, 2, 3, 4, 5].map(i => html`
+                <div class="caption-item">
+                  <sl-icon name="lock" style="color:#64748b; font-size: 14px;"></sl-icon>
+                  <div class="caption-text">Caption line number ${i} text content...</div>
+                  <div class="caption-time">00:${i * 5}</div>
+                </div>
+              `)}
+            </div>
+          </sl-tab-panel>
+
+          <sl-tab-panel name="style">
+            <div style="color:#94a3b8; font-size:13px; text-align:center; padding-top:20px;">
+              Style controls coming soon...
+            </div>
+          </sl-tab-panel>
+
+          <sl-tab-panel name="audio">
+            ${this.renderAudioPanel()}
+          </sl-tab-panel>
+        </sl-tab-group>
+      </aside>
+    `;
+  }
+
+  /** Renders the audio stem separation panel (state-driven: idle / separating / available). */
+  private renderAudioPanel() {
+    if (!this.currentShort) {
+      return html`<div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">Select a short first</div>`;
+    }
+
+    if (this.stemSeparating) {
+      return html`
+        <div style="text-align: center; padding: 20px 0;">
+          <sl-spinner style="font-size: 2rem; --indicator-color: #818cf8;"></sl-spinner>
+          <div style="margin-top: 12px; color: #94a3b8; font-size: 13px;">${this.stemMessage}</div>
+          <div style="margin-top: 8px; background: rgba(99,102,241,0.2); border-radius: 8px; height: 6px; overflow: hidden;">
+            <div style="height: 100%; background: #818cf8; border-radius: 8px; width: ${this.stemProgress}%; transition: width 0.3s;"></div>
           </div>
-          
-          <sl-tab-group>
-            <sl-tab slot="nav" panel="captions">Captions</sl-tab>
-            <sl-tab slot="nav" panel="style">Style</sl-tab>
-            
-            <sl-tab-panel name="captions">
-               <div class="captions-list">
-                 ${[1, 2, 3, 4, 5].map(i => html`
-                    <div class="caption-item">
-                        <sl-icon name="lock" style="color:#64748b; font-size: 14px;"></sl-icon>
-                        <div class="caption-text">Caption line number ${i} text content...</div>
-                        <div class="caption-time">00:${i * 5}</div>
-                    </div>
-                 `)}
-               </div>
-            </sl-tab-panel>
-            
-            <sl-tab-panel name="style">
-               <div style="color:#94a3b8; font-size:13px; text-align:center; padding-top:20px;">
-                  Style controls coming soon...
-               </div>
-            </sl-tab-panel>
+        </div>
+      `;
+    }
 
-            <sl-tab slot="nav" panel="audio">Audio</sl-tab>
-            <sl-tab-panel name="audio">
-              ${this.currentShort
-        ? html`
-                  <div style="padding: 12px 0;">
-                    ${this.stemSeparating
-            ? html`
-                        <div style="text-align: center; padding: 20px 0;">
-                          <sl-spinner style="font-size: 2rem; --indicator-color: #818cf8;"></sl-spinner>
-                          <div style="margin-top: 12px; color: #94a3b8; font-size: 13px;">${this.stemMessage}</div>
-                          <div style="margin-top: 8px; background: rgba(99,102,241,0.2); border-radius: 8px; height: 6px; overflow: hidden;">
-                            <div style="height: 100%; background: #818cf8; border-radius: 8px; width: ${this.stemProgress}%; transition: width 0.3s;"></div>
-                          </div>
-                        </div>
-                      `
-            : this.stemAvailable
-              ? html`
-                          <div style="display: flex; flex-direction: column; gap: 12px;">
-                            <sl-badge variant="success" style="align-self: flex-start;">Stems Ready</sl-badge>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                              <sl-icon name="mic" style="color: #818cf8;"></sl-icon>
-                              <span style="font-size: 13px; color: #e2e8f0;">Vocals</span>
-                              <audio controls style="flex: 1; height: 32px;">
-                                <source src="/api/projects/${projectSignal.get()?.id}/shorts/${this.currentShort.id}/stems/vocals" type="audio/wav">
-                              </audio>
-                            </div>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                              <sl-icon name="music-note-beamed" style="color: #818cf8;"></sl-icon>
-                              <span style="font-size: 13px; color: #e2e8f0;">Music</span>
-                              <audio controls style="flex: 1; height: 32px;">
-                                <source src="/api/projects/${projectSignal.get()?.id}/shorts/${this.currentShort.id}/stems/accompaniment" type="audio/wav">
-                              </audio>
-                            </div>
-                            <sl-button variant="text" size="small" @click="${() => this.triggerStemSeparation()}">Re-run separation</sl-button>
-                          </div>
-                        `
-              : html`
-                          <div style="text-align: center; padding: 20px 0;">
-                            <sl-icon name="soundwave" style="font-size: 2rem; color: #64748b;"></sl-icon>
-                            <p style="color: #94a3b8; font-size: 13px; margin: 12px 0;">Separate vocals from background music using AI.</p>
-                            <sl-button variant="primary" @click="${() => this.triggerStemSeparation()}">
-                              <sl-icon slot="prefix" name="mic"></sl-icon>
-                              Separate Audio Stems
-                            </sl-button>
-                          </div>
-                        `
-          }
-                  </div>
-                `
-        : html`<div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">Select a short first</div>`
-      }
-            </sl-tab-panel>
-          </sl-tab-group>
-        </aside>
+    if (this.stemAvailable) {
+      return html`
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <sl-badge variant="success" style="align-self: flex-start;">Stems Ready</sl-badge>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <sl-icon name="mic" style="color: #818cf8;"></sl-icon>
+            <span style="font-size: 13px; color: #e2e8f0;">Vocals</span>
+            <audio controls style="flex: 1; height: 32px;">
+              <source src="/api/projects/${projectSignal.get()?.id}/shorts/${this.currentShort.id}/stems/vocals" type="audio/wav">
+            </audio>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <sl-icon name="music-note-beamed" style="color: #818cf8;"></sl-icon>
+            <span style="font-size: 13px; color: #e2e8f0;">Music</span>
+            <audio controls style="flex: 1; height: 32px;">
+              <source src="/api/projects/${projectSignal.get()?.id}/shorts/${this.currentShort.id}/stems/accompaniment" type="audio/wav">
+            </audio>
+          </div>
+          <sl-button variant="text" size="small" @click="${() => this.triggerStemSeparation()}">Re-run separation</sl-button>
+        </div>
+      `;
+    }
+
+    return html`
+      <div style="text-align: center; padding: 20px 0;">
+        <sl-icon name="soundwave" style="font-size: 2rem; color: #64748b;"></sl-icon>
+        <p style="color: #94a3b8; font-size: 13px; margin: 12px 0;">Separate vocals from background music using AI.</p>
+        <sl-button variant="primary" @click="${() => this.triggerStemSeparation()}">
+          <sl-icon slot="prefix" name="mic"></sl-icon>
+          Separate Audio Stems
+        </sl-button>
       </div>
     `;
   }
