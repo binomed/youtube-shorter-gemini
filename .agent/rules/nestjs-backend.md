@@ -15,4 +15,4 @@ Use this skill when working on ANY backend code in `apps/back/src/`. This includ
 - Integrating with external APIs (Gemini, Ollama)
 - Handling FFmpeg orchestration
 
-Use Skills nestjs_backend !
+Use and read .agent/skills/nestjs_backend/SKILL.md !

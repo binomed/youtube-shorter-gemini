@@ -14,4 +14,4 @@ Use this skill when working on ANY frontend component in `apps/front/src/compone
 - Working with Shadow DOM styling
 - Building accessible, performant components
 
-Use Skills lit_web_components !
+Use and read .agent/skills/lit_web_components/SKILL.md !

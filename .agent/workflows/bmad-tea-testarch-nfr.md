@@ -1,7 +1,6 @@
 ---
 name: 'testarch-nfr'
 description: 'Assess non-functional requirements (performance, security, reliability, maintainability) before release with evidence-based validation'
-disable-model-invocation: true
 ---
 
 IT IS CRITICAL THAT YOU FOLLOW THESE STEPS - while staying in character as the current agent persona you may have loaded:
