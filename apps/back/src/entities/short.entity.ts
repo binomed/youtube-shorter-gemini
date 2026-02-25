@@ -66,11 +66,13 @@ export class Short {
     type: 'text',
     nullable: true,
     transformer: {
-      to: (value: any) => JSON.stringify(value),
-      from: (value: string) => (value ? JSON.parse(value) : null),
+      to: (value: Record<string, unknown> | null | undefined) =>
+        JSON.stringify(value),
+      from: (value: string) =>
+        value ? (JSON.parse(value) as Record<string, unknown>) : null,
     },
   })
-  smartCropData?: any;
+  smartCropData?: Record<string, unknown>;
 
   /**
    * Start timestamp in seconds (from source video)

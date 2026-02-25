@@ -138,8 +138,8 @@ export class AnalysisService {
           duration,
           transcript,
         );
-      } catch (error: any) {
-        if (error.name === 'GeminiParseError') {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'GeminiParseError') {
           this.emitProgress(progress$, {
             phase: 'error',
             progress: 80,
@@ -339,7 +339,7 @@ export class AnalysisService {
         short = await this.shortRepository.save(short);
       } catch (error) {
         this.logger.warn(
-          `Failed to generate thumbnail for short ${short.id}: ${error.message}`,
+          `Failed to generate thumbnail for short ${short.id}: ${(error as Error).message}`,
         );
       }
 

@@ -10,6 +10,28 @@ import {
 } from '@google/generative-ai';
 import type { DetectedSegment } from '@youtube-shorter/shared';
 
+/** Shape of errors thrown by the Gemini SDK */
+interface GeminiApiError extends Error {
+  status?: number;
+  statusCode?: number;
+}
+
+/** Typed JSON parsed from subtitles response */
+interface SubtitleResponse {
+  srt?: string;
+}
+
+/** Typed JSON parsed from segment response */
+interface RawSegment {
+  startTime?: number;
+  endTime?: number;
+  confidence?: number;
+  reason?: string;
+  subjectPosition?: string;
+  smartCropData?: { centerX?: number; width?: number };
+  segments?: RawSegment[];
+}
+
 /**
  * Custom error thrown when Gemini response cannot be parsed as JSON.
  */
@@ -154,15 +176,15 @@ export class GeminiService {
       this.logger.log(`[Gemini] Subtitles raw response: ${text}`);
       this.logger.debug(`Text return by gemini `, text);
       try {
-        const parsed = JSON.parse(text);
+        const parsed = JSON.parse(text) as SubtitleResponse;
         return (parsed.srt || '').trim();
-      } catch (e) {
+      } catch {
         // Fallback for non-JSON or malformed JSON
         const cleanText = text.replace(/```json\n?|```/g, '').trim();
         try {
-          const fallbackParsed = JSON.parse(cleanText);
+          const fallbackParsed = JSON.parse(cleanText) as SubtitleResponse;
           return (fallbackParsed.srt || '').trim();
-        } catch (fallbackError) {
+        } catch {
           throw new GeminiParseError(
             'Could not process subtitle JSON format',
             cleanText,
@@ -254,12 +276,12 @@ export class GeminiService {
         );
         return segments;
       } catch (error: unknown) {
-        const err = error as any;
+        const err = error as GeminiApiError;
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         const isParsingError =
-          error instanceof GeminiParseError || err?.name === 'GeminiParseError';
-        const status = err?.status || err?.statusCode;
+          error instanceof GeminiParseError || err.name === 'GeminiParseError';
+        const status: number | undefined = err.status ?? err.statusCode;
         const isRetryableApiError =
           status === 429 ||
           status === 503 ||
@@ -364,7 +386,7 @@ IMPORTANT: Return a valid JSON array. If no segments are found, return [].`;
         if (match) jsonText = match[1];
       }
 
-      let parsed;
+      let parsed: unknown;
       try {
         parsed = JSON.parse(jsonText);
       } catch (e) {
@@ -383,30 +405,32 @@ IMPORTANT: Return a valid JSON array. If no segments are found, return [].`;
       // Validate structure
       if (!Array.isArray(parsed)) {
         // If it's an object with a segments array (sometimes model does this even in JSON mode)
+        const parsedObj = parsed as Record<string, unknown>;
         if (
-          parsed &&
-          typeof parsed === 'object' &&
-          Array.isArray(parsed.segments)
+          parsedObj &&
+          typeof parsedObj === 'object' &&
+          Array.isArray(parsedObj.segments)
         ) {
-          parsed = parsed.segments;
+          parsed = parsedObj.segments;
         } else {
           throw new Error('Response is not an array');
         }
       }
 
-      return parsed
+      const segments = parsed as RawSegment[];
+      return segments
         .filter(
-          (seg: Record<string, unknown>) =>
+          (seg) =>
             typeof seg.startTime === 'number' &&
             typeof seg.endTime === 'number' &&
-            seg.endTime > seg.startTime,
+            (seg.endTime ?? 0) > (seg.startTime ?? 0),
         )
-        .map((seg: Record<string, unknown>) => {
+        .map((seg) => {
           let centerX = 0.5;
           let width = 0.5625;
 
           if (seg.smartCropData && typeof seg.smartCropData === 'object') {
-            const crop = seg.smartCropData as any;
+            const crop = seg.smartCropData;
             if (typeof crop.centerX === 'number') centerX = crop.centerX;
             if (typeof crop.width === 'number') width = crop.width;
           }

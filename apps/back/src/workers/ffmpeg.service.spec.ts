@@ -4,15 +4,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { FFmpegService } from './ffmpeg.service';
-import * as child_process from 'child_process';
 import util from 'util';
 
 // Mock child_process and util.promisify
 jest.mock('child_process');
-jest.mock('util', () => ({
-  ...jest.requireActual('util'),
-  promisify: jest.fn(),
-}));
+jest.mock('util', () => {
+  const actual = jest.requireActual<Record<string, unknown>>('util');
+  return {
+    ...actual,
+    promisify: jest.fn(),
+  };
+});
 
 describe('FFmpegService', () => {
   let service: FFmpegService;

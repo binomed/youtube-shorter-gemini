@@ -43,7 +43,6 @@ describe('ProgressService', () => {
 
     it('should emit multiple events in sequence', (done) => {
       const projectId = 'test-project-456';
-      const events: any[] = [];
 
       // Subscribe to stream
       service

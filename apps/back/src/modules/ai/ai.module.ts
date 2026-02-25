@@ -26,4 +26,4 @@ import { FFmpegService } from '../../workers/ffmpeg.service';
   providers: [GeminiService, AnalysisService, StemService, FFmpegService],
   exports: [AnalysisService, GeminiService, StemService],
 })
-export class AiModule { }
+export class AiModule {}

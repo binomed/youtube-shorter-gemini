@@ -49,7 +49,7 @@ export class AnalysisController {
   constructor(
     private readonly analysisService: AnalysisService,
     private readonly stemService: StemService,
-  ) { }
+  ) {}
 
   /**
    * Trigger AI analysis for a project's video.
@@ -169,7 +169,6 @@ export class AnalysisController {
     @Param('shortId') shortId: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
-    const path = await import('path');
     const { createReadStream, existsSync } = await import('fs');
 
     const thumbnailPath = await this.analysisService.getThumbnailPath(
@@ -204,8 +203,13 @@ export class AnalysisController {
   async separateStems(
     @Param('id') id: string,
     @Param('shortId') shortId: string,
-  ): Promise<{ success: boolean; data: { vocalsPath?: string; accompanimentPath?: string } }> {
-    this.logger.log(`Starting stem separation for short ${shortId} in project ${id}`);
+  ): Promise<{
+    success: boolean;
+    data: { vocalsPath?: string; accompanimentPath?: string };
+  }> {
+    this.logger.log(
+      `Starting stem separation for short ${shortId} in project ${id}`,
+    );
 
     // Reuse SSE progress subject if SSE was connected first
     const stemKey = `${id}:${shortId}`;
@@ -216,7 +220,11 @@ export class AnalysisController {
     }
 
     try {
-      const short = await this.stemService.separateStems(id, shortId, progress$);
+      const short = await this.stemService.separateStems(
+        id,
+        shortId,
+        progress$,
+      );
 
       return {
         success: true,
@@ -243,7 +251,9 @@ export class AnalysisController {
     @Param('id') id: string,
     @Param('shortId') shortId: string,
   ): Observable<MessageEvent> {
-    this.logger.log(`SSE connection opened for stem separation: ${id}/${shortId}`);
+    this.logger.log(
+      `SSE connection opened for stem separation: ${id}/${shortId}`,
+    );
 
     const stemKey = `${id}:${shortId}`;
     let progress$ = this.activeStemJobs.get(stemKey);
@@ -258,7 +268,9 @@ export class AnalysisController {
         type: 'stem-progress',
       })),
       finalize(() => {
-        this.logger.log(`SSE connection closed for stem separation: ${id}/${shortId}`);
+        this.logger.log(
+          `SSE connection closed for stem separation: ${id}/${shortId}`,
+        );
       }),
     );
   }
@@ -294,11 +306,15 @@ export class AnalysisController {
     } else if (stem === 'accompaniment') {
       filePath = short.accompanimentPath;
     } else {
-      throw new NotFoundException(`Unknown stem type: ${stem}. Use 'vocals' or 'accompaniment'.`);
+      throw new NotFoundException(
+        `Unknown stem type: ${stem}. Use 'vocals' or 'accompaniment'.`,
+      );
     }
 
     if (!filePath || !existsSync(filePath)) {
-      throw new NotFoundException(`Stem '${stem}' file not found. Run stem separation first.`);
+      throw new NotFoundException(
+        `Stem '${stem}' file not found. Run stem separation first.`,
+      );
     }
 
     res.set({

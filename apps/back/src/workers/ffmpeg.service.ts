@@ -18,6 +18,21 @@ export interface VideoMetadata {
 }
 
 /**
+ * Typed structure of ffprobe JSON output
+ */
+interface FFprobeStream {
+  codec_type: string;
+  codec_name?: string;
+  width?: number;
+  height?: number;
+}
+
+interface FFprobeOutput {
+  format?: { duration?: string };
+  streams?: FFprobeStream[];
+}
+
+/**
  * FFmpegService handles video metadata extraction using system ffprobe
  *
  * Replaces ffmpeg.wasm which is not compatible with Node.js environment.
@@ -57,7 +72,7 @@ export class FFmpegService {
       const execAsync = promisify(exec);
       const { stdout } = await execAsync(command);
 
-      const metadata = JSON.parse(stdout);
+      const metadata = JSON.parse(stdout) as FFprobeOutput;
 
       if (!metadata.format || !metadata.streams) {
         this.logger.warn(`Invalid metadata format for ${videoPath}`);
@@ -65,8 +80,8 @@ export class FFmpegService {
       }
 
       // Find video stream
-      const videoStream = metadata.streams.find(
-        (s: any) => s.codec_type === 'video',
+      const videoStream = metadata.streams?.find(
+        (s: FFprobeStream) => s.codec_type === 'video',
       );
 
       if (!videoStream) {
@@ -75,11 +90,11 @@ export class FFmpegService {
       }
 
       // Extract relevant information
-      const duration = parseFloat(metadata.format.duration);
-      const width = videoStream.width;
-      const height = videoStream.height;
+      const duration = parseFloat(metadata.format?.duration ?? '0');
+      const width = videoStream.width ?? 0;
+      const height = videoStream.height ?? 0;
       const resolution = `${width}x${height}`;
-      const codec = videoStream.codec_name;
+      const codec = videoStream.codec_name ?? 'unknown';
 
       return {
         duration,
@@ -89,9 +104,13 @@ export class FFmpegService {
         height,
       };
     } catch (error) {
-      this.logger.error(`Failed to extract metadata: ${error.message}`);
+      this.logger.error(
+        `Failed to extract metadata: ${(error as Error).message}`,
+      );
       // Throw error to propagate failure (Fail Fast requirement)
-      throw new Error(`Metadata extraction failed: ${error.message}`);
+      throw new Error(
+        `Metadata extraction failed: ${(error as Error).message}`,
+      );
     }
   }
 

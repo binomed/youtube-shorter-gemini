@@ -12,15 +12,19 @@ import { CleanupService } from './cleanup.service';
 jest.mock('../../workers/ffmpeg.service');
 
 // Mock file validation to avoid failing on dummy mock file paths
-jest.mock('../../utils/file-validation', () => ({
-  ...jest.requireActual('../../utils/file-validation'),
-  validateFileSignature: jest.fn().mockResolvedValue(true),
-}));
+jest.mock('../../utils/file-validation', () => {
+  const actual = jest.requireActual<Record<string, unknown>>(
+    '../../utils/file-validation',
+  );
+  return {
+    ...actual,
+    validateFileSignature: jest.fn().mockResolvedValue(true),
+  };
+});
 
 describe('VideoService', () => {
   let service: VideoService;
   let ffmpegService: FFmpegService;
-  let cleanupService: CleanupService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -53,7 +57,8 @@ describe('VideoService', () => {
 
     service = module.get<VideoService>(VideoService);
     ffmpegService = module.get<FFmpegService>(FFmpegService);
-    cleanupService = module.get<CleanupService>(CleanupService);
+    // CleanupService is injected but not directly used in these tests
+    module.get<CleanupService>(CleanupService);
   });
 
   it('should be defined', () => {
@@ -126,10 +131,12 @@ describe('VideoService', () => {
         isExported: false,
         isAnalyzed: false,
       });
-      expect(projectRepository.save).toHaveBeenCalledWith(mockProject);
+      const saveSpy = jest.spyOn(projectRepository, 'save');
+      expect(saveSpy).toHaveBeenCalledWith(mockProject);
 
       // Verify metadata was extracted
-      expect(ffmpegService.extractMetadata).toHaveBeenCalledWith(
+      const extractMetadataSpy = jest.spyOn(ffmpegService, 'extractMetadata');
+      expect(extractMetadataSpy).toHaveBeenCalledWith(
         '/Users/test/Videos/my-video.mp4',
       );
     });

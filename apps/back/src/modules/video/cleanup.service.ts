@@ -37,7 +37,7 @@ export class CleanupService {
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
     private readonly dataSource: DataSource,
-  ) { }
+  ) {}
 
   /**
    * Delete project and associated data

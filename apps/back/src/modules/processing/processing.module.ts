@@ -24,8 +24,8 @@ import { JobService } from './job.service';
  * @see ADR-003 (Demucs), ADR-004 (SQL-Queue)
  */
 @Module({
-    imports: [TypeOrmModule.forFeature([Short, Project, Job])],
-    providers: [StemService, FFmpegService, JobService],
-    exports: [StemService, FFmpegService, JobService],
+  imports: [TypeOrmModule.forFeature([Short, Project, Job])],
+  providers: [StemService, FFmpegService, JobService],
+  exports: [StemService, FFmpegService, JobService],
 })
-export class ProcessingModule { }
+export class ProcessingModule {}

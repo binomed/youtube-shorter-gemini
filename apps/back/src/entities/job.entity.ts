@@ -2,11 +2,11 @@
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    CreateDateColumn,
-    UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 export type JobType = 'stem_separation' | 'analysis';
@@ -23,40 +23,40 @@ export type JobStatus = 'pending' | 'running' | 'completed' | 'failed';
  */
 @Entity('jobs')
 export class Job {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    /** Type of job being processed */
-    @Column({ type: 'varchar' })
-    type: JobType;
+  /** Type of job being processed */
+  @Column({ type: 'varchar' })
+  type: JobType;
 
-    /** Current status of the job */
-    @Column({ type: 'varchar', default: 'pending' })
-    status: JobStatus;
+  /** Current status of the job */
+  @Column({ type: 'varchar', default: 'pending' })
+  status: JobStatus;
 
-    /** Associated project ID */
-    @Column({ type: 'varchar' })
-    projectId: string;
+  /** Associated project ID */
+  @Column({ type: 'varchar' })
+  projectId: string;
 
-    /** Associated short ID (optional, for stem separation jobs) */
-    @Column({ type: 'varchar', nullable: true })
-    shortId?: string;
+  /** Associated short ID (optional, for stem separation jobs) */
+  @Column({ type: 'varchar', nullable: true })
+  shortId?: string;
 
-    /** Progress percentage (0-100) */
-    @Column({ type: 'float', default: 0 })
-    progress: number;
+  /** Progress percentage (0-100) */
+  @Column({ type: 'float', default: 0 })
+  progress: number;
 
-    /** Human-readable progress message */
-    @Column({ type: 'text', nullable: true })
-    message?: string;
+  /** Human-readable progress message */
+  @Column({ type: 'text', nullable: true })
+  message?: string;
 
-    /** Error description if job failed */
-    @Column({ type: 'text', nullable: true })
-    error?: string;
+  /** Error description if job failed */
+  @Column({ type: 'text', nullable: true })
+  error?: string;
 
-    @CreateDateColumn()
-    createdAt: Date;
+  @CreateDateColumn()
+  createdAt: Date;
 
-    @UpdateDateColumn()
-    updatedAt: Date;
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

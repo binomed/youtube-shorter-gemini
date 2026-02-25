@@ -25,12 +25,12 @@ import { ProcessingModule } from '../processing/processing.module';
  * @see ADR-004 (SQL-Queue)
  */
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Short, Project]),
-        ProcessingModule, // Provides StemService + FFmpegService + JobService
-    ],
-    controllers: [AnalysisController],
-    providers: [GeminiService, AnalysisService, FFmpegService],
-    exports: [AnalysisService, GeminiService],
+  imports: [
+    TypeOrmModule.forFeature([Short, Project]),
+    ProcessingModule, // Provides StemService + FFmpegService + JobService
+  ],
+  controllers: [AnalysisController],
+  providers: [GeminiService, AnalysisService, FFmpegService],
+  exports: [AnalysisService, GeminiService],
 })
-export class AnalysisModule { }
+export class AnalysisModule {}

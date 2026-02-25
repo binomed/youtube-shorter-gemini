@@ -5,6 +5,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ProgressController } from './progress.controller';
 import { ProgressService } from './progress.service';
 import { firstValueFrom, Subject } from 'rxjs';
+import type { MessageEvent } from '@nestjs/common';
+import type { ProgressEvent } from './progress.service';
 
 describe('ProgressController', () => {
   let controller: ProgressController;
@@ -42,7 +44,7 @@ describe('ProgressController', () => {
         timestamp: new Date(),
       };
 
-      const mockSubject = new Subject<any>();
+      const mockSubject = new Subject<ProgressEvent>();
       jest
         .spyOn(progressService, 'getProgressStream')
         .mockReturnValue(mockSubject.asObservable());
@@ -55,7 +57,11 @@ describe('ProgressController', () => {
 
       const result = await eventPromise;
 
-      expect(progressService.getProgressStream).toHaveBeenCalledWith(projectId);
+      const getProgressStreamSpy = jest.spyOn(
+        progressService,
+        'getProgressStream',
+      );
+      expect(getProgressStreamSpy).toHaveBeenCalledWith(projectId);
       expect(result.data).toEqual(mockEvent);
     });
   });

@@ -35,4 +35,4 @@ async function bootstrap() {
   console.log(`[Bootstrap] Logger initialized. Writing logs to: ${logPath}`);
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();

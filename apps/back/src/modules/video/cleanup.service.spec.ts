@@ -9,8 +9,8 @@ import { Project } from '../../entities/project.entity';
 
 describe('CleanupService', () => {
   let service: CleanupService;
-  let mockDataSource: any;
-  let mockRepository: any;
+  let mockDataSource: { transaction: jest.Mock };
+  let mockRepository: Record<string, jest.Mock>;
 
   beforeEach(async () => {
     // Mock project for successful deletion
@@ -29,13 +29,15 @@ describe('CleanupService', () => {
 
     // Mock DataSource for transactions
     mockDataSource = {
-      transaction: jest.fn((callback) => {
-        // Execute transaction callback with mock manager
-        const mockManager = {
-          getRepository: jest.fn().mockReturnValue(mockRepository),
-        };
-        return callback(mockManager);
-      }),
+      transaction: jest.fn(
+        (callback: (manager: { getRepository: jest.Mock }) => unknown) => {
+          // Execute transaction callback with mock manager
+          const mockManager = {
+            getRepository: jest.fn().mockReturnValue(mockRepository),
+          };
+          return callback(mockManager);
+        },
+      ),
     };
 
     const module: TestingModule = await Test.createTestingModule({

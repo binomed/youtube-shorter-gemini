@@ -10,7 +10,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectResponse, CreateProjectDto } from '@youtube-shorter/shared';
-import { FFmpegService } from '../../workers/ffmpeg.service';
+import { FFmpegService, VideoMetadata } from '../../workers/ffmpeg.service';
 import { CleanupService } from './cleanup.service';
 import { Project } from '../../entities/project.entity';
 import {
@@ -105,22 +105,22 @@ export class VideoService {
       // Issue #3: Secure file validation using magic bytes
       await validateFileSignature(videoPath);
     } catch (error) {
-      throw new BadRequestException(error.message);
+      throw new BadRequestException((error as Error).message);
     }
 
     this.logger.log(`Creating project "${name}" with video: ${videoPath}`);
 
     // Extract video metadata (Issue #3: Fail-fast on errors)
-    let metadata;
+    let metadata: VideoMetadata | null = null;
     try {
       metadata = await this.ffmpegService.extractMetadata(videoPath);
     } catch (error) {
       this.logger.error(
-        `FFmpeg metadata extraction failed for ${videoPath}: ${error.message}`,
+        `FFmpeg metadata extraction failed for ${videoPath}: ${(error as Error).message}`,
       );
       // FAIL FAST: Don't create project with corrupted/invalid video
       throw new BadRequestException(
-        `Invalid video file: ${error.message}. Please upload a valid MP4/MOV file.`,
+        `Invalid video file: ${(error as Error).message}. Please upload a valid MP4/MOV file.`,
       );
     }
 
@@ -142,7 +142,10 @@ export class VideoService {
     // TypeORM's save() can return T | T[] depending on input
     // We pass a single entity, so result is always a single Project
     // Use proper type guard instead of blind cast
-    const saveResult = await this.projectRepository.save(project);
+
+    const saveResult = (await this.projectRepository.save(project)) as
+      | Project
+      | Project[];
     const savedProject: Project = Array.isArray(saveResult)
       ? saveResult[0]
       : saveResult;

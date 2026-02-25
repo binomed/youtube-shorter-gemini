@@ -28,7 +28,7 @@ describe('VideoController', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string, defaultValue: any) => defaultValue),
+            get: jest.fn((_key: string, defaultValue: unknown) => defaultValue),
           },
         },
       ],
@@ -77,7 +77,8 @@ describe('VideoController', () => {
         success: true,
         data: mockProject,
       });
-      expect(service.createProject).toHaveBeenCalledWith(
+      const createProject = jest.spyOn(service, 'createProject');
+      expect(createProject).toHaveBeenCalledWith(
         mockCreateProjectDto,
         mockFile,
       );
@@ -109,7 +110,10 @@ describe('VideoController', () => {
 
     it('should throw error if no file provided', async () => {
       await expect(
-        controller.createProject(mockCreateProjectDto, undefined as any),
+        controller.createProject(
+          mockCreateProjectDto,
+          undefined as unknown as Express.Multer.File,
+        ),
       ).rejects.toThrow(
         new HttpException('Video file is required', HttpStatus.BAD_REQUEST),
       );

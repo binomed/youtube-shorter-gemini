@@ -96,7 +96,7 @@ import { open } from 'fs/promises';
 export async function validateFileSignature(
   filePath: string,
 ): Promise<boolean> {
-  let fileHandle;
+  let fileHandle: Awaited<ReturnType<typeof open>> | undefined;
   try {
     fileHandle = await open(filePath, 'r');
     const buffer = Buffer.alloc(12); // Read enough for header checks
@@ -131,7 +131,7 @@ export async function validateFileSignature(
       'Invalid file signature. File content does not match allowed video formats.',
     );
   } catch (error) {
-    throw new Error(`File validation failed: ${error.message}`);
+    throw new Error(`File validation failed: ${(error as Error).message}`);
   } finally {
     if (fileHandle) {
       await fileHandle.close();
