@@ -26,9 +26,8 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   @state() private stemMessage = '';
   @state() private stemAvailable = false;
 
-  async onBeforeEnter(location: RouterLocation) {
+  async onBeforeEnter(location: RouterLocation): Promise<void> {
     const projectId = location.params.projectId as string;
-
     // Fetch project if not already loaded or if ID mismatch
     const currentProject = projectSignal.get();
     if (!currentProject || currentProject.id !== projectId) {
@@ -40,12 +39,11 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         // TODO: Navigate to dashboard or show error
       }
     }
-
     // Load shorts for the project
     await this.loadShorts();
   }
 
-  private playShort(short: ShortResponse) {
+  private playShort(short: ShortResponse): void {
     this.currentShort = short;
     // Reset progress state
     this.stemProgress = 0;
@@ -63,7 +61,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   /**
    * Trigger stem separation for the current short.
    */
-  private async triggerStemSeparation() {
+  private async triggerStemSeparation(): Promise<void> {
     const projectId = projectSignal.get()?.id;
     const shortId = this.currentShort?.id;
     if (!projectId || !shortId) return;
@@ -77,7 +75,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       `/api/projects/${projectId}/shorts/${shortId}/stems/progress`
     );
 
-    eventSource.addEventListener('stem-progress', (event: Event) => {
+    eventSource.addEventListener('stem-progress', (event: Event): void => {
       const data = JSON.parse((event as MessageEvent).data) as StemProgressEvent;
       this.stemProgress = data.progress;
       this.stemMessage = data.message;
@@ -92,7 +90,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       }
     });
 
-    eventSource.onerror = () => {
+    eventSource.onerror = (): void => {
       eventSource.close();
     };
 
@@ -115,7 +113,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     }
   }
 
-  private async loadShorts() {
+  private async loadShorts(): Promise<void> {
     const projectId = projectSignal.get()?.id;
     if (!projectId) {
       this.loading = false;
@@ -204,7 +202,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     /* ... */
   `;
 
-  render() {
+  render(): unknown {
     return html`
       <div class="layout">
         ${this.renderSegmentsSidebar()}
@@ -215,14 +213,14 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   }
 
   /** Renders the left sidebar listing the Gemini-detected source segments (shorts). */
-  private renderSegmentsSidebar() {
+  private renderSegmentsSidebar(): unknown {
     return html`
       <aside class="glass-panel sidebar-left">
         <div class="panel-header">
           <sl-icon
             name="house-door-fill"
             class="home-button-icon"
-            @click="${() => Router.go('/')}"
+            @click="${(): void => { Router.go('/'); }}"
             title="Back to Dashboard"
           ></sl-icon>
           <span>Source Segments</span>
@@ -233,7 +231,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         : this.shorts.length === 0
           ? html`<div style="color:#64748b; text-align:center; padding:20px;">No shorts detected yet.</div>`
           : this.shorts.map(s => html`
-                  <div class="segment-card" @click="${() => this.playShort(s)}">
+                  <div class="segment-card" @click="${(): void => this.playShort(s)}">
                     <div class="segment-thumb">
                       ${s.thumbnailUrl
               ? html`<img src="${s.thumbnailUrl}" alt="${s.title}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`
@@ -253,7 +251,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   }
 
   /** Renders the center reel/preview area with the short-player component. */
-  private renderReelCenter() {
+  private renderReelCenter(): unknown {
     return html`
       <main class="reel-container">
         ${projectSignal.get()
@@ -270,7 +268,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   }
 
   /** Renders the right tools panel (captions, style, audio tabs). */
-  private renderToolsPanel() {
+  private renderToolsPanel(): unknown {
     return html`
       <aside class="glass-panel sidebar-right">
         <div class="tools-header">
@@ -310,11 +308,10 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   }
 
   /** Renders the audio stem separation panel (state-driven: idle / separating / available). */
-  private renderAudioPanel() {
+  private renderAudioPanel(): unknown {
     if (!this.currentShort) {
       return html`<div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">Select a short first</div>`;
     }
-
     if (this.stemSeparating) {
       return html`
         <div style="text-align: center; padding: 20px 0;">
@@ -326,7 +323,6 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         </div>
       `;
     }
-
     if (this.stemAvailable) {
       return html`
         <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -345,16 +341,15 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
               <source src="/api/projects/${projectSignal.get()?.id}/shorts/${this.currentShort.id}/stems/accompaniment" type="audio/wav">
             </audio>
           </div>
-          <sl-button variant="text" size="small" @click="${() => this.triggerStemSeparation()}">Re-run separation</sl-button>
+          <sl-button variant="text" size="small" @click="${(): void => { void this.triggerStemSeparation(); }}">Re-run separation</sl-button>
         </div>
       `;
     }
-
     return html`
       <div style="text-align: center; padding: 20px 0;">
         <sl-icon name="soundwave" style="font-size: 2rem; color: #64748b;"></sl-icon>
         <p style="color: #94a3b8; font-size: 13px; margin: 12px 0;">Separate vocals from background music using AI.</p>
-        <sl-button variant="primary" @click="${() => this.triggerStemSeparation()}">
+        <sl-button variant="primary" @click="${(): void => { void this.triggerStemSeparation(); }}">
           <sl-icon slot="prefix" name="mic"></sl-icon>
           Separate Audio Stems
         </sl-button>

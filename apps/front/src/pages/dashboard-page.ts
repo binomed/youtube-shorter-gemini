@@ -300,12 +300,12 @@ export class DashboardPage extends LitElement {
   // Issue #6: Fix type safety (remove cast)
   @query('.delete-dialog') private deleteDialog!: SlDialog;
 
-  connectedCallback() {
+  connectedCallback(): void {
     super.connectedCallback();
     this.loadProjects();
   }
 
-  private async loadProjects() {
+  private async loadProjects(): Promise<void> {
     try {
       this.projects = await projectService.getProjects();
     } catch (error) {
@@ -314,17 +314,17 @@ export class DashboardPage extends LitElement {
     }
   }
 
-  private handleDragOver(e: DragEvent) {
+  private handleDragOver(e: DragEvent): void {
     e.preventDefault();
     this.isDragActive = true;
   }
 
-  private handleDragLeave(e: DragEvent) {
+  private handleDragLeave(e: DragEvent): void {
     e.preventDefault();
     this.isDragActive = false;
   }
 
-  private handleDrop(e: DragEvent) {
+  private handleDrop(e: DragEvent): void {
     e.preventDefault();
     this.isDragActive = false;
 
@@ -339,7 +339,7 @@ export class DashboardPage extends LitElement {
     }
   }
 
-  private handleFileSelect(e: Event) {
+  private handleFileSelect(e: Event): void {
     const input = e.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       this.selectedFile = input.files[0];
@@ -349,7 +349,7 @@ export class DashboardPage extends LitElement {
     }
   }
 
-  private handleCreateProject() {
+  private handleCreateProject(): void {
     if (!this.projectName || !this.selectedFile) return;
 
     this.dispatchEvent(new CustomEvent('create-project', {
@@ -362,12 +362,12 @@ export class DashboardPage extends LitElement {
     }));
   }
 
-  private triggerFileInput() {
+  private triggerFileInput(): void {
     const fileInput = this.shadowRoot?.querySelector('#file-input') as HTMLInputElement;
     fileInput?.click();
   }
 
-  private handleDeleteProject(id: string, e: Event) {
+  private handleDeleteProject(id: string, e: Event): void {
     e.stopPropagation();
     this.projectIdToDelete = id;
     // Issue #7: Use cached query reference
@@ -375,7 +375,7 @@ export class DashboardPage extends LitElement {
     this.deleteDialog.show();
   }
 
-  private async confirmDelete() {
+  private async confirmDelete(): Promise<void> {
     if (!this.projectIdToDelete) return;
 
     try {
@@ -390,7 +390,7 @@ export class DashboardPage extends LitElement {
     }
   }
 
-  private handleProjectClick(id: string) {
+  private handleProjectClick(id: string): void {
     window.history.pushState(null, '', `/editor/${id}`);
     window.dispatchEvent(new PopStateEvent('popstate'));
   }
@@ -399,7 +399,7 @@ export class DashboardPage extends LitElement {
    * Renders the Create Project tab content
    * Issue #11: Monolithic Render Method -> Extracted helper
    */
-  private renderCreateTab() {
+  private renderCreateTab(): unknown {
     return html`
         <div style="padding-top: 20px;">
             <div class="input-group">
@@ -408,7 +408,7 @@ export class DashboardPage extends LitElement {
                 type="text" 
                 id="project-name" 
                 .value=${this.projectName}
-                @input=${(e: Event) => this.projectName = (e.target as HTMLInputElement).value}
+                @input=${(e: Event): void => { this.projectName = (e.target as HTMLInputElement).value; }}
                 placeholder="Enter project name..."
                 autocomplete="off"
             >
@@ -463,7 +463,7 @@ export class DashboardPage extends LitElement {
    * Renders the Projects List tab content
    * Issue #11: Monolithic Render Method -> Extracted helper
    */
-  private renderProjectsTab() {
+  private renderProjectsTab(): unknown {
     return html`
         <div class="project-list" style="padding-top: 20px; max-height: 400px; overflow-y: auto;">
             ${this.projects.length === 0 ? html`
@@ -472,7 +472,7 @@ export class DashboardPage extends LitElement {
                 </div>
             ` : html`
                 ${this.projects.map(p => html`
-                    <div class="project-item" @click=${() => this.handleProjectClick(p.id)} style="
+                    <div class="project-item" @click=${(): void => this.handleProjectClick(p.id)} style="
                         display: flex; 
                         justify-content: space-between; 
                         align-items: center; 
@@ -494,7 +494,7 @@ export class DashboardPage extends LitElement {
                                 name="trash" 
                                 label="Delete" 
                                 style="color: #ef4444;"
-                                @click=${(e: Event) => this.handleDeleteProject(p.id, e)}
+                                @click=${(e: Event): void => { this.handleDeleteProject(p.id, e); }}
                             ></sl-icon-button>
                         </div>
                     </div>
@@ -504,12 +504,12 @@ export class DashboardPage extends LitElement {
       `;
   }
 
-  render() {
+  render(): unknown {
     return html`
       <div class="glass-card">
         <sl-tab-group>
             <sl-tab slot="nav" panel="create">Create</sl-tab>
-            <sl-tab slot="nav" panel="projects" @click=${this.loadProjects}>Projects</sl-tab>
+            <sl-tab slot="nav" panel="projects" @click=${(): void => { void this.loadProjects(); }}>Projects</sl-tab>
 
             <sl-tab-panel name="create">
                 ${this.renderCreateTab()}
@@ -528,10 +528,10 @@ export class DashboardPage extends LitElement {
       <sl-dialog label="Delete Project" class="delete-dialog">
         Are you sure you want to delete this project? This action cannot be undone.
         <div slot="footer">
-          <sl-button variant="neutral" @click=${() => this.deleteDialog.hide()}>
+          <sl-button variant="neutral" @click="${(): void => { this.deleteDialog.hide(); }}">
             Cancel
           </sl-button>
-          <sl-button variant="danger" @click=${this.confirmDelete}>
+          <sl-button variant="danger" @click=${(): void => { void this.confirmDelete(); }}>
             Delete
           </sl-button>
         </div>

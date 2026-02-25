@@ -35,7 +35,7 @@ export class MainLayout extends LitElement {
     }
   `;
 
-  render() {
+  render(): unknown {
     return html`
       <main>
         <slot></slot>

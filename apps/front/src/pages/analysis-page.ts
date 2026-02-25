@@ -208,7 +208,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     }
   `;
 
-  async onBeforeEnter(location: RouterLocation) {
+  async onBeforeEnter(location: RouterLocation): Promise<void> {
     const projectId = location.params.projectId as string;
 
     // If no project or different project, fetch it
@@ -243,7 +243,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
    * Starts the analysis by connecting to SSE for progress,
    * then triggering the POST /analyze endpoint.
    */
-  private async startAnalysis() {
+  private async startAnalysis(): Promise<void> {
     const project = projectSignal.get();
     if (!project?.id) return;
 
@@ -278,7 +278,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
       }
     });
 
-    eventSource.onerror = () => {
+    eventSource.onerror = (): void => {
       // SSE may error before analyze starts, that's ok — we'll get events once analysis begins
     };
 
@@ -298,7 +298,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     }
   }
 
-  private handleProgressEvent(event: AnalysisProgressEvent) {
+  private handleProgressEvent(event: AnalysisProgressEvent): void {
     this.currentPhase = event.phase;
     this.progress = event.progress;
     this.message = event.message;
@@ -313,7 +313,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     }));
   }
 
-  render() {
+  render(): unknown {
     if (this.loadingProject) {
       return html`
                 <div class="analysis-container">
@@ -326,7 +326,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     const project = projectSignal.get();
 
     return html`
-      <a class="home-button" @click="${() => Router.go('/')}">
+      <a class="home-button" @click="${(): void => { Router.go('/'); }}">
         <sl-icon name="house-door-fill"></sl-icon> Home
       </a>
       <div class="analysis-container">

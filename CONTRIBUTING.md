@@ -102,7 +102,8 @@ git commit -m "feat: add video segment analysis service"
 1. Use `/sprint-planning` pour le suivi
 2. `/create-story` pour détailler une tâche
 3. `/dev-story` pour l'implémentation
-4. `/code-review` avant de merger
+4. **/verify-ci** : Vérifier que le code compile, passe le lint et les tests (obligatoire avant review)
+5. `/code-review` avant de merger
 
 ## ⚖️ Licence
 

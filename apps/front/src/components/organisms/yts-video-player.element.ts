@@ -240,7 +240,7 @@ export class YtsVideoPlayer extends LitElement {
         }
     `;
 
-    connectedCallback() {
+    connectedCallback(): void {
         super.connectedCallback();
     }
 
@@ -248,7 +248,7 @@ export class YtsVideoPlayer extends LitElement {
      * Renders the video player UI.
      * Includes video element, overlay spinners/errors, and custom controls.
      */
-    render() {
+    render(): unknown {
         const videoSrc = this.projectId
             ? `/api/projects/${this.projectId}/video`
             : '';
@@ -265,10 +265,10 @@ export class YtsVideoPlayer extends LitElement {
                     src=${videoSrc}
                     @loadedmetadata=${this._onLoadedMetadata}
                     @timeupdate=${this._onTimeUpdate}
-                    @play=${() => (this.isPlaying = true)}
-                    @pause=${() => (this.isPlaying = false)}
-                    @waiting=${() => (this.isLoading = true)}
-                    @canplay=${() => (this.isLoading = false)}
+                    @play=${(): void => { this.isPlaying = true; }}
+                    @pause=${(): void => { this.isPlaying = false; }}
+                    @waiting=${(): void => { this.isLoading = true; }}
+                    @canplay=${(): void => { this.isLoading = false; }}
                     @error=${this._onVideoError}
                     preload="metadata"
                     playsinline
@@ -283,7 +283,7 @@ export class YtsVideoPlayer extends LitElement {
     }
 
     /** Renders a spinner overlay while the video is buffering. */
-    private renderLoadingOverlay() {
+    private renderLoadingOverlay(): unknown {
         if (!this.isLoading || this.hasError) return '';
         return html`
             <div class="loading-overlay" aria-live="polite">
@@ -294,7 +294,7 @@ export class YtsVideoPlayer extends LitElement {
     }
 
     /** Renders an error overlay when the video fails to load. */
-    private renderErrorOverlay() {
+    private renderErrorOverlay(): unknown {
         if (!this.hasError) return '';
         return html`
             <div class="error-overlay" role="alert">
@@ -305,7 +305,7 @@ export class YtsVideoPlayer extends LitElement {
     }
 
     /** Renders the full controls bar (seek bar + control row). Only shown when no error. */
-    private renderControls() {
+    private renderControls(): unknown {
         if (this.hasError) return '';
         return html`
             <div class="controls">
@@ -316,7 +316,7 @@ export class YtsVideoPlayer extends LitElement {
     }
 
     /** Renders the seek/scrubber bar. */
-    private renderSeekBar() {
+    private renderSeekBar(): unknown {
         return html`
             <input
                 class="seek-bar"
@@ -332,7 +332,7 @@ export class YtsVideoPlayer extends LitElement {
     }
 
     /** Renders the bottom row: play/pause button, time display, mute button and volume slider. */
-    private renderControlRow() {
+    private renderControlRow(): unknown {
         return html`
             <div class="control-row">
                 <div class="control-left">
@@ -376,7 +376,7 @@ export class YtsVideoPlayer extends LitElement {
     }
 
     /** Renders the keyboard shortcut hints below the player. */
-    private renderKeyboardHints() {
+    private renderKeyboardHints(): unknown {
         return html`
             <div class="keyboard-hint">
                 <kbd>Space</kbd> Play/Pause
@@ -396,16 +396,16 @@ export class YtsVideoPlayer extends LitElement {
      * Updates duration state and hides loading spinner.
      */
 
-    private _onLoadedMetadata() {
+    private _onLoadedMetadata(): void {
         this.duration = this.videoElement.duration;
         this.isLoading = false;
     }
 
-    private _onTimeUpdate() {
+    private _onTimeUpdate(): void {
         this.currentTime = this.videoElement.currentTime;
     }
 
-    private _onVideoError() {
+    private _onVideoError(): void {
         this.isLoading = false;
         this.hasError = true;
         this.errorMessage =
@@ -417,27 +417,27 @@ export class YtsVideoPlayer extends LitElement {
     /**
      * Toggles play/pause state of the video.
      */
-    private _togglePlay() {
+    private _togglePlay(): void {
         if (!this.videoElement) return;
         if (this.videoElement.paused) {
-            this.videoElement.play();
+            void this.videoElement.play();
         } else {
             this.videoElement.pause();
         }
     }
 
-    private _onSeek(e: Event) {
+    private _onSeek(e: Event): void {
         const input = e.target as HTMLInputElement;
         this.videoElement.currentTime = parseFloat(input.value);
     }
 
-    private _onVolumeChange(e: Event) {
+    private _onVolumeChange(e: Event): void {
         const input = e.target as HTMLInputElement;
         this.volume = parseFloat(input.value);
         this.videoElement.volume = this.volume;
     }
 
-    private _toggleMute() {
+    private _toggleMute(): void {
         if (this.volume > 0) {
             this.videoElement.volume = 0;
             this.volume = 0;
@@ -451,7 +451,7 @@ export class YtsVideoPlayer extends LitElement {
      * Keyboard shortcuts handler.
      * Supports standard NLE shortcuts (J/K/L) and arrow keys for seeking/volume.
      */
-    private _onKeydown(e: KeyboardEvent) {
+    private _onKeydown(e: KeyboardEvent): void {
         if (!this.videoElement) return;
 
         switch (e.key) {

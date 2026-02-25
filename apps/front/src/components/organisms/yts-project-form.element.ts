@@ -236,7 +236,7 @@ export class YtsProjectForm extends LitElement {
      * Lifecycle callback: Called when element is added to DOM.
      * Fetches upload configuration (max size, allowed formats) from backend.
      */
-    async connectedCallback() {
+    async connectedCallback(): Promise<void> {
         super.connectedCallback();
         try {
             const config = await projectService.getConfig();
@@ -251,7 +251,7 @@ export class YtsProjectForm extends LitElement {
     /**
      * Renders the component HTML
      */
-    render() {
+    render(): unknown {
         return html`
             <div class="form-container" @sl-theme-dark>
                 <!-- 1. Form Header: Title and description -->
@@ -347,7 +347,7 @@ export class YtsProjectForm extends LitElement {
                     <!-- Mandatory Deletion Policy Acknowledgment -->
                     <sl-checkbox
                         ?checked=${this.deletionPolicyAcknowledged}
-                        @sl-change=${(e: CustomEvent) => (this.deletionPolicyAcknowledged = (e.target as any).checked)}
+                        @sl-change=${(e: CustomEvent): void => { this.deletionPolicyAcknowledged = (e.target as HTMLInputElement).checked; }}
                     >
                         I acknowledge that my video is processed locally and I can delete project data at any time.
                     </sl-checkbox>
@@ -355,7 +355,7 @@ export class YtsProjectForm extends LitElement {
                     <!-- Optional AI Learning Consent -->
                     <sl-checkbox
                         ?checked=${this.aiLearningConsent}
-                        @sl-change=${(e: CustomEvent) => (this.aiLearningConsent = (e.target as any).checked)}
+                        @sl-change=${(e: CustomEvent): void => { this.aiLearningConsent = (e.target as HTMLInputElement).checked; }}
                     >
                         I agree to share anonymized data to help improve AI features (Optional).
                     </sl-checkbox>
@@ -393,35 +393,35 @@ export class YtsProjectForm extends LitElement {
 
     // ─── Event Handlers ──────────────────────────
 
-    private _onNameInput(e: Event) {
+    private _onNameInput(e: Event): void {
         const input = e.target as HTMLInputElement;
         this.projectName = input.value;
         this.errorMessage = '';
     }
 
-    private _onDropzoneClick() {
+    private _onDropzoneClick(): void {
         if (!this.isUploading) {
             this.fileInput.click();
         }
     }
 
-    private _onDropzoneKeydown(e: KeyboardEvent) {
+    private _onDropzoneKeydown(e: KeyboardEvent): void {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             this._onDropzoneClick();
         }
     }
 
-    private _onDragOver(e: DragEvent) {
+    private _onDragOver(e: DragEvent): void {
         e.preventDefault();
         this.isDragOver = true;
     }
 
-    private _onDragLeave() {
+    private _onDragLeave(): void {
         this.isDragOver = false;
     }
 
-    private _onDrop(e: DragEvent) {
+    private _onDrop(e: DragEvent): void {
         e.preventDefault();
         this.isDragOver = false;
 
@@ -431,7 +431,7 @@ export class YtsProjectForm extends LitElement {
         }
     }
 
-    private _onFileSelected(e: Event) {
+    private _onFileSelected(e: Event): void {
         const input = e.target as HTMLInputElement;
         const file = input.files?.[0];
         if (file) {
@@ -443,7 +443,7 @@ export class YtsProjectForm extends LitElement {
      * Handles form submission.
      * Uploads the file via ProjectService and dispatches success/error events.
      */
-    private async _onSubmit() {
+    private async _onSubmit(): Promise<void> {
         if (!this._isFormValid() || this.isUploading) return;
 
         this.isUploading = true;
@@ -488,7 +488,7 @@ export class YtsProjectForm extends LitElement {
      * Also auto-fills project name if empty.
      * @param file - The file selected by user
      */
-    private _validateAndSetFile(file: File) {
+    private _validateAndSetFile(file: File): void {
         this.errorMessage = '';
 
         // Check MIME type

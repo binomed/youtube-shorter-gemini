@@ -22,6 +22,16 @@ vi.mock('@shoelace-style/shoelace/dist/components/dialog/dialog.js', () => ({}))
 
 import { DashboardPage } from './dashboard-page.js';
 
+// Helper type to access private members in tests
+type DashboardPageInternal = {
+    loadProjects(): Promise<void>;
+    handleDrop(e: DragEvent): void;
+    handleCreateProject(): void;
+    projectName: string;
+    selectedFile: File | null;
+    isDragActive: boolean;
+};
+
 describe('DashboardPage', () => {
     beforeEach(() => vi.clearAllMocks());
 
@@ -33,7 +43,7 @@ describe('DashboardPage', () => {
         const { projectService } = await import('../services/project.service.js');
 
         const el = new DashboardPage();
-        await (el as any).loadProjects();
+        await (el as unknown as DashboardPageInternal).loadProjects();
 
         expect(projectService.getProjects).toHaveBeenCalled();
     });
@@ -46,11 +56,11 @@ describe('DashboardPage', () => {
         });
 
         // Set state directly to simulate user input
-        (el as any).projectName = 'My Test Video';
+        (el as unknown as DashboardPageInternal).projectName = 'My Test Video';
         const mockFile = new File(['content'], 'test.mp4', { type: 'video/mp4' });
-        (el as any).selectedFile = mockFile;
+        (el as unknown as DashboardPageInternal).selectedFile = mockFile;
 
-        (el as any).handleCreateProject();
+        (el as unknown as DashboardPageInternal).handleCreateProject();
 
         expect(capturedEvent).not.toBeNull();
         expect((capturedEvent as unknown as CustomEvent).detail.name).toBe('My Test Video');
@@ -65,26 +75,26 @@ describe('DashboardPage', () => {
             dataTransfer: { files: [mockFile] },
         } as unknown as DragEvent;
 
-        (el as any).isDragActive = true;
-        (el as any).handleDrop(mockDragEvent);
+        (el as unknown as DashboardPageInternal).isDragActive = true;
+        (el as unknown as DashboardPageInternal).handleDrop(mockDragEvent);
 
-        expect((el as any).selectedFile).toBe(mockFile);
-        expect((el as any).projectName).toBe('myvideo'); // extension stripped
-        expect((el as any).isDragActive).toBe(false);
+        expect((el as unknown as DashboardPageInternal).selectedFile).toBe(mockFile);
+        expect((el as unknown as DashboardPageInternal).projectName).toBe('myvideo'); // extension stripped
+        expect((el as unknown as DashboardPageInternal).isDragActive).toBe(false);
     });
 
     it('should NOT update projectName if already set when file is dropped', () => {
         const el = new DashboardPage();
-        (el as any).projectName = 'Existing Name';
+        (el as unknown as DashboardPageInternal).projectName = 'Existing Name';
         const mockFile = new File(['content'], 'other.mp4', { type: 'video/mp4' });
         const mockDragEvent = {
             preventDefault: vi.fn(),
             dataTransfer: { files: [mockFile] },
         } as unknown as DragEvent;
 
-        (el as any).handleDrop(mockDragEvent);
+        (el as unknown as DashboardPageInternal).handleDrop(mockDragEvent);
 
-        expect((el as any).projectName).toBe('Existing Name'); // unchanged
+        expect((el as unknown as DashboardPageInternal).projectName).toBe('Existing Name'); // unchanged
     });
 
     it('should ignore non-video files when dropped', () => {
@@ -95,8 +105,8 @@ describe('DashboardPage', () => {
             dataTransfer: { files: [textFile] },
         } as unknown as DragEvent;
 
-        (el as any).handleDrop(mockDragEvent);
+        (el as unknown as DashboardPageInternal).handleDrop(mockDragEvent);
 
-        expect((el as any).selectedFile).toBeNull();
+        expect((el as unknown as DashboardPageInternal).selectedFile).toBeNull();
     });
 });

@@ -33,7 +33,7 @@ export class YtsApp extends LitElement {
     }
   `;
 
-  firstUpdated() {
+  protected firstUpdated(): void {
     const router = new Router(this.outlet);
     router.setRoutes([
       { path: '/', component: 'dashboard-page' },
@@ -47,7 +47,7 @@ export class YtsApp extends LitElement {
    * Handles the 'project-created' event from the Dashboard.
    * Uploads video to backend, sets global state, then navigates to Analysis page.
    */
-  private async handleProjectCreated(e: CustomEvent) {
+  private async handleProjectCreated(e: CustomEvent): Promise<void> {
     const { name, file } = e.detail;
 
     try {
@@ -60,10 +60,11 @@ export class YtsApp extends LitElement {
 
       // Navigate to analysis page
       Router.go(`/analysis/${projectResponse.id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to upload project:', err);
       // Show error to user
-      alert(`Upload Failed: ${err.message || 'Unknown error'}`);
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      alert(`Upload Failed: ${message}`);
     }
   }
 
@@ -71,7 +72,7 @@ export class YtsApp extends LitElement {
    * Handles the 'analysis-complete' event from the Analysis page.
    * Navigates to the Editor.
    */
-  private handleAnalysisComplete(e: CustomEvent) {
+  private handleAnalysisComplete(e: CustomEvent): void {
     const projectId = e.detail.projectId || e.detail.id;
     if (projectId) {
       Router.go(`/editor/${projectId}`);
@@ -80,7 +81,7 @@ export class YtsApp extends LitElement {
     }
   }
 
-  render() {
+  render(): unknown {
     return html`
       <main-layout>
         <div id="outlet"

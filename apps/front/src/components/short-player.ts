@@ -30,10 +30,10 @@ export class ShortPlayer extends LitElement {
   @state() private currentTime = 0;
   @state() private duration = 0;
 
-  private togglePlay() {
+  private togglePlay(): void {
     if (!this.videoElement) return;
     if (this.videoElement.paused) {
-      this.videoElement.play();
+      void this.videoElement.play();
       this.isPlaying = true;
     } else {
       this.videoElement.pause();
@@ -41,13 +41,13 @@ export class ShortPlayer extends LitElement {
     }
   }
 
-  private handleTimeUpdate = () => {
+  private handleTimeUpdate = (): void => {
     this.currentTime = this.videoElement.currentTime;
 
     // Enforce end time if set
     if (this.endTime > 0 && this.currentTime >= this.endTime) {
       this.videoElement.currentTime = this.startTime;
-      this.videoElement.play();
+      void this.videoElement.play();
     }
 
     // Enforce start time (prevent playing before start)
@@ -59,7 +59,7 @@ export class ShortPlayer extends LitElement {
   /**
    * Public method to play a specific segment
    */
-  public playSegment(startTime: number, endTime: number) {
+  public playSegment(startTime: number, endTime: number): void {
     this.startTime = startTime;
     this.endTime = endTime;
 
@@ -73,11 +73,11 @@ export class ShortPlayer extends LitElement {
 
 
 
-  private handleLoadedMetadata() {
+  private handleLoadedMetadata(): void {
     this.duration = this.videoElement.duration;
   }
 
-  private handleEnded() {
+  private handleEnded(): void {
     this.isPlaying = false;
   }
 
@@ -246,7 +246,7 @@ export class ShortPlayer extends LitElement {
     }
   `;
 
-  render() {
+  render(): unknown {
     const isSegment = this.endTime > 0 && this.endTime > this.startTime;
     const effectiveDuration = isSegment ? (this.endTime - this.startTime) : this.duration;
 
@@ -293,7 +293,7 @@ export class ShortPlayer extends LitElement {
 
         <!-- Controls -->
         <div class="controls-overlay">
-          <div class="play-btn" @click="${(e: Event) => { e.stopPropagation(); this.togglePlay(); }}">
+          <div class="play-btn" @click="${(e: Event): void => { e.stopPropagation(); this.togglePlay(); }}">
              <sl-icon name="${this.isPlaying ? 'pause-fill' : 'play-fill'}" style="color: white; font-size: 28px;"></sl-icon>
           </div>
           
@@ -311,7 +311,7 @@ export class ShortPlayer extends LitElement {
     `;
   }
 
-  private seek(e: MouseEvent) {
+  private seek(e: MouseEvent): void {
     if (!this.duration || !this.videoElement) {
       return;
     }

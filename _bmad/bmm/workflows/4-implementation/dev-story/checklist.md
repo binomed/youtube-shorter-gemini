@@ -44,7 +44,11 @@ validation-rules:
 - [ ] **End-to-End Tests:** End-to-end tests created for critical user flows when story requirements specify them
 - [ ] **Test Coverage:** Tests cover acceptance criteria and edge cases from story Dev Notes
 - [ ] **Regression Prevention:** ALL existing tests pass (no regressions introduced)
-- [ ] **Code Quality:** Linting and static checks pass when configured in project
+- [ ] **Code Quality:** Linting, build, and static checks pass. MANDATORY:
+    - Run `npm run lint`
+    - Run `npm run build`
+    - Run `npm run test`
+    - Run `npm run test:a11y --workspace=front`
 - [ ] **Test Framework Compliance:** Tests use project's testing frameworks and patterns from Dev Notes
 
 ## 📝 Documentation & Tracking

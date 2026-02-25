@@ -31,6 +31,23 @@ vi.mock('@shoelace-style/shoelace/dist/components/badge/badge.js', () => ({}));
 
 import { EditorPage } from './editor-page.js';
 
+// Helper type to access private members in tests
+type EditorPageInternal = {
+    onBeforeEnter(location: { params: { projectId: string } }): Promise<void>;
+    playShort(short: { id: string; title: string; startTime: number; endTime: number }): void;
+    formatTime(seconds: number): string;
+    triggerStemSeparation(): Promise<void>;
+    renderSegmentsSidebar(): unknown;
+    renderReelCenter(): unknown;
+    renderToolsPanel(): unknown;
+    renderAudioPanel(): unknown;
+    shorts: { id: string; title: string; startTime: number; endTime: number; score: number; reasoning: string; thumbnailUrl: string | null }[];
+    loading: boolean;
+    currentShort: { id: string; title: string; startTime: number; endTime: number } | null;
+    stemAvailable: boolean;
+    stemSeparating: boolean;
+};
+
 describe('EditorPage', () => {
     beforeEach(() => vi.clearAllMocks());
 
@@ -42,44 +59,44 @@ describe('EditorPage', () => {
         const { projectService } = await import('../services/project.service.js');
         const el = new EditorPage();
 
-        await (el as any).onBeforeEnter({ params: { projectId: 'proj-1' } });
+        await (el as unknown as EditorPageInternal).onBeforeEnter({ params: { projectId: 'proj-1' } });
 
         expect(projectService.getShorts).toHaveBeenCalledWith('proj-1');
-        expect((el as any).shorts).toHaveLength(1);
-        expect((el as any).loading).toBe(false);
+        expect((el as unknown as EditorPageInternal).shorts).toHaveLength(1);
+        expect((el as unknown as EditorPageInternal).loading).toBe(false);
     });
 
     it('should set currentShort when playShort is called', async () => {
         const el = new EditorPage();
         const mockShort = { id: 'short-1', title: 'Scene 1', startTime: 5, endTime: 30 };
 
-        (el as any).playShort(mockShort);
+        (el as unknown as EditorPageInternal).playShort(mockShort);
 
-        expect((el as any).currentShort).toEqual(mockShort);
-        expect((el as any).stemAvailable).toBe(false);
-        expect((el as any).stemSeparating).toBe(false);
+        expect((el as unknown as EditorPageInternal).currentShort).toEqual(mockShort);
+        expect((el as unknown as EditorPageInternal).stemAvailable).toBe(false);
+        expect((el as unknown as EditorPageInternal).stemSeparating).toBe(false);
     });
 
     it('formatTime should correctly format seconds to MM:SS', () => {
         const el = new EditorPage();
-        expect((el as any).formatTime(0)).toBe('00:00');
-        expect((el as any).formatTime(90)).toBe('01:30');
-        expect((el as any).formatTime(3661)).toBe('61:01');
+        expect((el as unknown as EditorPageInternal).formatTime(0)).toBe('00:00');
+        expect((el as unknown as EditorPageInternal).formatTime(90)).toBe('01:30');
+        expect((el as unknown as EditorPageInternal).formatTime(3661)).toBe('61:01');
     });
 
     it('should not trigger stem separation without projectId and shortId', async () => {
         const el = new EditorPage();
-        (el as any).currentShort = null;
+        (el as unknown as EditorPageInternal).currentShort = null;
 
         // Should return early without throwing
-        await expect((el as any).triggerStemSeparation()).resolves.toBeUndefined();
+        await expect((el as unknown as EditorPageInternal).triggerStemSeparation()).resolves.toBeUndefined();
     });
 
     it('should have 4 separate render methods (render decomposition)', () => {
         const el = new EditorPage();
-        expect(typeof (el as any).renderSegmentsSidebar).toBe('function');
-        expect(typeof (el as any).renderReelCenter).toBe('function');
-        expect(typeof (el as any).renderToolsPanel).toBe('function');
-        expect(typeof (el as any).renderAudioPanel).toBe('function');
+        expect(typeof (el as unknown as EditorPageInternal).renderSegmentsSidebar).toBe('function');
+        expect(typeof (el as unknown as EditorPageInternal).renderReelCenter).toBe('function');
+        expect(typeof (el as unknown as EditorPageInternal).renderToolsPanel).toBe('function');
+        expect(typeof (el as unknown as EditorPageInternal).renderAudioPanel).toBe('function');
     });
 });
