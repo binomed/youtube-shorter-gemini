@@ -3,7 +3,7 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, HttpException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { VideoService } from './video.service';
 import { FFmpegService, VideoMetadata } from '../../workers/ffmpeg.service';

@@ -17,21 +17,27 @@ import * as path from 'path';
  * - DOES NOT delete original video files (user's own files on disk)
  * - Original files remain owned and managed by user
  *
- * Future (Epic 2+: YouTube Downloads):
- * - Will delete downloaded YouTube videos from temporary storage
- * - Will implement session-based cleanup (delete after X hours inactivity)
- * - Will clean up rendered output files
+ * BF-1.1 Scope (Bug Fix — Complete Filesystem Cleanup):
+ * - Deletes Multer-uploaded temp copies in `./uploads/` on project deletion
+ * - Deletes stem files using DB-stored paths (vocalsPath, accompanimentPath) as fallback
+ * - All file system operations are fail-safe (file-not-found errors are silently logged)
  *
  * Design Rationale:
- * For desktop local use case (Story 1.1), the app references user's original video files
- * without copying them. Deleting these files would cause data loss. The app only
- * manages metadata and project records in the database.
+ * For desktop local use case (Story 1.1), the app COPIES the user's original video file
+ * into ./uploads/ via Multer. This copy is app-managed and must be deleted on project
+ * deletion. The original user file is NOT touched.
  *
  * @service
  */
 @Injectable()
 export class CleanupService {
   private readonly logger = new Logger(CleanupService.name);
+
+  /**
+   * Resolved absolute path to the Multer uploads directory.
+   * Files within this directory are app-managed and safe to delete on cleanup.
+   */
+  private readonly uploadsDir = path.resolve(process.cwd(), 'uploads');
 
   constructor(
     @InjectRepository(Project)
@@ -42,14 +48,13 @@ export class CleanupService {
   /**
    * Delete project and associated data
    *
-   * Story 1.1: Deletes database record via TypeORM
-   * - Removes project from SQLite database
-   * - Does NOT delete original video file (user's file)
+   * BF-1.1: Also deletes:
+   * - The Multer-uploaded video copy in ./uploads/ (if applicable)
+   * - Stem audio files in uploads/stems/<shortId>/
+   * - Thumbnail files referenced in DB
    *
-   * Future Epics: Will also delete:
-   * - Downloaded YouTube videos (temporary storage)
-   * - Rendered output files
-   * - Extracted clips
+   * Design: Original user files are NEVER deleted. Only app-managed files in
+   * ./uploads/ are removed.
    *
    * @param projectId - Project ID to delete
    * @returns Promise<void>
@@ -57,8 +62,8 @@ export class CleanupService {
   async deleteProject(projectId: string): Promise<void> {
     this.logger.log(`Deleting project: ${projectId}`);
 
-    // Issue #7: Use transaction for data integrity
-    // Issue #12: Add null safety and proper error handling
+    let projectVideoPath: string | undefined;
+
     await this.dataSource.transaction(async (manager) => {
       const projectRepo = manager.getRepository(Project);
 
@@ -70,24 +75,72 @@ export class CleanupService {
         throw new NotFoundException(`Project with ID ${projectId} not found`);
       }
 
-      // Clean up stem files before deleting DB records
+      // Store videoPath before deletion for post-transaction cleanup
+      projectVideoPath = project.videoPath;
+
+      // Clean up stem files and thumbnails before deleting DB records
       await this.cleanupStemFiles(projectId, manager);
 
       // Delete with cascade (will handle future foreign key constraints)
       await projectRepo.remove(project);
 
-      this.logger.log(`Project deleted successfully: ${projectId}`);
+      this.logger.log(`Project DB record deleted: ${projectId}`);
     });
 
-    // Important: Do NOT delete original video file for desktop local files
-    // The video belongs to the user and is outside our app's management scope
+    // Post-transaction: Delete the Multer-uploaded video copy (if app-managed)
+    // This runs AFTER the transaction to ensure DB integrity is preserved
+    // even if the file deletion fails.
+    if (projectVideoPath) {
+      await this.deleteUploadedVideoFile(projectVideoPath);
+    }
+
+    this.logger.log(`Project deleted successfully: ${projectId}`);
   }
 
   /**
-   * Clean up stem audio files from disk for all shorts in a project.
+   * Delete the uploaded video file from disk if it is inside the app-managed ./uploads/ directory.
    *
-   * Stems are stored in: uploads/stems/<shortId>/
-   * This method removes those directories when a project is deleted.
+   * SAFETY: Only deletes files located within `./uploads/`. User original files
+   * (located anywhere else on disk) are NEVER touched.
+   *
+   * @param videoPath - Absolute path to the video file stored in the DB
+   */
+  private async deleteUploadedVideoFile(videoPath: string): Promise<void> {
+    const resolvedVideoPath = path.resolve(videoPath);
+
+    // Security check: only delete files inside the app's uploads directory
+    const isAppManagedFile = resolvedVideoPath.startsWith(
+      this.uploadsDir + path.sep,
+    );
+
+    if (!isAppManagedFile) {
+      this.logger.debug(
+        `Skipping video file deletion (user's original file): ${videoPath}`,
+      );
+      return;
+    }
+
+    try {
+      await fs.unlink(resolvedVideoPath);
+      this.logger.debug(
+        `Deleted app-managed upload file: ${resolvedVideoPath}`,
+      );
+    } catch (error: unknown) {
+      // Fail-safe: log the warning but do not throw (project is already deleted from DB)
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Could not delete uploaded video file ${resolvedVideoPath}: ${message}`,
+      );
+    }
+  }
+
+  /**
+   * Clean up stem audio files and thumbnails from disk for all shorts in a project.
+   *
+   * Uses a two-pronged approach for robustness:
+   * 1. Deletes the stems directory by convention: uploads/stems/<shortId>/
+   * 2. Deletes DB-stored paths (vocalsPath, accompanimentPath) if they exist
+   *    (handles edge cases where convention-based paths differ from actual paths)
    */
   private async cleanupStemFiles(
     projectId: string,
@@ -97,22 +150,44 @@ export class CleanupService {
     const shorts = await shortRepo.find({ where: { projectId } });
 
     for (const short of shorts) {
-      // Clean up stems directory for this short
+      // Strategy 1: Delete stem directory by convention (covers all files atomically)
       const stemsDir = path.join(process.cwd(), 'uploads', 'stems', short.id);
       try {
         await fs.rm(stemsDir, { recursive: true, force: true });
-        this.logger.debug(`Cleaned up stems for short ${short.id}`);
-      } catch {
-        // Ignore if directory doesn't exist
+        this.logger.debug(`Cleaned up stems directory for short ${short.id}`);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `Could not clean stems dir for short ${short.id}: ${message}`,
+        );
       }
 
-      // Also clean up thumbnail if exists
+      // Strategy 2: Delete DB-stored individual stem file paths (fallback / belt-and-suspenders)
+      if (short.vocalsPath) {
+        try {
+          await fs.unlink(short.vocalsPath);
+          this.logger.debug(`Deleted vocalsPath for short ${short.id}`);
+        } catch {
+          // Fail-safe: file may not exist if already cleaned by strategy 1
+        }
+      }
+
+      if (short.accompanimentPath) {
+        try {
+          await fs.unlink(short.accompanimentPath);
+          this.logger.debug(`Deleted accompanimentPath for short ${short.id}`);
+        } catch {
+          // Fail-safe: file may not exist if already cleaned by strategy 1
+        }
+      }
+
+      // Clean up thumbnail if exists (unchanged from original)
       if (short.thumbnailPath) {
         try {
           await fs.unlink(short.thumbnailPath);
           this.logger.debug(`Cleaned up thumbnail for short ${short.id}`);
         } catch {
-          // Ignore if file doesn't exist
+          // Fail-safe: ignore if file doesn't exist
         }
       }
     }
