@@ -13,6 +13,7 @@
         "dev": "turbo run dev",
         "lint": "turbo run lint",
         "test": "turbo run test",
+        "verify": "npm run build && npm run lint && npm run test",
         "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
         "clean:temp": "rimraf apps/back/uploads/stems apps/back/uploads/thumbnails",
         "clean:dist": "rimraf apps/back/dist apps/front/dist packages/shared/dist",

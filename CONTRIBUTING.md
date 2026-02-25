@@ -97,6 +97,25 @@ git commit -m "feat: add video segment analysis service"
 - **Documentation**: JSDoc required for all public APIs and business logic
 - **Tests**: Co-located (`.spec.ts` next to source files)
 
+## 🛡 Ensurer la Stabilité de la CI
+
+Pour éviter de "casser" la CI lors de vos commits, suivez ces règles et utilisez les outils de validation locale.
+
+### ✅ Checklist Pré-Push (Obligatoire)
+Avant chaque `git push`, lancez la commande suivante à la racine du projet :
+```bash
+npm run verify
+```
+Cette commande exécute séquentiellement :
+1. `npm run build` : Vérifie la compilation et la résolution des types transverses.
+2. `npm run lint` : Vérifie le style et les types non-safe.
+3. `npm run test` : Lance la suite complète de tests (Back, Front, Shared).
+
+### 🏗 Garde-fous Architecturaux
+- **Pas d'imports dynamiques pour les built-ins Node** : Évitez `await import('fs/promises')` ou `path` à l'intérieur des fonctions. Utilisez des imports statiques en haut de fichier pour garantir la compatibilité avec l'environnement de test Jest/Vitest sans flags expérimentaux.
+- **Hygiène des Mocks** : Dans vos tests (`.spec.ts`), assurez-vous de réinitialiser non seulement les compteurs d'appels (`jest.clearAllMocks()`) mais aussi les implémentations spécifiques (`mockResolvedValue`) dans le `beforeEach` si vous modifiez des modules globaux (ex: `fs`).
+- **Dépendances Monorepo** : Si vous modifiez `packages/shared`, vous **devez** lancer `npm run build` à la racine pour que les changements soient visibles par `apps/back` et `apps/front`.
+
 ## 🔄 Development Workflow
 
 1. Use `/sprint-planning` pour le suivi
