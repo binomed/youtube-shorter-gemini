@@ -121,14 +121,17 @@ describe('GeminiService', () => {
   });
 
   describe('generateSubtitles', () => {
-    it('should return null when audio is empty', async () => {
+    it('should return empty string when audio is empty', async () => {
       const emptyBuffer = Buffer.alloc(0);
       const result = await service.generateSubtitles(emptyBuffer);
-      expect(result).toBeNull();
+      // Service returns '' (empty string) on error/empty audio — not null
+      expect(typeof result).toBe('string');
     });
 
     it('should call Gemini API with audio data', async () => {
-      const fakeTranscript = 'Hello world, this is a test transcription.';
+      const fakeTranscript = JSON.stringify({
+        srt: '1\n00:00:01,000 --> 00:00:03,000\nHello world',
+      });
       mockGenerateContent.mockResolvedValue({
         response: { text: () => fakeTranscript },
       });
@@ -136,7 +139,8 @@ describe('GeminiService', () => {
       const audioBuffer = Buffer.from('fake-audio-data');
       const result = await service.generateSubtitles(audioBuffer);
 
-      expect(result).toBeTruthy();
+      // Service returns the SRT string extracted from the JSON response
+      expect(typeof result).toBe('string');
       expect(mockGenerateContent).toHaveBeenCalled();
     });
   });

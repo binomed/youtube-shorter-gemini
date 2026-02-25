@@ -5,6 +5,10 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Subject } from 'rxjs';
+import { spawn } from 'child_process';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
 import { GeminiService } from './gemini.service';
@@ -89,10 +93,6 @@ export class AnalysisService {
         progress: 40,
         message: 'Extracting audio and generating subtitles...',
       });
-
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const os = await import('os');
 
       const audioPath = path.join(os.tmpdir(), `yts-audio-${Date.now()}.mp3`);
       let transcript = '';
@@ -235,11 +235,6 @@ export class AnalysisService {
     duration: number,
     maxFrames: number,
   ): Promise<string[]> {
-    const { spawn } = await import('child_process');
-    const fs = await import('fs/promises');
-    const path = await import('path');
-    const os = await import('os');
-
     const interval = Math.max(1, Math.floor(duration / maxFrames));
     const frames: string[] = [];
     const tmpDir = path.join(os.tmpdir(), `yts-frames-${Date.now()}`);
@@ -300,9 +295,6 @@ export class AnalysisService {
     videoPath: string,
     detected: DetectedSegment[],
   ): Promise<Short[]> {
-    const path = await import('path');
-    const fs = await import('fs/promises');
-
     // Create thumbnails directory if not exists
     const thumbnailsDir = path.join(process.cwd(), 'uploads', 'thumbnails');
     await fs.mkdir(thumbnailsDir, { recursive: true });

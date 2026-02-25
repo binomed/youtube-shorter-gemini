@@ -4,6 +4,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
+import { EventEmitter } from 'events';
 import { Subject } from 'rxjs';
 import { NotFoundException } from '@nestjs/common';
 import { AnalysisService } from './analysis.service';
@@ -12,6 +13,27 @@ import { FFmpegService } from '../../workers/ffmpeg.service';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
 import type { AnalysisProgressEvent } from '@youtube-shorter/shared';
+
+// Mock child_process so spawn returns a fake EventEmitter that immediately exits with code 0
+jest.mock('child_process', () => ({
+  spawn: jest.fn(() => {
+    const proc = new EventEmitter() as NodeJS.EventEmitter & {
+      stderr: EventEmitter;
+    };
+    proc.stderr = new EventEmitter();
+    setImmediate(() => proc.emit('close', 0));
+    return proc;
+  }),
+}));
+
+// Mock fs/promises so mkdir/unlink don't touch real disk
+jest.mock('fs/promises', () => ({
+  mkdir: jest.fn().mockResolvedValue(undefined),
+  rm: jest.fn().mockResolvedValue(undefined),
+  unlink: jest.fn().mockResolvedValue(undefined),
+  readFile: jest.fn().mockResolvedValue(Buffer.from('fake-frame')),
+  readdir: jest.fn().mockResolvedValue([]),
+}));
 
 const mockProject = {
   id: 'proj-1',
@@ -37,6 +59,7 @@ const mockProjectRepository = {
 };
 
 const mockShortRepository = {
+  create: jest.fn((data: Record<string, unknown>) => ({ ...data })),
   save: jest.fn(),
   find: jest.fn(),
   delete: jest.fn(),
