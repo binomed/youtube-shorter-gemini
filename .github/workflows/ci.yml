@@ -70,5 +70,5 @@ jobs:
         run: npm ci
       
       - name: Run basic accessibility checks
-        run: npm run test:a11y --workspace=front
+        run: npx turbo run test:a11y --filter=front
 
