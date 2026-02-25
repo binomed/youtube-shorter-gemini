@@ -5,6 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AnalysisController } from './analysis.controller';
 import { AnalysisService } from './analysis.service';
 import { StemService } from './stem.service';
+import { AnalysisResponse } from '@youtube-shorter/shared';
 
 const mockAnalysisService = {
   analyzeProject: jest.fn(),
@@ -41,7 +42,9 @@ describe('AnalysisController', () => {
       mockAnalysisService.analyzeProject.mockResolvedValue([]);
 
       // The controller returns a response object with success flag
-      const result = await controller.analyzeProject('proj-1');
+      const result = (await controller.analyzeProject(
+        'proj-1',
+      )) as unknown as AnalysisResponse;
 
       expect(result).toBeDefined();
       expect(mockAnalysisService.analyzeProject).toHaveBeenCalledWith(

@@ -1,5 +1,6 @@
 // Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
+// Licensed under the Apache-20 License. See LICENSE file in the project root for full license information.
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -7,10 +8,10 @@ import { Subject } from 'rxjs';
 import { NotFoundException } from '@nestjs/common';
 import { StemService } from './stem.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
+import { StemProgressEvent } from '@youtube-shorter/shared';
 import { JobService } from '../processing/job.service';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
-import type { StemProgressEvent } from '@youtube-shorter/shared';
 
 const mockProject = { id: 'proj-1', videoPath: '/tmp/test.mp4' };
 const mockShort = {
@@ -187,7 +188,9 @@ describe('StemService', () => {
 
       await service.separateStems('proj-1', 'short-1', progress$);
 
-      expect(events.some((e) => e.phase === 'complete')).toBe(true);
+      expect(
+        events.some((e: StemProgressEvent) => e.phase === 'complete'),
+      ).toBe(true);
     });
   });
 

@@ -3,8 +3,10 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { BadRequestException, HttpException } from '@nestjs/common';
+import { Repository } from 'typeorm';
 import { VideoService } from './video.service';
-import { FFmpegService } from '../../workers/ffmpeg.service';
+import { FFmpegService, VideoMetadata } from '../../workers/ffmpeg.service';
 import { Project } from '../../entities/project.entity';
 import { CleanupService } from './cleanup.service';
 
@@ -25,9 +27,27 @@ jest.mock('../../utils/file-validation', () => {
 describe('VideoService', () => {
   let service: VideoService;
   let ffmpegService: FFmpegService;
+  let projectRepository: Repository<Project>;
+  let module: TestingModule;
+
+  const mockFile = {
+    fieldname: 'videoFile',
+    originalname: 'test-video.mp4',
+    encoding: '7bit',
+    mimetype: 'video/mp4',
+    buffer: Buffer.from('fake video data'),
+    size: 1024,
+    path: '/Users/test/Videos/my-video.mp4',
+  } as Express.Multer.File;
+
+  const mockCreateProjectDto = {
+    name: 'My Video Project',
+    deletionPolicyAcknowledged: true,
+    aiLearningConsent: false,
+  };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         VideoService,
         {
@@ -38,6 +58,7 @@ describe('VideoService', () => {
             find: jest.fn(),
             findOne: jest.fn(),
             delete: jest.fn(),
+            findOneBy: jest.fn(),
           },
         },
         {
@@ -57,8 +78,9 @@ describe('VideoService', () => {
 
     service = module.get<VideoService>(VideoService);
     ffmpegService = module.get<FFmpegService>(FFmpegService);
-    // CleanupService is injected but not directly used in these tests
-    module.get<CleanupService>(CleanupService);
+    projectRepository = module.get<Repository<Project>>(
+      getRepositoryToken(Project),
+    );
   });
 
   it('should be defined', () => {
@@ -67,23 +89,7 @@ describe('VideoService', () => {
 
   describe('createProject', () => {
     it('should create project with original file path and metadata', async () => {
-      const mockFile: Express.Multer.File = {
-        fieldname: 'videoFile',
-        originalname: 'test-video.mp4',
-        encoding: '7bit',
-        mimetype: 'video/mp4',
-        buffer: Buffer.from('fake video data'),
-        size: 1024,
-        path: '/Users/test/Videos/my-video.mp4', // Original file path
-      } as Express.Multer.File;
-
-      const mockCreateProjectDto = {
-        name: 'My Video Project',
-        deletionPolicyAcknowledged: true,
-        aiLearningConsent: false,
-      };
-
-      const mockMetadata = {
+      const mockMetadata: VideoMetadata = {
         duration: 120.5,
         resolution: '1920x1080',
         codec: 'h264',
@@ -91,9 +97,10 @@ describe('VideoService', () => {
         height: 1080,
       };
 
-      const mockProject = {
+      const mockProject: Project = {
         id: 'generated-uuid-123',
         name: 'My Video Project',
+        description: 'Test description',
         videoPath: '/Users/test/Videos/my-video.mp4',
         duration: 120.5,
         resolution: '1920x1080',
@@ -103,21 +110,19 @@ describe('VideoService', () => {
         isExported: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
+      } as Project;
 
       jest
         .spyOn(ffmpegService, 'extractMetadata')
         .mockResolvedValue(mockMetadata);
-      const projectRepository = service['projectRepository'];
-      jest.spyOn(projectRepository, 'create').mockReturnValue(mockProject);
-      jest.spyOn(projectRepository, 'save').mockResolvedValue(mockProject);
+      (projectRepository.create as jest.Mock).mockReturnValue(mockProject);
+      (projectRepository.save as jest.Mock).mockResolvedValue(mockProject);
 
       const result = await service.createProject(
         mockCreateProjectDto,
         mockFile,
       );
 
-      // Verify project creation
       expect(result).toEqual({
         id: 'generated-uuid-123',
         name: 'My Video Project',
@@ -131,14 +136,55 @@ describe('VideoService', () => {
         isExported: false,
         isAnalyzed: false,
       });
-      const saveSpy = jest.spyOn(projectRepository, 'save');
-      expect(saveSpy).toHaveBeenCalledWith(mockProject);
 
-      // Verify metadata was extracted
-      const extractMetadataSpy = jest.spyOn(ffmpegService, 'extractMetadata');
-      expect(extractMetadataSpy).toHaveBeenCalledWith(
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(projectRepository.save).toHaveBeenCalledWith(mockProject);
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(ffmpegService.extractMetadata).toHaveBeenCalledWith(
         '/Users/test/Videos/my-video.mp4',
       );
+    });
+
+    it('should throw BadRequestException if metadata extraction fails', async () => {
+      jest
+        .spyOn(ffmpegService, 'extractMetadata')
+        .mockRejectedValue(new Error('FFmpeg error'));
+
+      await expect(
+        service.createProject(mockCreateProjectDto, mockFile),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw InternalServerErrorException if DB save fails', async () => {
+      const mockMetadata: VideoMetadata = {
+        duration: 120.5,
+        resolution: '1920x1080',
+        codec: 'h264',
+        width: 10,
+        height: 10,
+      };
+      const mockProject: Project = {
+        id: '123',
+        name: 'test',
+        videoPath: 'test.mp4',
+        duration: 10,
+        resolution: '10x10',
+        codec: 'test',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Project;
+
+      jest
+        .spyOn(ffmpegService, 'extractMetadata')
+        .mockResolvedValue(mockMetadata);
+      (projectRepository.create as jest.Mock).mockReturnValue(mockProject);
+      (projectRepository.save as jest.Mock).mockRejectedValue(
+        new Error('DB error'),
+      );
+
+      await expect(
+        service.createProject(mockCreateProjectDto, mockFile),
+      ).rejects.toThrow();
     });
   });
 });

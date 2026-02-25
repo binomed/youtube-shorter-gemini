@@ -181,12 +181,16 @@ export class AnalysisService {
       });
 
       return shorts;
-    } catch (error) {
-      this.emitProgress(progress$, {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Viral detection failed: ${errorMessage}`);
+      const event: AnalysisProgressEvent = {
         phase: 'error',
-        progress: 0,
-        message: `Analysis failed: ${(error as Error).message}`,
-      });
+        progress: 80,
+        message: `Viral detection failed: ${errorMessage}`,
+      };
+      this.emitProgress(progress$, event);
       throw error;
     }
   }
@@ -325,7 +329,8 @@ export class AnalysisService {
 
       // Generate thumbnail at midpoint
       try {
-        const midpoint = (seg.startTime + seg.endTime) / 2;
+        const segTyped = seg;
+        const midpoint = (segTyped.startTime + segTyped.endTime) / 2;
         const filename = `${short.id}.jpg`;
         const thumbnailPath = path.join(thumbnailsDir, filename);
 
@@ -337,9 +342,11 @@ export class AnalysisService {
 
         short.thumbnailPath = thumbnailPath;
         short = await this.shortRepository.save(short);
-      } catch (error) {
-        this.logger.warn(
-          `Failed to generate thumbnail for short ${short.id}: ${(error as Error).message}`,
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Thumbnail generation failed for short ${short.id}: ${errorMessage}`,
         );
       }
 

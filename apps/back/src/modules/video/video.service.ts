@@ -82,8 +82,8 @@ export class VideoService {
     createProjectDto: CreateProjectDto,
     file: Express.Multer.File,
   ): Promise<ProjectResponse> {
-    const { name, deletionPolicyAcknowledged, aiLearningConsent } =
-      createProjectDto;
+    const dto = createProjectDto;
+    const { name, deletionPolicyAcknowledged, aiLearningConsent } = dto;
 
     // Validate and sanitize file path (Issue #2: Security)
     // Ensure we have a valid file path, prefer file.path over user-controlled originalname
@@ -114,28 +114,31 @@ export class VideoService {
     let metadata: VideoMetadata | null = null;
     try {
       metadata = await this.ffmpegService.extractMetadata(videoPath);
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `FFmpeg metadata extraction failed for ${videoPath}: ${(error as Error).message}`,
+        `FFmpeg metadata extraction failed for ${videoPath}: ${errorMessage}`,
       );
       // FAIL FAST: Don't create project with corrupted/invalid video
       throw new BadRequestException(
-        `Invalid video file: ${(error as Error).message}. Please upload a valid MP4/MOV file.`,
+        `Invalid video file: ${errorMessage}. Please upload a valid MP4/MOV file.`,
       );
     }
 
     // Create project entity
-    const project = this.projectRepository.create({
-      name,
-      videoPath,
-      deletionPolicyAcknowledged,
+    const projectData = {
+      name: name,
+      videoPath: videoPath,
+      deletionPolicyAcknowledged: deletionPolicyAcknowledged,
       aiLearningConsent: aiLearningConsent || false,
       ...(metadata && {
         duration: metadata.duration,
         resolution: metadata.resolution,
         codec: metadata.codec,
       }),
-    });
+    };
+    const project = this.projectRepository.create(projectData);
 
     // Save to database
     // Issue #1: Remove dangerous type cast

@@ -346,9 +346,12 @@ export class StemService {
     progress$: Subject<StemProgressEvent> | undefined,
     event: StemProgressEvent,
   ): void {
-    this.logger.log(`[${event.phase}] ${event.progress}% - ${event.message}`);
+    const eventTyped = event;
+    this.logger.log(
+      `[${eventTyped.phase}] ${eventTyped.progress}% - ${eventTyped.message}`,
+    );
     if (progress$) {
-      progress$.next(event);
+      progress$.next(eventTyped);
     }
   }
 }

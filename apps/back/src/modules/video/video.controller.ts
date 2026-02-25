@@ -104,9 +104,11 @@ export class VideoController {
     }
 
     // Validate file format (MP4/MOV/AVI/MKV - defined in shared constants)
-    if (!ALLOWED_VIDEO_MIME_TYPES.includes(file.mimetype)) {
+    const allowedMimeTypes = ALLOWED_VIDEO_MIME_TYPES;
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      const allowedExtensions = ALLOWED_VIDEO_EXTENSIONS;
       throw new HttpException(
-        `Invalid file format. Only ${ALLOWED_VIDEO_EXTENSIONS.join(', ')} files are accepted.`,
+        `Invalid file format. Only ${allowedExtensions.join(', ')} files are accepted.`,
         HttpStatus.BAD_REQUEST,
       );
     }
