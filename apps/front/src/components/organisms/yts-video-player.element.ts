@@ -287,6 +287,13 @@ export class YtsVideoPlayer extends LitElement {
                     .subtitles=${this.subtitles}
                     .subtitleStyle=${this.subtitleStyle}
                     @subtitle-clicked=${this._onSubtitleClicked}
+                    @subtitle-moved=${(e: CustomEvent): void => {
+                this.dispatchEvent(new CustomEvent('subtitle-moved', {
+                    detail: e.detail,
+                    bubbles: true,
+                    composed: true
+                }));
+            }}
                 ></yts-subtitle-overlay>
 
                 ${this.renderLoadingOverlay()}

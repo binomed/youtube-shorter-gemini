@@ -28,6 +28,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   @state() private stemMessage = '';
   @state() private stemAvailable = false;
   @state() private editingSubtitle: SubtitleResponse | null = null;
+  @state() private activeTab: 'captions' | 'style' | 'audio' = 'style';
 
   async onBeforeEnter(location: RouterLocation): Promise<void> {
     const projectId = location.params.projectId as string;
@@ -115,6 +116,37 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       } catch (err) {
         console.error('Failed to save subtitle style:', err);
       }
+    }
+  }
+
+  private async handleApplyAllStyles(): Promise<void> {
+    if (!this.currentShort || !this.currentShort.subtitleStyle) return;
+
+    const projectId = projectSignal.get()?.id;
+    if (!projectId) return;
+
+    const styleToApply = this.currentShort.subtitleStyle;
+
+    this.loading = true;
+    try {
+      await Promise.all(this.shorts.map(async (short) => {
+        // Skip current since it's already saved via style-changed event right before
+        if (short.id === this.currentShort?.id) return;
+
+        short.subtitleStyle = { ...styleToApply };
+
+        await fetch(`/api/projects/${projectId}/shorts/${short.id}/style`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(styleToApply)
+        });
+      }));
+
+      this.shorts = [...this.shorts]; // Trigger re-render to reflect changes if needed
+    } catch (err) {
+      console.error('Failed to apply styles to all shorts:', err);
+    } finally {
+      this.loading = false;
     }
   }
 
@@ -259,6 +291,59 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       gap: 12px;
     }
 
+    .sidebar-right {
+      background: #1e202a; /* Deep navy from mockup */
+      border: 1px solid rgba(255,255,255,0.05); /* Very subtle border */
+      box-shadow: none;
+      padding: 16px;
+    }
+
+    .tools-header {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .header-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #f8fafc;
+    }
+
+    .active-pill-btn {
+      background: transparent;
+      color: #94a3b8;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .active-pill-btn.selected {
+      background: #0ea5e9; /* Light blue */
+      color: white;
+      border: none;
+      box-shadow: 0 0 10px rgba(14, 165, 233, 0.4);
+    }
+
+    /* Override Shoelace Tab styling to hide native tabs since we're using custom header */
+    sl-tab-group {
+      --track-width: 0;
+      --indicator-color: transparent;
+    }
+    
+    sl-tab {
+      display: none; /* Hide default tabs, we'll control it via state if needed, but keeping it simple for now */
+    }
+
     /* ... */
   `;
 
@@ -322,6 +407,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                 .startTime=${this.currentShort?.startTime || 0}
                 .endTime=${this.currentShort?.endTime || 0}
                 @edit-subtitle=${this.handleEditSubtitle}
+                @style-changed=${this.handleStyleChange}
               ></short-player>`
         : html`<div>Loading project...</div>`
       }
@@ -343,16 +429,35 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     return html`
       <aside class="glass-panel sidebar-right">
         <div class="tools-header">
-          <span style="font-weight:600; color:#f8fafc;">Audio</span>
-          <button class="export-btn">Export</button>
+          <div class="header-title-group">
+            <sl-icon name="person-fill" style="color: #94a3b8; font-size: 18px;"></sl-icon>
+            <span>Captions & Audio</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="active-pill-btn ${this.activeTab === 'style' ? 'selected' : 'unselected'}" @click=${() => this.activeTab = 'style'}>Style</button>
+            <button class="active-pill-btn ${this.activeTab === 'audio' ? 'selected' : 'unselected'}" @click=${() => this.activeTab = 'audio'}>Audio</button>
+          </div>
         </div>
 
-        <sl-tab-group>
-          <sl-tab slot="nav" panel="captions">Captions</sl-tab>
-          <sl-tab slot="nav" panel="style">Style</sl-tab>
-          <sl-tab slot="nav" panel="audio">Audio</sl-tab>
+        ${this.activeTab === 'style' ? html`
+            ${this.currentShort ? html`
+              <yts-subtitle-style-panel
+                .subtitleStyle=${this.currentShort.subtitleStyle || {}}
+                @style-changed=${this.handleStyleChange}
+                @apply-all-styles=${this.handleApplyAllStyles}
+              ></yts-subtitle-style-panel>
+            ` : html`
+              <div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">
+                Select a short to edit styles
+              </div>
+            `}
+        ` : ''}
 
-          <sl-tab-panel name="captions">
+        ${this.activeTab === 'audio' ? html`
+            ${this.renderAudioPanel()}
+        ` : ''}
+
+        ${this.activeTab === 'captions' ? html`
             <div class="captions-list">
               ${[1, 2, 3, 4, 5].map(i => html`
                 <div class="caption-item">
@@ -362,28 +467,12 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                 </div>
               `)}
             </div>
-          </sl-tab-panel>
-
-          <sl-tab-panel name="style">
-            ${this.currentShort ? html`
-              <yts-subtitle-style-panel
-                .subtitleStyle=${this.currentShort.subtitleStyle || {}}
-                @style-changed=${this.handleStyleChange}
-              ></yts-subtitle-style-panel>
-            ` : html`
-              <div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">
-                Select a short to edit styles
-              </div>
-            `}
-          </sl-tab-panel>
-
-          <sl-tab-panel name="audio">
-            ${this.renderAudioPanel()}
-          </sl-tab-panel>
-        </sl-tab-group>
+        ` : ''}
       </aside>
     `;
   }
+
+
 
   /** Renders the audio stem separation panel (state-driven: idle / separating / available). */
   private renderAudioPanel(): unknown {

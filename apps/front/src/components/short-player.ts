@@ -299,6 +299,19 @@ export class ShortPlayer extends LitElement {
         }
         this.dispatchEvent(new CustomEvent('edit-subtitle', { detail: e.detail, bubbles: true, composed: true }));
       }}
+            @subtitle-moved=${(e: CustomEvent): void => {
+        const newStyle = {
+          ...(this.subtitleStyle || {}),
+          positionX: e.detail.positionX,
+          positionY: e.detail.positionY
+        };
+        // Dispatch style-changed so editor-page saves the new position exactly like the style panel does
+        this.dispatchEvent(new CustomEvent('style-changed', {
+          detail: { subtitleStyle: newStyle },
+          bubbles: true,
+          composed: true
+        }));
+      }}
         ></yts-subtitle-overlay>
 
         <!-- Controls -->
