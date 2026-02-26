@@ -10,8 +10,12 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 import { Short } from '../../entities/short.entity';
+import { Subtitle } from '../../entities/subtitle.entity';
 import { Project } from '../../entities/project.entity';
+import { UpdateSubtitleStyleDto, UpdateSubtitleTextDto } from './dto/update-subtitle.dto';
 import { GeminiService } from './gemini.service';
+import { WhisperService } from './whisper.service';
+import { parseSrt } from './utils/srt-parser.util';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import type {
   AnalysisProgressEvent,
@@ -35,9 +39,12 @@ export class AnalysisService {
     private readonly shortRepository: Repository<Short>,
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
+    @InjectRepository(Subtitle)
+    private readonly subtitleRepository: Repository<Subtitle>,
     private readonly geminiService: GeminiService,
     private readonly ffmpegService: FFmpegService,
-  ) {}
+    private readonly whisperService: WhisperService,
+  ) { }
 
   /**
    * Run full analysis pipeline for a project.
@@ -101,11 +108,16 @@ export class AnalysisService {
         // Extract audio
         await this.ffmpegService.extractAudio(project.videoPath, audioPath);
 
-        // Read audio buffer
-        const audioBuffer = await fs.readFile(audioPath);
+        const useGeminiForSubtitles = process.env.USE_GEMINI_SUBTITLES === 'true';
 
-        // Generate subtitles
-        transcript = await this.geminiService.generateSubtitles(audioBuffer);
+        if (useGeminiForSubtitles) {
+          // Read audio buffer
+          const audioBuffer = await fs.readFile(audioPath);
+          transcript = await this.geminiService.generateSubtitles(audioBuffer);
+        } else {
+          // Generate subtitles using local WhisperX instead of Gemini
+          transcript = await this.whisperService.generateSubtitles(audioPath);
+        }
 
         // Save transcript to project
         if (transcript) {
@@ -118,7 +130,7 @@ export class AnalysisService {
         }
 
         // Cleanup audio file
-        await fs.unlink(audioPath).catch(() => {});
+        await fs.unlink(audioPath).catch(() => { });
       } catch (error) {
         this.logger.warn(`Transcription failed: ${(error as Error).message}`);
         // Continue without transcript
@@ -171,6 +183,7 @@ export class AnalysisService {
       const shorts = await this.saveDetectedShorts(
         projectId,
         project.videoPath,
+        transcript,
         detected,
       );
 
@@ -202,6 +215,7 @@ export class AnalysisService {
     return this.shortRepository.find({
       where: { projectId },
       order: { orderIndex: 'ASC' },
+      relations: ['subtitles'],
     });
   }
 
@@ -280,7 +294,7 @@ export class AnalysisService {
       }
     } finally {
       // Cleanup temp directory
-      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => { });
     }
 
     this.logger.log(`Extracted ${frames.length} frames from video`);
@@ -293,11 +307,15 @@ export class AnalysisService {
   private async saveDetectedShorts(
     projectId: string,
     videoPath: string,
+    transcript: string | undefined,
     detected: DetectedSegment[],
   ): Promise<Short[]> {
     // Create thumbnails directory if not exists
     const thumbnailsDir = path.join(process.cwd(), 'uploads', 'thumbnails');
     await fs.mkdir(thumbnailsDir, { recursive: true });
+
+    // Parse transcript once if available
+    const allSubtitles = transcript ? parseSrt(transcript) : [];
 
     // Sort by confidence (highest first) and assign order
     const sorted = [...detected].sort((a, b) => b.confidence - a.confidence);
@@ -318,6 +336,31 @@ export class AnalysisService {
         orderIndex: i,
       });
       short = await this.shortRepository.save(short);
+
+      // Save corresponding subtitles
+      if (allSubtitles.length > 0) {
+        const segmentSubtitles = allSubtitles.filter(
+          (sub) => sub.startTime <= short.endTime && sub.endTime >= short.startTime,
+        );
+
+        if (segmentSubtitles.length > 0) {
+          const subtitleEntities = segmentSubtitles.map((sub, index) => {
+            // Check if we already created this subtitle for a previous short
+            // Though to truly share the entity between shorts, TypeORM requires a ManyToMany relationship,
+            // but the current schema uses ManyToOne (a subtitle belongs to strictly ONE short).
+            // To fix this without schema migrations, we will duplicate the row but ensure it's
+            // tied explicitly to the precise Short bounds to prevent orphaned references.
+            return this.subtitleRepository.create({
+              shortId: short.id,
+              startTime: sub.startTime,
+              endTime: sub.endTime,
+              text: sub.text,
+              orderIndex: index,
+            });
+          });
+          await this.subtitleRepository.save(subtitleEntities);
+        }
+      }
 
       // Generate thumbnail at midpoint
       try {
@@ -360,5 +403,41 @@ export class AnalysisService {
     if (progress$) {
       progress$.next(event);
     }
+  }
+  async updateSubtitleStyle(
+    projectId: string,
+    shortId: string,
+    styleDto: UpdateSubtitleStyleDto,
+  ): Promise<void> {
+    const short = await this.shortRepository.findOne({
+      where: { id: shortId, projectId },
+    });
+    if (!short) {
+      throw new NotFoundException(`Short ${shortId} not found`);
+    }
+
+    short.subtitleStyle = {
+      ...((short.subtitleStyle as Record<string, unknown>) || {}),
+      ...styleDto,
+    };
+    await this.shortRepository.save(short);
+  }
+
+  async updateSubtitleText(
+    projectId: string,
+    shortId: string,
+    subtitleId: string,
+    textDto: UpdateSubtitleTextDto,
+  ): Promise<void> {
+    const subtitle = await this.subtitleRepository.findOne({
+      where: { id: subtitleId, short: { id: shortId, projectId } },
+      relations: ['short'],
+    });
+    if (!subtitle) {
+      throw new NotFoundException(`Subtitle ${subtitleId} not found`);
+    }
+
+    subtitle.text = textDto.text;
+    await this.subtitleRepository.save(subtitle);
   }
 }

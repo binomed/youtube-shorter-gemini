@@ -12,9 +12,11 @@ import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/badge/badge.js';
 import '../components/short-player.js';
+import '../components/molecules/yts-subtitle-editor.element.js';
+import '../components/molecules/yts-subtitle-style-panel.element.js';
 import { projectService } from '../services/project.service.js';
 import { projectSignal, setProject } from '../state/project.state.js';
-import type { ShortResponse, StemProgressEvent } from '@youtube-shorter/shared';
+import type { ShortResponse, StemProgressEvent, SubtitleResponse } from '@youtube-shorter/shared';
 
 @customElement('editor-page')
 export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnterObserver {
@@ -25,6 +27,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   @state() private stemProgress = 0;
   @state() private stemMessage = '';
   @state() private stemAvailable = false;
+  @state() private editingSubtitle: SubtitleResponse | null = null;
 
   async onBeforeEnter(location: RouterLocation): Promise<void> {
     const projectId = location.params.projectId as string;
@@ -55,6 +58,63 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     const player = this.shadowRoot?.querySelector('short-player') as unknown as { playSegment: (s: number, e: number) => void };
     if (player && player.playSegment) {
       player.playSegment(short.startTime, short.endTime);
+    }
+  }
+
+  private handleEditSubtitle(e: CustomEvent): void {
+    const subtitle = e.detail.subtitle;
+    this.editingSubtitle = subtitle;
+  }
+
+  private async handleSaveSubtitle(e: CustomEvent): Promise<void> {
+    const { subtitleId, text } = e.detail;
+
+    // Optimistic UI update
+    if (this.currentShort && this.currentShort.subtitles) {
+      const subIndex = this.currentShort.subtitles.findIndex((s) => s.id === subtitleId);
+      if (subIndex > -1) {
+        this.currentShort.subtitles[subIndex].text = text;
+        this.currentShort = { ...this.currentShort }; // Trigger Lit update
+
+        try {
+          const projectId = projectSignal.get()?.id;
+          if (projectId) {
+            await fetch(`/api/projects/${projectId}/shorts/${this.currentShort.id}/subtitles/${subtitleId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text })
+            });
+          }
+        } catch (err) {
+          console.error('Failed to save subtitle text:', err);
+        }
+      }
+    }
+    this.editingSubtitle = null;
+  }
+
+  private handleCancelEdit(): void {
+    this.editingSubtitle = null;
+  }
+
+  private async handleStyleChange(e: CustomEvent): Promise<void> {
+    const newStyle = e.detail.subtitleStyle;
+    if (this.currentShort) {
+      this.currentShort.subtitleStyle = newStyle;
+      this.currentShort = { ...this.currentShort }; // Trigger Lit update
+
+      try {
+        const projectId = projectSignal.get()?.id;
+        if (projectId) {
+          await fetch(`/api/projects/${projectId}/shorts/${this.currentShort.id}/style`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newStyle)
+          });
+        }
+      } catch (err) {
+        console.error('Failed to save subtitle style:', err);
+      }
     }
   }
 
@@ -253,16 +313,27 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   /** Renders the center reel/preview area with the short-player component. */
   private renderReelCenter(): unknown {
     return html`
-      <main class="reel-container">
+      <main class="reel-container" style="position: relative;">
         ${projectSignal.get()
         ? html`<short-player
                 src="/api/projects/${projectSignal.get()?.id}/video"
-                caption="Irens thelne vante huigre Stens.. in abet lhe voe tenid anger nap."
+                .subtitles=${this.currentShort?.subtitles || []}
+                .subtitleStyle=${this.currentShort?.subtitleStyle}
                 .startTime=${this.currentShort?.startTime || 0}
                 .endTime=${this.currentShort?.endTime || 0}
+                @edit-subtitle=${this.handleEditSubtitle}
               ></short-player>`
         : html`<div>Loading project...</div>`
       }
+      
+      ${this.editingSubtitle ? html`
+        <yts-subtitle-editor
+          .subtitle=${this.editingSubtitle}
+          .subtitleStyle=${this.currentShort?.subtitleStyle}
+          @save-subtitle=${this.handleSaveSubtitle}
+          @cancel-edit=${this.handleCancelEdit}
+        ></yts-subtitle-editor>
+      ` : ''}
       </main>
     `;
   }
@@ -294,9 +365,16 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
           </sl-tab-panel>
 
           <sl-tab-panel name="style">
-            <div style="color:#94a3b8; font-size:13px; text-align:center; padding-top:20px;">
-              Style controls coming soon...
-            </div>
+            ${this.currentShort ? html`
+              <yts-subtitle-style-panel
+                .subtitleStyle=${this.currentShort.subtitleStyle || {}}
+                @style-changed=${this.handleStyleChange}
+              ></yts-subtitle-style-panel>
+            ` : html`
+              <div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">
+                Select a short to edit styles
+              </div>
+            `}
           </sl-tab-panel>
 
           <sl-tab-panel name="audio">

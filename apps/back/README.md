@@ -28,6 +28,12 @@ This backend uses system `ffprobe` and `ffmpeg` binaries.
 **Linux:** `sudo apt install ffmpeg`
 **Windows:** Install via choco or download binaries.
 
+### Python ML Tools (Demucs & WhisperX)
+For AI audio capabilities, the following Python libraries must be installed globally (or in a pip environment accessible to the host).
+
+**Demucs (Stem Separation):** `pip install demucs`
+**WhisperX (Word-Level Subtitles):** `pip install git+https://github.com/m-bain/whisperx.git`
+
 ## Description
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.

@@ -7,10 +7,12 @@ import {
   Column,
   CreateDateColumn,
   ManyToOne,
+  OneToMany,
   Index,
   JoinColumn,
 } from 'typeorm';
 import { Project } from './project.entity';
+import { Subtitle } from './subtitle.entity';
 
 /**
  * Short entity representing a suggested viral segment detected by Gemini AI.
@@ -118,6 +120,28 @@ export class Short {
    */
   @Column({ type: 'varchar', nullable: true })
   accompanimentPath?: string;
+
+  /**
+   * Subtitles associated with this Short
+   */
+  @OneToMany(() => Subtitle, (subtitle) => subtitle.short, { cascade: true })
+  subtitles: Subtitle[];
+
+  /**
+   * Subtitle style preferences for this Short
+   * JSON structure matching SubtitleStyle interface
+   */
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: {
+      to: (value: Record<string, unknown> | null | undefined) =>
+        JSON.stringify(value),
+      from: (value: string) =>
+        value ? (JSON.parse(value) as Record<string, unknown>) : null,
+    },
+  })
+  subtitleStyle?: Record<string, unknown>;
 
   /**
    * Timestamp when the short was created/detected

@@ -4,6 +4,8 @@
  */
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
+import type { SubtitleResponse, SubtitleStyle } from '@youtube-shorter/shared';
+import '../molecules/yts-subtitle-overlay.element';
 
 /**
  * Vertical video player component (9:16 aspect ratio).
@@ -22,6 +24,12 @@ export class YtsVideoPlayer extends LitElement {
     /** Project ID to load video from */
     @property({ type: String })
     projectId = '';
+
+    @property({ type: Array })
+    subtitles: SubtitleResponse[] = [];
+
+    @property({ type: Object })
+    subtitleStyle?: SubtitleStyle;
 
     @state() private isPlaying = false;
     @state() private currentTime = 0;
@@ -274,6 +282,13 @@ export class YtsVideoPlayer extends LitElement {
                     playsinline
                 ></video>
 
+                <yts-subtitle-overlay
+                    .currentTime=${this.currentTime}
+                    .subtitles=${this.subtitles}
+                    .subtitleStyle=${this.subtitleStyle}
+                    @subtitle-clicked=${this._onSubtitleClicked}
+                ></yts-subtitle-overlay>
+
                 ${this.renderLoadingOverlay()}
                 ${this.renderErrorOverlay()}
                 ${this.renderControls()}
@@ -410,6 +425,18 @@ export class YtsVideoPlayer extends LitElement {
         this.hasError = true;
         this.errorMessage =
             'Unable to load video. The file may be corrupted or in an unsupported format.';
+    }
+
+    private _onSubtitleClicked(e: CustomEvent): void {
+        if (this.videoElement && !this.videoElement.paused) {
+            this.videoElement.pause();
+            this.isPlaying = false;
+        }
+        this.dispatchEvent(new CustomEvent('edit-subtitle', {
+            detail: e.detail,
+            bubbles: true,
+            composed: true
+        }));
     }
 
     // ─── Control Handlers ──────────────────

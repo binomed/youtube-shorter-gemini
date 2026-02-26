@@ -6,6 +6,8 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
+import type { SubtitleResponse, SubtitleStyle } from '@youtube-shorter/shared';
+import './molecules/yts-subtitle-overlay.element.js';
 
 /**
  * Component for playing and editing short-form videos.
@@ -22,6 +24,8 @@ import '@shoelace-style/shoelace/dist/components/button/button.js';
 export class ShortPlayer extends LitElement {
   @property({ type: String }) src = '';
   @property({ type: String }) caption = '';
+  @property({ type: Array }) subtitles: SubtitleResponse[] = [];
+  @property({ type: Object }) subtitleStyle?: SubtitleStyle;
   @property({ type: Number }) startTime = 0;
   @property({ type: Number }) endTime = 0;
 
@@ -283,13 +287,19 @@ export class ShortPlayer extends LitElement {
           ></video>
         </div>
 
-        <!-- Editable Text Bubble -->
-        <div class="text-bubble" contenteditable="true" spellcheck="false">
-          ${this.caption}
-          <div class="bubble-pointer">
-             <sl-icon name="pencil-fill" style="font-size:12px;"></sl-icon>
-          </div>
-        </div>
+        <!-- Dynamic Subtitles -->
+        <yts-subtitle-overlay
+            .currentTime=${this.currentTime}
+            .subtitles=${this.subtitles}
+            .subtitleStyle=${this.subtitleStyle}
+            @subtitle-clicked=${(e: CustomEvent): void => {
+        if (this.videoElement && !this.videoElement.paused) {
+          this.videoElement.pause();
+          this.isPlaying = false;
+        }
+        this.dispatchEvent(new CustomEvent('edit-subtitle', { detail: e.detail, bubbles: true, composed: true }));
+      }}
+        ></yts-subtitle-overlay>
 
         <!-- Controls -->
         <div class="controls-overlay">

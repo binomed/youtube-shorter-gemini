@@ -9,9 +9,11 @@ import { Subject } from 'rxjs';
 import { NotFoundException } from '@nestjs/common';
 import { AnalysisService } from './analysis.service';
 import { GeminiService } from './gemini.service';
+import { WhisperService } from './whisper.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
+import { Subtitle } from '../../entities/subtitle.entity';
 import type { AnalysisProgressEvent } from '@youtube-shorter/shared';
 
 // Mock child_process so spawn returns a fake EventEmitter that immediately exits with code 0
@@ -44,6 +46,9 @@ const mockProject = {
 
 const mockGeminiService = {
   detectShortsCandidates: jest.fn(),
+};
+
+const mockWhisperService = {
   generateSubtitles: jest.fn(),
 };
 
@@ -66,6 +71,11 @@ const mockShortRepository = {
   findOneBy: jest.fn(),
 };
 
+const mockSubtitleRepository = {
+  create: jest.fn((data: Record<string, unknown>) => ({ ...data })),
+  save: jest.fn(),
+};
+
 describe('AnalysisService', () => {
   let service: AnalysisService;
 
@@ -76,6 +86,7 @@ describe('AnalysisService', () => {
       providers: [
         AnalysisService,
         { provide: GeminiService, useValue: mockGeminiService },
+        { provide: WhisperService, useValue: mockWhisperService },
         { provide: FFmpegService, useValue: mockFfmpegService },
         {
           provide: ConfigService,
@@ -89,6 +100,10 @@ describe('AnalysisService', () => {
         {
           provide: getRepositoryToken(Project),
           useValue: mockProjectRepository,
+        },
+        {
+          provide: getRepositoryToken(Subtitle),
+          useValue: mockSubtitleRepository,
         },
       ],
     }).compile();
@@ -132,7 +147,7 @@ describe('AnalysisService', () => {
           }) as Record<string, unknown>,
       );
       mockFfmpegService.extractAudio.mockResolvedValue(undefined);
-      mockGeminiService.generateSubtitles.mockResolvedValue(null);
+      mockWhisperService.generateSubtitles.mockResolvedValue(null);
 
       const result = await service.analyzeProject('proj-1');
 
@@ -152,7 +167,7 @@ describe('AnalysisService', () => {
       });
       mockGeminiService.detectShortsCandidates.mockResolvedValue([]);
       mockFfmpegService.extractAudio.mockResolvedValue(undefined);
-      mockGeminiService.generateSubtitles.mockResolvedValue(null);
+      mockWhisperService.generateSubtitles.mockResolvedValue(null);
 
       const progress$ = new Subject<AnalysisProgressEvent>();
       const events: AnalysisProgressEvent[] = [];
@@ -177,7 +192,7 @@ describe('AnalysisService', () => {
       mockFfmpegService.extractAudio.mockRejectedValue(
         new Error('ffmpeg not found'),
       );
-      mockGeminiService.generateSubtitles.mockRejectedValue(
+      mockWhisperService.generateSubtitles.mockRejectedValue(
         new Error('API error'),
       );
 

@@ -72,26 +72,19 @@ FR13: Epic 1 - Privacy
 FR14: Epic 4 - Editor
 FR15: Epic 5 - Export
 
-## Epic List
-
-### Epic 0: Technical Foundation & Project Scaffolding
-Establish the structural and quality baseline of the project.
-**Goal:** A working Monorepo with NestJS, Lit, automated tests, and Accessibility CI.
-**FRs covered:** N/A (Technical infra)
-
-### Epic 1: Workspace & Media Induction
-Enable users to create projects and import videos securely.
-**Goal:** Functional project management and privacy-compliant media ingestion.
+### Epic 1: Workspace & Technical Induction
+Establish the project foundation and enable video ingestion.
+**Goal:** Functional monorepo with project management and privacy-compliant media induction.
 **FRs covered:** FR1, FR2, FR3, FR13
 
 ### Epic 2: Gemini-Powered Magic Moments
-Automate viral potential discovery using AI.
-**Goal:** Gemini-driven segment suggestions.
+Automate viral potential discovery using AI and provide guidance.
+**Goal:** Gemini-driven segment suggestions and user fallback/tutorial support.
 **FRs covered:** FR4, FR6, FR12
 
 ### Epic 3: Advanced Media Enrichment (Audio & Subtitles)
-Elevate technical quality with stems and dynamic subtitles.
-**Goal:** Clean transcription, voice isolation, and fluid transitions.
+Elevate technical quality with stems and customizable dynamic subtitles.
+**Goal:** Clean transcription, voice isolation, and stylized interactive text overlays.
 **FRs covered:** FR5, FR7, FR8, FR9
 
 ### Epic 4: Multi-Segment Editor & Real-time Render
@@ -104,74 +97,41 @@ Convert work into an exploitable video file.
 **Goal:** High-quality MP4 file export ready for publication.
 **FRs covered:** FR15
 
-### Epic 6: App Configuration Settings
-Allow users to tweak the analysis & generation parameters.
-**Goal:** A settings tab/modal to change AI models, frame intervals, etc.
-**FRs covered:** N/A (Enhancement)
-
 ---
 
-## Epic 0: Technical Foundation & Project Scaffolding
+## Epic 1: Workspace & Technical Induction
 
-Establish the monorepo structure, core frameworks, and quality enforcement tools.
-
-### Story 0.1: Monorepo Scaffolding
+### Story 1.1: Project Scaffolding & CI Setup
 As a Developer,
-I want to initialize a Turborepo with apps for Back (NestJS) and Front (Lit),
-So that I have a clean, shared workspace.
+I want to initialize the Turborepo (NestJS/Lit) with quality gates and Playwright accessibility tests,
+So that I have a solid, accessible foundation for development.
 
 **Acceptance Criteria:**
-**Given** a clean project directory
-**When** I run the initialization script
-**Then** I have a monorepo with `apps/back`, `apps/front`, and `packages/shared`.
-**And** build commands work across all packages.
+- **Given** a new project directory
+- **When** the bootstrap script is run
+- **Then** a monorepo is created with `apps/back`, `apps/front`, and `packages/shared`.
+- **And** CI runs automated unit tests and Axe-core accessibility audits (Playwright).
 
-### Story 0.2: Quality Gates & Testing Setup
-As a Developer,
-I want automated Jest/Vitest testing and Axe-core accessibility auditing,
-So that I can maintain high quality and accessibility from the start.
-
-**Acceptance Criteria:**
-**Given** the monorepo structure
-**When** I commit code
-**Then** automated tests (Unit & Integration) run.
-**And** an accessibility audit (CI) checks the Lit components.
-
-> [!IMPORTANT]
-> **Story 0.2 provides BASIC accessibility validation only** (happy-dom checks). A future story in Epic 1 or Epic 2 MUST implement **comprehensive WCAG 2.1 AA testing** using:
-> - **Playwright** for real browser environment
-> - **@axe-core/playwright** for complete accessibility audits
-> - **Keyboard navigation testing** (Tab, Enter, Escape, Arrow keys)
-> - **Screen reader compatibility** validation
-> - **Color contrast** and **focus management** checks
-> 
-> The current `basic-accessibility-checks` CI job is intentionally limited and serves as a foundation only.
-
----
-
-## Epic 1: Workspace & Media Induction
-
-### Story 1.1: Project Creation & Video Ingestion
+### Story 1.2: Project Creation & Video Ingestion
 As a creator,
 I want to name my project and upload a local video file (MP4/MOV),
 So that I can start the creation process.
 
 **Acceptance Criteria:**
-**Given** the application home page
-**When** I enter a project name and select a valid video file
-**Then** the project is created in the database.
-**And** the video occupies the central workspace.
+- **Given** the application dashboard
+- **When** I enter a project name and select a valid video file
+- **Then** a project is created and the video is ingested into the workspace.
 
-### Story 1.2: Privacy Awareness & Consent
+### Story 1.3: Privacy Awareness & Consent
 As a privacy-conscious user,
 I want to be informed about the data deletion policy and give my consent for AI learning,
 So that I feel secure about my files.
 
 **Acceptance Criteria:**
-**Given** the ingestion process
-**When** I upload a video
-**Then** a mandatory notice about file deletion is displayed.
-**And** an explicit opt-in for AI learning is presented.
+- **Given** the ingestion process
+- **When** I upload a video
+- **Then** a mandatory notice about file deletion is displayed.
+- **And** an explicit opt-in for AI learning is presented.
 
 ---
 
@@ -183,75 +143,74 @@ I want the IA to analyze my video and suggest 3-5 segments with high potential,
 So that I don't waste time searching for key moments.
 
 **Acceptance Criteria:**
-**Given** an uploaded video
-**When** I trigger the IA analysis
-**Then** Gemini identifies and returns a list of suggested segments with titles and timestamps.
-**And** these segments appear as thumbnails in the sidebar.
+- **Given** an uploaded video
+- **When** I trigger the IA analysis
+- **Then** Gemini returns a list of suggested segments with titles and timestamps.
+- **And** these segments appear as thumbnails in the sidebar.
+
+### Story 2.2: Survival Guide (Fallback UI)
+As a creator,
+I want to receive advice if the IA fails to detect any viral segments,
+So that I am not left without a solution.
+
+**Acceptance Criteria:**
+- **Given** an analysis return with 0 segments
+- **When** the user is on the results page
+- **Then** a "Survival Guide" is displayed with tips for manual editing and filming advice.
 
 ---
 
 ## Epic 3: Advanced Media Enrichment (Audio & Subtitles)
 
-### Story 3.1: Audio Stem Separation
+### Story 3.1: Audio Stem Separation & Transitions
 As a producer,
-I want the system to isolate voice from background music,
-So that transitions and cuts don't sound abrupt.
+I want to isolate voice from background music and apply automatic crossfades,
+So that transitions sounding professional and fluid.
 
 **Acceptance Criteria:**
-**Given** a selected segment
-**When** processing starts
-**Then** separate audio stems (voice/music) are generated.
-**And** audio crossfades are applied between cuts.
+- **Given** an analysis process
+- **When** the system generates stems
+- **Then** separate tracks are available in the editor.
+- **And** progress bars show the status of separation for each stem.
+- **And** crossfades are automatically generated between jump-cuts.
 
-### Story 3.1.5: Consolidation Architecturale, Lisibilité et Qualité *(Tech Story)*
-As a developer,
-I want to consolidate the project architecture, remove dead code, decompose large components, and reinforce test coverage,
-So that the codebase is resilient and ready for upcoming features (Story 3.2, Epic 4, Epic 5).
-
-**Acceptance Criteria:**
-1. `AiModule` est scindé en `AnalysisModule` (Gemini) et `ProcessingModule` (Demucs/FFmpeg).
-2. `StemService` utilise le pattern SQL-Queue avec une entité `Job` persistée.
-3. Le dossier `modules/ai` dispose de tests unitaires avec mocks complets.
-4. Les composants Lit dont le `render()` dépasse 80 lignes utilisent des méthodes `renderXxx()` sémantiques.
-5. Les `console.log('DEBUG: ...')` et imports inutilisés sont supprimés. Règle ESLint `no-console` activée.
-6. Les pages globales (Dashboard, Analysis, Editor, App) ont des fichiers `.spec.ts`.
-7. Scripts NPM `clean:temp` et `clean:dist` disponibles à la racine.
-8. ADR 004 créé pour le pattern SQL-Queue.
-
+### Story 3.2: Dynamic Subtitle Editor & Styling
 As a creator,
-I want to edit the transcription directly on the video preview,
-So that I can quickly fix spelling errors.
+I want to edit subtitles directly on the video and customize their appearance (font, size, position),
+So that my Shorts have a unique and professional brand.
 
 **Acceptance Criteria:**
-**Given** a video preview with subtitles
-**When** I click on a word or a sentence
-**Then** a floating editor appears.
-**And** my changes are auto-saved and reflected in the video preview immediately.
+- **Given** a video preview with subtitles
+- **When** I click a subtitle, the video pauses and a floating text editor appears.
+- **And** the `Subtitle` entity is correctly updated in the database on blur/save.
+- **And** I can adjust font profile, size, and XY position via a dedicated style panel.
+- **And** styling changes are persisted at the Short level.
 
 ---
 
 ## Epic 4: Multi-Segment Editor & Real-time Render
 
-### Story 4.1: Multi-Segment Composition (Jump-Cuts)
-As a perfectionist,
-I want to capture multiple non-contiguous moments and see the jump-cut immediately,
-So that I can verify the flow of my Short.
+### Story 4.1: Manual Segment Capture (In/Out)
+As a creator,
+I want to capture my own segments using hotkeys (I/O) during playback,
+So that I have full control over the narrative flow.
 
 **Acceptance Criteria:**
-**Given** the source video
-**When** I use Mark In/Out (I/O) repeatedly
-**Then** multiple segments are added to the current Short.
-**And** the player previews the sequence with jump-cuts instantly.
+- **Given** a playing video
+- **When** I press 'I' then 'O'
+- **Then** a new segment is added to the selection.
+- **And** the segment is immediately visible in the multi-timeline.
 
-### Story 4.2: Real-time Progress Tracking
-As an impatient user,
-I want to see the progress of analysis and rendering,
-So that I know how long I have to wait.
+### Story 4.2: Real-time Jump-Cut Preview
+As a creator,
+I want to see the sequence of my segments with jump-cuts immediately,
+So that I can verify the edit without waiting for a full render.
 
 **Acceptance Criteria:**
-**Given** a long-running process (IA analysis or Render)
-**When** the task is running in the background
-**Then** a real-time progress bar (via SSE) is visible in the UI.
+- **Given** multiple segments in a Short
+- **When** the player reaches the end of a segment
+- **Then** it jumps immediately to the start of the next one.
+- **And** SSE events provide real-time feedback on background processing stages.
 
 ---
 

@@ -5,10 +5,12 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
+import { Subtitle } from '../../entities/subtitle.entity';
 import { GeminiService } from '../ai/gemini.service';
 import { AnalysisService } from '../ai/analysis.service';
 import { AnalysisController } from '../ai/analysis.controller';
 import { FFmpegService } from '../../workers/ffmpeg.service';
+import { WhisperService } from '../ai/whisper.service';
 import { ProcessingModule } from '../processing/processing.module';
 
 /**
@@ -25,12 +27,12 @@ import { ProcessingModule } from '../processing/processing.module';
  * @see ADR-004 (SQL-Queue)
  */
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Short, Project]),
-    ProcessingModule, // Provides StemService + FFmpegService + JobService
-  ],
-  controllers: [AnalysisController],
-  providers: [GeminiService, AnalysisService, FFmpegService],
-  exports: [AnalysisService, GeminiService],
+    imports: [
+        TypeOrmModule.forFeature([Short, Project, Subtitle]),
+        ProcessingModule, // Provides StemService + FFmpegService + JobService
+    ],
+    controllers: [AnalysisController],
+    providers: [GeminiService, AnalysisService, FFmpegService, WhisperService],
+    exports: [AnalysisService, GeminiService, WhisperService],
 })
-export class AnalysisModule {}
+export class AnalysisModule { }

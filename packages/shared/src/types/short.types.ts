@@ -38,6 +38,16 @@ export interface ShortResponse {
      */
     stemsAvailable: boolean;
 
+    /**
+     * User-customized subtitle styling preferences.
+     */
+    subtitleStyle?: SubtitleStyle;
+
+    /**
+     * List of subtitles associated with this short.
+     */
+    subtitles?: SubtitleResponse[];
+
     /** Creation timestamp (ISO 8601) */
     createdAt: string;
 }
@@ -100,4 +110,27 @@ export interface StemProgressEvent {
 
     /** Short ID being processed */
     shortId: string;
+}
+
+/**
+ * User-customizable subtitle styling preferences.
+ */
+export interface SubtitleStyle {
+    font?: string;
+    fontSize?: number;
+    color?: string;
+    backgroundColor?: string;
+    positionY?: number;
+    positionX?: number;
+}
+
+/**
+ * Response DTO for a single subtitle segment.
+ */
+export interface SubtitleResponse {
+    id: string;
+    shortId: string;
+    startTime: number;
+    endTime: number;
+    text: string;
 }

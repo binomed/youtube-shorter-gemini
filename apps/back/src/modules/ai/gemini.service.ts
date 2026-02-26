@@ -145,21 +145,56 @@ export class GeminiService {
    * Generate SRT subtitles from audio buffer using Gemini.
    */
   async generateSubtitles(audioBuffer: Buffer): Promise<string> {
-    // Use Gemini 1.5 Flash for efficient audio processing
+    // Use Gemini 2.5 Flash for better compliance with structured JSON lists
     const model = this.genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash-lite', // Supports audio
+      model: 'gemini-2.5-flash',
       generationConfig: {
         temperature: 0.1,
         responseMimeType: 'application/json',
+        responseSchema: {
+          type: SchemaType.ARRAY,
+          description: 'A list of short subtitle segments.',
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              startTime: { type: SchemaType.NUMBER, description: 'Start time in seconds (e.g. 1.25)' },
+              endTime: { type: SchemaType.NUMBER, description: 'End time in seconds (e.g. 2.50)' },
+              text: { type: SchemaType.STRING, description: 'The exact spoken words. MAXIMUM 7 WORDS!' }
+            },
+            required: ['startTime', 'endTime', 'text']
+          }
+        },
       },
     });
 
-    const prompt = `Listen to this audio and generate subtitles in SRT format.
+    const prompt = `Listen to this audio and transcribe it into sequential subtitle segments.
         
         Rules:
-        1. Output valid JSON in the format: { "srt": "string" }
-        2. Ensure timestamps are accurate.
-        3. Break lines naturally.`;
+        1. Output a JSON array of segment objects.
+        2. Accurately capture the start time and end time in seconds.
+        3. CRITICAL: Break the transcription into VERY SHORT phrases. Each text block MUST contain a maximum of 7 words.
+        4. Do not group long sentences together.
+        
+        Example Output Format:
+        \`\`\`json
+        [
+          {
+            "startTime": 0.5,
+            "endTime": 1.8,
+            "text": "Welcome to my new video!"
+          },
+          {
+            "startTime": 1.9,
+            "endTime": 3.1,
+            "text": "Today we are going to learn"
+          },
+          {
+            "startTime": 3.2,
+            "endTime": 4.5,
+            "text": "something truly incredible."
+          }
+        ]
+        \`\`\``;
 
     try {
       const result = await model.generateContent([
@@ -173,17 +208,17 @@ export class GeminiService {
       ]);
 
       const text = result.response.text().trim();
-      this.logger.log(`[Gemini] Subtitles raw response: ${text}`);
-      this.logger.debug(`Text return by gemini `, text);
+      this.logger.log(`[Gemini] Subtitles raw response received`);
+      this.logger.debug(`Text return by gemini `, text.substring(0, 200) + '...');
+
+      let segments: Array<{ startTime: number, endTime: number, text: string }> = [];
       try {
-        const parsed = JSON.parse(text) as SubtitleResponse;
-        return (parsed.srt || '').trim();
+        segments = JSON.parse(text);
       } catch {
-        // Fallback for non-JSON or malformed JSON
+        // Fallback for markdown blocks
         const cleanText = text.replace(/```json\n?|```/g, '').trim();
         try {
-          const fallbackParsed = JSON.parse(cleanText) as SubtitleResponse;
-          return (fallbackParsed.srt || '').trim();
+          segments = JSON.parse(cleanText);
         } catch {
           throw new GeminiParseError(
             'Could not process subtitle JSON format',
@@ -191,12 +226,30 @@ export class GeminiService {
           );
         }
       }
+
+      let srtData = '';
+      for (let i = 0; i < segments.length; i++) {
+        const seg = segments[i];
+        srtData += `${i + 1}\n`;
+        srtData += `${this.formatSrtTime(seg.startTime)} --> ${this.formatSrtTime(seg.endTime)}\n`;
+        srtData += `${seg.text.trim()}\n\n`;
+      }
+      return srtData.trim();
     } catch (error) {
       this.logger.error(
         `Subtitle generation failed: ${(error as Error).message}`,
       );
       return ''; // Return empty string on failure to allow analysis to proceed
     }
+  }
+
+  private formatSrtTime(seconds: number): string {
+    const date = new Date(seconds * 1000);
+    const hh = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const mm = String(date.getUTCMinutes()).padStart(2, '0');
+    const ss = String(date.getUTCSeconds()).padStart(2, '0');
+    const ms = String(date.getUTCMilliseconds()).padStart(3, '0');
+    return `${hh}:${mm}:${ss},${ms}`;
   }
 
   /**
@@ -226,14 +279,14 @@ export class GeminiService {
     const parts: Array<
       { text: string } | { inlineData: { mimeType: string; data: string } }
     > = [
-      { text: prompt },
-      ...videoFrames.map((frame) => ({
-        inlineData: {
-          mimeType: 'image/jpeg' as const,
-          data: frame,
-        },
-      })),
-    ];
+        { text: prompt },
+        ...videoFrames.map((frame) => ({
+          inlineData: {
+            mimeType: 'image/jpeg' as const,
+            data: frame,
+          },
+        })),
+      ];
 
     // Retry with exponential backoff for quota/rate-limit errors
     const maxRetries = 3;

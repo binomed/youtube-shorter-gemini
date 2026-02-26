@@ -5,6 +5,8 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
+  Body,
   Param,
   Sse,
   Logger,
@@ -19,11 +21,16 @@ import type { Response } from 'express';
 import { Observable, Subject, map, finalize } from 'rxjs';
 import { AnalysisService } from './analysis.service';
 import { StemService } from './stem.service';
+import {
+  UpdateSubtitleStyleDto,
+  UpdateSubtitleTextDto,
+} from './dto/update-subtitle.dto';
 import type {
   AnalysisResponse,
   AnalysisProgressEvent,
   StemProgressEvent,
   ShortResponse,
+  SubtitleStyle,
 } from '@youtube-shorter/shared';
 
 /**
@@ -49,7 +56,7 @@ export class AnalysisController {
   constructor(
     private readonly analysisService: AnalysisService,
     private readonly stemService: StemService,
-  ) {}
+  ) { }
 
   /**
    * Trigger AI analysis for a project's video.
@@ -151,6 +158,14 @@ export class AnalysisController {
         ? `/api/projects/${id}/shorts/${s.id}/thumbnail`
         : undefined,
       stemsAvailable: !!(s.vocalsPath && s.accompanimentPath),
+      subtitleStyle: s.subtitleStyle as SubtitleStyle,
+      subtitles: s.subtitles?.map((sub) => ({
+        id: sub.id,
+        shortId: sub.shortId,
+        startTime: sub.startTime,
+        endTime: sub.endTime,
+        text: sub.text,
+      })),
       createdAt: s.createdAt.toISOString(),
     }));
   }
@@ -324,5 +339,44 @@ export class AnalysisController {
 
     const fileStream = createReadStream(filePath);
     return new StreamableFile(fileStream);
+  }
+
+  /**
+   * Update the subtitle style preferences for a specific short.
+   * 
+   * @param projectId - Project UUID
+   * @param shortId - Short UUID
+   * @param styleDto - Update parameters for styling
+   */
+  @Patch(':id/shorts/:shortId/style')
+  async updateSubtitleStyle(
+    @Param('id') projectId: string,
+    @Param('shortId') shortId: string,
+    @Body() styleDto: UpdateSubtitleStyleDto,
+  ): Promise<void> {
+    await this.analysisService.updateSubtitleStyle(projectId, shortId, styleDto);
+  }
+
+  /**
+   * Update the text of a specific subtitle line.
+   * 
+   * @param projectId - Project UUID
+   * @param shortId - Short UUID
+   * @param subtitleId - Subtitle UUID
+   * @param textDto - Update parameters containing text
+   */
+  @Patch(':id/shorts/:shortId/subtitles/:subtitleId')
+  async updateSubtitleText(
+    @Param('id') projectId: string,
+    @Param('shortId') shortId: string,
+    @Param('subtitleId') subtitleId: string,
+    @Body() textDto: UpdateSubtitleTextDto,
+  ): Promise<void> {
+    await this.analysisService.updateSubtitleText(
+      projectId,
+      shortId,
+      subtitleId,
+      textDto,
+    );
   }
 }
