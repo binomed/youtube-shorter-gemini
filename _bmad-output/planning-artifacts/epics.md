@@ -186,6 +186,10 @@ So that my Shorts have a unique and professional brand.
 - **And** I can adjust font profile, size, and XY position via a dedicated style panel.
 - **And** styling changes are persisted at the Short level.
 
+**Future Scope / Backlog:**
+- Advanced text styling options (Outline, Text Shadow, Background Padding variations).
+- "Highlight Words" functionality to automatically or manually emphasize specific words within the subtitles.
+
 ---
 
 ## Epic 4: Multi-Segment Editor & Real-time Render

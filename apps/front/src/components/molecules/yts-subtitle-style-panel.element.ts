@@ -3,7 +3,7 @@
  * Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
  */
 import { LitElement, html, css } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 import type { SubtitleStyle } from '@youtube-shorter/shared';
 import '@shoelace-style/shoelace/dist/components/select/select.js';
 import '@shoelace-style/shoelace/dist/components/option/option.js';
@@ -12,6 +12,7 @@ import '@shoelace-style/shoelace/dist/components/switch/switch.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/color-picker/color-picker.js';
+import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 
 /**
  * Panel for configuring subtitle styles (font, size, color, bg color, position).
@@ -83,7 +84,7 @@ export class YtsSubtitleStylePanel extends LitElement {
     static styles = css`
         :host {
             display: block;
-            color: #f8fafc;
+            color: var(--yts-text-1, #f8fafc);
             font-family: var(--yts-font-family, sans-serif);
             font-size: 13px;
         }
@@ -96,7 +97,7 @@ export class YtsSubtitleStylePanel extends LitElement {
         }
 
         .label {
-            color: #94a3b8;
+            color: var(--yts-text-3, #94a3b8);
             font-weight: 500;
         }
 
@@ -108,21 +109,27 @@ export class YtsSubtitleStylePanel extends LitElement {
         }
 
         .custom-select {
-            background-color: #2a2d3d;
-            border: 1px solid rgba(255,255,255,0.1);
-            color: #f8fafc;
+            background-color: var(--yts-glass-bg, #2a2d3d);
+            border: 1px solid var(--yts-border, rgba(255,255,255,0.1));
+            color: var(--yts-text-1, #f8fafc);
             padding: 8px 12px;
-            border-radius: 20px;
+            border-radius: var(--yts-radius, 20px);
             width: 180px;
             font-size: 13px;
             font-family: inherit;
             cursor: pointer;
             outline: none;
             appearance: none;
+            transition: border-color 0.2s;
         }
 
-        .custom-select:focus {
-            border-color: #0ea5e9;
+        .custom-select:focus, .custom-select:focus-visible {
+            border-color: var(--yts-primary, #0ea5e9);
+            outline: none;
+        }
+
+        .custom-select:focus-visible {
+            box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.3);
         }
 
         .select-wrapper {
@@ -132,7 +139,7 @@ export class YtsSubtitleStylePanel extends LitElement {
         .select-wrapper::after {
             content: '▼';
             font-size: 10px;
-            color: #94a3b8;
+            color: var(--yts-text-3, #94a3b8);
             position: absolute;
             right: 12px;
             top: 50%;
@@ -152,7 +159,7 @@ export class YtsSubtitleStylePanel extends LitElement {
             flex: 1;
             -webkit-appearance: none;
             height: 4px;
-            background: #334155;
+            background: var(--yts-glass-bg, #334155);
             border-radius: 2px;
             outline: none;
         }
@@ -162,15 +169,20 @@ export class YtsSubtitleStylePanel extends LitElement {
             width: 14px;
             height: 14px;
             border-radius: 50%;
-            background: #f8fafc;
+            background: var(--yts-text-1, #f8fafc);
             cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .custom-slider:focus-visible::-webkit-slider-thumb {
+            box-shadow: 0 0 0 3px var(--yts-primary, #0ea5e9);
         }
 
         .size-btn {
-            background: #2a2d3d;
-            border: none;
+            background: var(--yts-glass-bg, #2a2d3d);
+            border: 1px solid transparent;
             border-radius: 6px;
-            color: #f8fafc;
+            color: var(--yts-text-1, #f8fafc);
             width: 24px;
             height: 24px;
             display: flex;
@@ -178,6 +190,16 @@ export class YtsSubtitleStylePanel extends LitElement {
             justify-content: center;
             cursor: pointer;
             font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .size-btn:hover {
+            background: var(--yts-surface-3, #334155);
+        }
+
+        .size-btn:focus-visible {
+            outline: 2px solid var(--yts-primary, #0ea5e9);
+            outline-offset: 2px;
         }
 
         /* Colors & Preview Grid */
@@ -197,7 +219,7 @@ export class YtsSubtitleStylePanel extends LitElement {
         }
 
         .color-group-title {
-            color: #f8fafc;
+            color: var(--yts-text-1, #f8fafc);
             font-weight: 600;
             margin-bottom: 8px;
         }
@@ -206,9 +228,9 @@ export class YtsSubtitleStylePanel extends LitElement {
             display: flex;
             align-items: center;
             gap: 8px;
-            background: #2a2d3d;
+            background: var(--yts-glass-bg, #2a2d3d);
             padding: 4px;
-            border-radius: 20px;
+            border-radius: var(--yts-radius, 20px);
             width: fit-content;
         }
 
@@ -217,19 +239,27 @@ export class YtsSubtitleStylePanel extends LitElement {
             height: 24px;
             border-radius: 50%;
             cursor: pointer;
-            border: initial;
+            border: 2px solid transparent; /* ensure border is there for sizing */
             overflow: hidden;
             background-clip: padding-box;
             box-sizing: border-box;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .color-bubble:focus, .color-bubble:focus-visible, .color-bubble:active {
-            outline: none !important;
-            box-shadow: none !important;
+        .color-bubble:focus {
+            outline: none;
+        }
+        
+        .color-bubble:focus-visible {
+            outline: 2px solid var(--yts-text-1, #ffffff);
+            outline-offset: 2px;
         }
 
         .color-bubble.active {
-            border: 2px solid #0ea5e9;
+            border: 2px solid var(--yts-primary, #0ea5e9);
         }
 
         .rainbow-picker {
@@ -244,30 +274,11 @@ export class YtsSubtitleStylePanel extends LitElement {
             box-sizing: border-box;
         }
 
-        /* Style Icons */
-        .style-icons {
-            display: flex;
-            gap: 6px;
-            margin-top: 4px;
-        }
-
-        .style-icon {
-            width: 24px;
-            height: 24px;
-            background: #2a2d3d;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            color: #94a3b8;
-        }
-
         sl-color-picker {
-            background: #1e2332;
+            background: var(--yts-surface-2, #1e2332);
             padding: 8px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--yts-radius, 12px);
+            border: 1px solid var(--yts-border, rgba(255, 255, 255, 0.1));
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
         }
 
@@ -281,7 +292,7 @@ export class YtsSubtitleStylePanel extends LitElement {
             justify-content: center;
             position: relative;
             overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid var(--yts-border, rgba(255,255,255,0.1));
         }
 
         .preview-blur-bg {
@@ -302,16 +313,9 @@ export class YtsSubtitleStylePanel extends LitElement {
         }
 
         /* Highlight & Positioning */
-        .highlight-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-        }
-
         .positioning-container {
             display: grid;
-            grid-template-columns: 1fr auto;
+            grid-template-columns: 1fr;
             gap: 24px;
             align-items: center;
             margin-bottom: 24px;
@@ -323,40 +327,6 @@ export class YtsSubtitleStylePanel extends LitElement {
             gap: 8px;
         }
 
-        .grid-3x3 {
-            display: grid;
-            grid-template-columns: repeat(3, 16px);
-            grid-template-rows: repeat(3, 16px);
-            gap: 2px;
-        }
-
-        .grid-cell {
-            background: #2a2d3d;
-            border-radius: 2px;
-            cursor: pointer;
-        }
-        
-        .grid-cell.active {
-            background: #0ea5e9;
-        }
-
-        /* Animation Button */
-        .animation-btn {
-            width: 100%;
-            background: #2a2d3d;
-            border: 1px solid rgba(255,255,255,0.05);
-            color: #f8fafc;
-            padding: 12px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 13px;
-            font-family: inherit;
-            cursor: pointer;
-            margin-bottom: 24px;
-        }
-
         /* Footer Action Buttons */
         .footer-actions {
             display: flex;
@@ -366,19 +336,24 @@ export class YtsSubtitleStylePanel extends LitElement {
 
         .footer-btn {
             flex: 1;
-            background: #2a2d3d;
-            color: #f8fafc;
-            border: none;
+            background: var(--yts-glass-bg, #2a2d3d);
+            color: var(--yts-text-1, #f8fafc);
+            border: 1px solid transparent;
             padding: 10px 0;
-            border-radius: 20px;
+            border-radius: var(--yts-radius, 20px);
             font-size: 12px;
             font-weight: 500;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
         }
 
         .footer-btn:hover {
-            background: #334155;
+            background: var(--yts-surface-3, #334155);
+        }
+
+        .footer-btn:focus-visible {
+            outline: 2px solid var(--yts-primary, #0ea5e9);
+            outline-offset: 2px;
         }
         
         .footer-btn-reset {
@@ -386,6 +361,18 @@ export class YtsSubtitleStylePanel extends LitElement {
             align-items: center;
             justify-content: center;
             gap: 6px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
         }
     `;
 
@@ -415,40 +402,51 @@ export class YtsSubtitleStylePanel extends LitElement {
         return html`
             <!-- Font Row -->
             <div class="panel-row">
-                <span class="label">Font</span>
+                <label class="label" id="font-label">Font</label>
                 <div class="select-wrapper">
-                    <select class="custom-select" .value="${currentFont}" @change=${this.handleFontChange}>
-                        <option value="inherit">System Sans-Serif</option>
-                        <option value="'Roboto', sans-serif">Roboto</option>
-                        <option value="'Montserrat', sans-serif">Montserrat</option>
-                        <option value="'Oswald', sans-serif">Oswald</option>
-                        <option value="'Impact', sans-serif">Impact</option>
-                    </select>
+                    <sl-tooltip content="Select subtitle font family">
+                        <select class="custom-select" aria-labelledby="font-label" .value="${currentFont}" @change=${this.handleFontChange}>
+                            <option value="inherit">System Sans-Serif</option>
+                            <option value="'Roboto', sans-serif">Roboto</option>
+                            <option value="'Montserrat', sans-serif">Montserrat</option>
+                            <option value="'Oswald', sans-serif">Oswald</option>
+                            <option value="'Impact', sans-serif">Impact</option>
+                        </select>
+                    </sl-tooltip>
                 </div>
             </div>
 
             <!-- Size Slider Row -->
             <div class="size-slider-group">
-                <span class="label" style="width: 70px;">Size: ${currentSize}px</span>
-                <input type="range" class="custom-slider" min="12" max="150" value="${currentSize}" @input=${this.handleFontSizeChange}>
-                <button class="size-btn" @click=${() => this.emitStyleChange({ fontSize: Math.max(12, currentSize - 2) })}>-</button>
-                <button class="size-btn" @click=${() => this.emitStyleChange({ fontSize: Math.min(150, currentSize + 2) })}>+</button>
+                <label class="label" id="size-label" style="width: 70px;">Size: ${currentSize}px</label>
+                <sl-tooltip content="Adjust subtitle font size">
+                    <input type="range" class="custom-slider" aria-labelledby="size-label" min="12" max="150" value="${currentSize}" @input=${this.handleFontSizeChange}>
+                </sl-tooltip>
+                <sl-tooltip content="Decrease font size">
+                    <button type="button" class="size-btn" aria-label="Decrease font size" @click=${() => this.emitStyleChange({ fontSize: Math.max(12, currentSize - 2) })}>-</button>
+                </sl-tooltip>
+                <sl-tooltip content="Increase font size">
+                    <button type="button" class="size-btn" aria-label="Increase font size" @click=${() => this.emitStyleChange({ fontSize: Math.min(150, currentSize + 2) })}>+</button>
+                </sl-tooltip>
             </div>
 
             <!-- Colors & Preview Grid -->
             <div class="colors-preview-container">
                 <div class="colors-col">
                     <div>
-                        <div class="color-group-title">Colors</div>
-                        <div class="color-bubbles">
+                        <div class="color-group-title" id="text-color-label">Colors</div>
+                        <div class="color-bubbles" role="group" aria-labelledby="text-color-label">
                             <sl-dropdown distance="5">
-                                <div slot="trigger" class="color-bubble rainbow-picker ${textColorToggle === 'custom' ? 'active' : ''}" title="Custom Color">
-                                    <sl-icon name="eyedropper"></sl-icon>
-                                </div>
+                                <sl-tooltip slot="trigger" content="Pick a custom text color">
+                                    <button type="button" class="color-bubble rainbow-picker ${textColorToggle === 'custom' ? 'active' : ''}" aria-label="Custom text color">
+                                        <sl-icon name="eyedropper"></sl-icon>
+                                    </button>
+                                </sl-tooltip>
                                 <sl-color-picker 
                                     inline 
                                     format="rgba"
                                     opacity
+                                    label="Custom text color picker"
                                     .value=${currentColor} 
                                     @sl-change=${(e: Event) => {
                 this.emitStyleChange({ color: (e.target as any).value });
@@ -456,28 +454,30 @@ export class YtsSubtitleStylePanel extends LitElement {
                                 ></sl-color-picker>
                             </sl-dropdown>
 
-                            <div class="color-bubble ${textColorToggle === 'black' ? 'active' : ''}" style="background: #000;" @click=${() => this.setTextColor('black')}></div>
-                            <div class="color-bubble ${textColorToggle === 'white' ? 'active' : ''}" style="background: #fff;" @click=${() => this.setTextColor('white')}></div>
+                            <sl-tooltip content="Set text color to Black">
+                                <button type="button" class="color-bubble ${textColorToggle === 'black' ? 'active' : ''}" style="background: #000;" aria-label="Set text color to Black" @click=${() => this.setTextColor('black')}></button>
+                            </sl-tooltip>
+                            <sl-tooltip content="Set text color to White">
+                                <button type="button" class="color-bubble ${textColorToggle === 'white' ? 'active' : ''}" style="background: #fff;" aria-label="Set text color to White" @click=${() => this.setTextColor('white')}></button>
+                            </sl-tooltip>
                         </div>
-                        <!-- Style Icons -->
-                        <div class="style-icons">
-                            <div class="style-icon" title="Outline"><sl-icon name="type-strikethrough"></sl-icon></div>
-                            <div class="style-icon" title="Shadow"><sl-icon name="textarea-t"></sl-icon></div>
-                            <div class="style-icon" title="Background Padding"><sl-icon name="border-width"></sl-icon></div>
-                        </div>
+                        <!-- TODO: Add advanced style edit buttons here later (Outline, Shadow, Background Padding) -->
                     </div>
                     
                     <div style="margin-top: 8px;">
-                        <div class="color-group-title">Background Color</div>
-                        <div class="color-bubbles">
+                        <div class="color-group-title" id="bg-color-label">Background Color</div>
+                        <div class="color-bubbles" role="group" aria-labelledby="bg-color-label">
                             <sl-dropdown distance="5">
-                                <div slot="trigger" class="color-bubble rainbow-picker ${bgColorToggle === 'custom' ? 'active' : ''}" title="Custom Background">
-                                    <sl-icon name="eyedropper"></sl-icon>
-                                </div>
+                                <sl-tooltip slot="trigger" content="Pick a custom background color">
+                                    <button type="button" class="color-bubble rainbow-picker ${bgColorToggle === 'custom' ? 'active' : ''}" aria-label="Custom background color">
+                                        <sl-icon name="eyedropper"></sl-icon>
+                                    </button>
+                                </sl-tooltip>
                                 <sl-color-picker 
                                     inline 
                                     format="rgba"
                                     opacity
+                                    label="Custom background color picker"
                                     .value=${currentBgColor} 
                                     @sl-change=${(e: Event) => {
                 this.emitStyleChange({ backgroundColor: (e.target as any).value });
@@ -485,13 +485,17 @@ export class YtsSubtitleStylePanel extends LitElement {
                                 ></sl-color-picker>
                             </sl-dropdown>
 
-                            <div class="color-bubble ${bgColorToggle === 'yellow' ? 'active' : ''}" style="background: #facc15;" @click=${() => this.setBgColor('yellow')}></div>
-                            <div class="color-bubble ${bgColorToggle === 'black' ? 'active' : ''}" style="background: rgba(0,0,0,0.6);" @click=${() => this.setBgColor('black')}></div>
+                            <sl-tooltip content="Set background color to Yellow">
+                                <button type="button" class="color-bubble ${bgColorToggle === 'yellow' ? 'active' : ''}" style="background: #facc15;" aria-label="Set background color to Yellow" @click=${() => this.setBgColor('yellow')}></button>
+                            </sl-tooltip>
+                            <sl-tooltip content="Set background color to Semi-transparent Black">
+                                <button type="button" class="color-bubble ${bgColorToggle === 'black' ? 'active' : ''}" style="background: rgba(0,0,0,0.6);" aria-label="Set background color to Semi-transparent Black" @click=${() => this.setBgColor('black')}></button>
+                            </sl-tooltip>
                         </div>
                     </div>
                 </div>
 
-                <div class="generic-preview">
+                <div class="generic-preview" aria-hidden="true">
                     <div class="preview-blur-bg"></div>
                     <div class="preview-text" style="
                         font-family: ${currentFont};
@@ -503,27 +507,31 @@ export class YtsSubtitleStylePanel extends LitElement {
                 </div>
             </div>
 
-            <!-- Highlights & Positioning -->
-            <div class="highlight-row">
-                <span class="color-group-title" style="margin:0;">Highlight Words <span style="display:inline-block; width:8px; height:8px; background:#475569; border-radius:50%; margin-left:8px;"></span></span>
-                <span class="label">Positioning</span>
-            </div>
+            <!-- TODO: Add "Highlight Words" feature toggle here later -->
 
             <div class="positioning-container" style="grid-template-columns: 1fr;">
                 <div class="v-offset-group">
-                    <span class="label">Vertical Offset</span>
-                    <input type="range" class="custom-slider" min="-150" max="150" value="${currentPosY}" @input=${this.handleVerticalOffsetChange}>
+                    <label class="label" id="v-offset-label">Vertical Offset</label>
+                    <sl-tooltip content="Adjust vertical position of subtitles">
+                        <input type="range" class="custom-slider" aria-labelledby="v-offset-label" min="-150" max="150" value="${currentPosY}" @input=${this.handleVerticalOffsetChange}>
+                    </sl-tooltip>
                 </div>
             </div>
 
             <!-- Footer Buttons -->
             <div class="footer-actions">
-                <button class="footer-btn" @click=${() => console.log('Save Preset - To do')}>Save Preset</button>
-                <button class="footer-btn" @click=${this.handleApplyToAll}>Apply to All</button>
-                <button class="footer-btn footer-btn-reset" @click=${this.handleReset}>
-                    Reset
-                    <sl-icon name="stars" style="color: #cbd5e1;"></sl-icon>
-                </button>
+                <sl-tooltip content="Save current styles as a preset (Coming Soon)">
+                    <button type="button" class="footer-btn" aria-label="Save Preset" @click=${() => console.log('Save Preset - To do')}>Save Preset</button>
+                </sl-tooltip>
+                <sl-tooltip content="Apply these styles to all subtitles">
+                    <button type="button" class="footer-btn" aria-label="Apply to All" @click=${this.handleApplyToAll}>Apply to All</button>
+                </sl-tooltip>
+                <sl-tooltip content="Reset styles to default">
+                    <button type="button" class="footer-btn footer-btn-reset" aria-label="Reset styles to default" @click=${this.handleReset}>
+                        Reset
+                        <sl-icon name="stars" style="color: var(--yts-text-2, #cbd5e1);"></sl-icon>
+                    </button>
+                </sl-tooltip>
             </div>
         `;
     }
