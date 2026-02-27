@@ -11,6 +11,8 @@ class PresetState {
     presets = signal<SubtitlePreset[]>([]);
     // Indicates if the presets are currently being loaded.
     isLoading = signal<boolean>(false);
+    // The currently selected active preset (null if none selected)
+    activePresetId = signal<string | null>(null);
     // Any errors encountered while talking to the API.
     error = signal<string | null>(null);
 
@@ -40,10 +42,26 @@ class PresetState {
             const newPreset = await presetService.createPreset(dto);
             // We can append to the signals `.value`
             this.presets.value = [newPreset, ...this.presets.value];
+            this.activePresetId.value = newPreset.id;
         } catch (err: any) {
             this.error.value = err.message || 'Failed to save preset';
             console.error(err);
             throw err; // Re-throw so the UI can show a toast or error message
+        }
+    }
+
+    /**
+     * Updates an existing preset and updates the local state list.
+     */
+    async updatePreset(id: string, dto: Partial<CreateSubtitlePresetDto>) {
+        try {
+            this.error.value = null;
+            const updated = await presetService.updatePreset(id, dto);
+            this.presets.value = this.presets.value.map(p => p.id === id ? updated : p);
+        } catch (err: any) {
+            this.error.value = err.message || 'Failed to update preset';
+            console.error(err);
+            throw err;
         }
     }
 
@@ -55,6 +73,10 @@ class PresetState {
             this.error.value = null;
             await presetService.deletePreset(id);
             this.presets.value = this.presets.value.filter((p: SubtitlePreset) => p.id !== id);
+
+            if (this.activePresetId.value === id) {
+                this.activePresetId.value = null;
+            }
         } catch (err: any) {
             this.error.value = err.message || 'Failed to delete preset';
             console.error(err);

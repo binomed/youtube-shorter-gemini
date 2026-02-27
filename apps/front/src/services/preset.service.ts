@@ -39,6 +39,27 @@ class PresetService {
     }
 
     /**
+     * Updates an existing preset by ID.
+     */
+    async updatePreset(id: string, dto: Partial<CreateSubtitlePresetDto>): Promise<SubtitlePreset> {
+        const response = await fetch(`${API_BASE}/${id}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dto),
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error?.message || 'Failed to update preset');
+        }
+
+        return result.data as SubtitlePreset;
+    }
+
+    /**
      * Deletes a preset by ID.
      */
     async deletePreset(id: string): Promise<void> {

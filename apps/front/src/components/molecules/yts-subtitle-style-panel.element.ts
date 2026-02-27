@@ -454,12 +454,23 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
     private handleApplyPreset(event: Event) {
         const select = event.target as any;
         const presetId = select.value;
-        if (!presetId) return;
+        if (!presetId) {
+            presetState.activePresetId.value = null;
+            return;
+        }
 
         const preset = presetState.presets.value.find((p: any) => p.id === presetId);
         if (preset && preset.style) {
+            presetState.activePresetId.value = preset.id;
             this.emitStyleChange(preset.style);
         }
+    }
+
+    private handleUpdatePreset() {
+        if (!presetState.activePresetId.value || !this.subtitleStyle) return;
+        presetState.updatePreset(presetState.activePresetId.value, {
+            style: this.subtitleStyle
+        });
     }
 
     private handleDeletePreset(presetId: string) {
@@ -493,7 +504,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             <!-- Presets Header -->
             <div class="preset-header">
                 ${isLoading ? html`<sl-icon name="arrow-clockwise" class="spin"></sl-icon> Loading presets...` : html`
-                    <sl-select class="preset-select" placeholder="Choose a saved preset..." clearable @sl-change=${this.handleApplyPreset}>
+                    <sl-select class="preset-select" placeholder="Choose a saved preset..." clearable .value=${presetState.activePresetId.value || ''} @sl-change=${this.handleApplyPreset}>
                         ${presets.map((p: any) => html`
                             <sl-option value="${p.id}">
                                 ${p.name}
@@ -506,9 +517,17 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                     </sl-select>
                 `}
                 
+                ${presetState.activePresetId.value ? html`
+                    <sl-tooltip content="Update the currently selected preset">
+                        <button class="footer-btn" style="width: auto; padding: 6px 12px; border-radius: 6px; flex: none; margin-right: 8px;" @click=${this.handleUpdatePreset}>
+                            <sl-icon slot="prefix" name="pencil"></sl-icon> Update
+                        </button>
+                    </sl-tooltip>
+                ` : ''}
+
                 <sl-tooltip content="Save current styles as a new preset">
                     <button class="footer-btn" style="width: auto; padding: 6px 12px; border-radius: 6px; flex: none;" @click=${() => this.isSavePresetDialogOpen = !this.isSavePresetDialogOpen}>
-                        <sl-icon slot="prefix" name="save"></sl-icon> Save
+                        <sl-icon slot="prefix" name="save"></sl-icon> ${presetState.activePresetId.value ? 'Save as New' : 'Save'}
                     </button>
                 </sl-tooltip>
             </div>
