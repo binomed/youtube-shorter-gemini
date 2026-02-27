@@ -27,6 +27,9 @@ import { presetState } from '../../state/preset-state';
  */
 @customElement('yts-subtitle-style-panel')
 export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
+    @property({ type: String })
+    shortId?: string;
+
     @property({ type: Object })
     subtitleStyle: SubtitleStyle | null = null;
 
@@ -39,7 +42,39 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
     connectedCallback() {
         super.connectedCallback();
         // Load presets from backend when this component mounts
-        presetState.loadPresets();
+        presetState.loadPresets().then(() => {
+            this.autoDetectPreset();
+        });
+    }
+
+    updated(changedProperties: Map<string | number | symbol, unknown>) {
+        super.updated(changedProperties);
+        if (changedProperties.has('shortId')) {
+            this.autoDetectPreset();
+        }
+    }
+
+    private autoDetectPreset() {
+        if (!this.subtitleStyle) {
+            presetState.activePresetId.value = null;
+            return;
+        }
+
+        const presets = presetState.presets.value;
+        const match = presets.find(p => this.stylesMatch(p.style, this.subtitleStyle));
+        presetState.activePresetId.value = match ? match.id : null;
+    }
+
+    private stylesMatch(a: any, b: any): boolean {
+        if (!a || !b) return false;
+
+        // Convert to strings for normalized hex comparison or just direct value comparison
+        // Font sizes and positions can be numbers
+        return a.font === b.font &&
+            a.fontSize === b.fontSize &&
+            a.color === b.color &&
+            a.backgroundColor === b.backgroundColor &&
+            a.positionY === b.positionY;
     }
 
     private emitStyleChange(update: Partial<SubtitleStyle>) {

@@ -442,6 +442,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         ${this.activeTab === 'style' ? html`
             ${this.currentShort ? html`
               <yts-subtitle-style-panel
+                .shortId=${this.currentShort.id}
                 .subtitleStyle=${this.currentShort.subtitleStyle || {}}
                 @style-changed=${this.handleStyleChange}
                 @apply-all-styles=${this.handleApplyAllStyles}
