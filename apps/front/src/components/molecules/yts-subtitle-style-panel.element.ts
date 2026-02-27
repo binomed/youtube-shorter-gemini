@@ -3,7 +3,7 @@
  * Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
  */
 import { LitElement, html, css } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import type { SubtitleStyle } from '@youtube-shorter/shared';
 import '@shoelace-style/shoelace/dist/components/select/select.js';
 import '@shoelace-style/shoelace/dist/components/option/option.js';
@@ -13,6 +13,13 @@ import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
 import '@shoelace-style/shoelace/dist/components/color-picker/color-picker.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
+import '@shoelace-style/shoelace/dist/components/select/select.js';
+import '@shoelace-style/shoelace/dist/components/option/option.js';
+import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
+import '@shoelace-style/shoelace/dist/components/button/button.js';
+import '@shoelace-style/shoelace/dist/components/input/input.js';
+
+import { presetState } from '../../state/preset-state';
 
 /**
  * Panel for configuring subtitle styles (font, size, color, bg color, position).
@@ -23,9 +30,19 @@ import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 @customElement('yts-subtitle-style-panel')
 export class YtsSubtitleStylePanel extends LitElement {
     @property({ type: Object })
-    subtitleStyle: SubtitleStyle = {};
+    subtitleStyle: SubtitleStyle | null = null;
 
+    @state()
+    private isSavePresetDialogOpen = false;
 
+    @state()
+    private presetNameInput = '';
+
+    connectedCallback() {
+        super.connectedCallback();
+        // Load presets from backend when this component mounts
+        presetState.loadPresets();
+    }
 
     private emitStyleChange(update: Partial<SubtitleStyle>) {
         const newStyle = { ...this.subtitleStyle, ...update };
@@ -282,6 +299,25 @@ export class YtsSubtitleStylePanel extends LitElement {
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
         }
 
+        .preset-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--yts-border, rgba(255,255,255,0.1));
+        }
+
+        .preset-select {
+            flex: 1;
+            margin-right: 12px;
+        }
+
+        .preset-actions {
+            display: flex;
+            gap: 8px;
+        }
+
         /* Generic Preview Box */
         .generic-preview {
             background: linear-gradient(135deg, rgba(79, 70, 229, 0.4), rgba(14, 165, 233, 0.4));
@@ -371,35 +407,95 @@ export class YtsSubtitleStylePanel extends LitElement {
             margin: -1px;
             overflow: hidden;
             clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
-        }
     `;
+
+    private handleSavePreset() {
+        if (!this.subtitleStyle || !this.presetNameInput.trim()) return;
+
+        presetState.savePreset({
+            name: this.presetNameInput.trim(),
+            style: this.subtitleStyle,
+        }).then(() => {
+            this.isSavePresetDialogOpen = false;
+            this.presetNameInput = '';
+        });
+    }
+
+    private handleApplyPreset(event: Event) {
+        const select = event.target as any;
+        const presetId = select.value;
+        if (!presetId) return;
+
+        const preset = presetState.presets.value.find((p: any) => p.id === presetId);
+        if (preset && preset.style) {
+            this.emitStyleChange(preset.style);
+        }
+    }
+
+    private handleDeletePreset(presetId: string) {
+        if (confirm('Are you sure you want to delete this preset?')) {
+            presetState.deletePreset(presetId);
+        }
+    }
 
     render() {
         const currentFont = this.subtitleStyle?.font || 'inherit';
-        const currentSize = this.subtitleStyle?.fontSize || 24;
+        const currentSize = this.subtitleStyle?.fontSize || 40;
         const currentPosY = this.subtitleStyle?.positionY || 0;
+        // ... (We keep custom colors processing)
 
         const currentColor = this.subtitleStyle?.color || '#ffffff';
-        let textColorToggle = 'custom';
-        const normColor = currentColor.trim().toLowerCase().replace(/\s/g, '');
-        if (normColor === '#ffffff' || normColor === 'rgba(255,255,255,1)' || normColor === 'rgb(255,255,255)' || normColor === 'white') {
-            textColorToggle = 'white';
-        } else if (normColor === '#000000' || normColor === 'rgba(0,0,0,1)' || normColor === 'rgb(0,0,0)' || normColor === 'black') {
-            textColorToggle = 'black';
-        }
-
         const currentBgColor = this.subtitleStyle?.backgroundColor || 'rgba(0,0,0,0.6)';
+
+        let textColorToggle = 'custom';
+        if (currentColor === '#000' || currentColor === 'black') textColorToggle = 'black';
+        if (currentColor === '#fff' || currentColor === 'white' || currentColor === '#ffffff') textColorToggle = 'white';
+
         let bgColorToggle = 'custom';
-        const normBgColor = currentBgColor.trim().toLowerCase().replace(/\s/g, '');
-        if (normBgColor === '#facc15' || normBgColor === 'rgba(250,204,21,1)' || normBgColor === 'rgb(250,204,21)') {
-            bgColorToggle = 'yellow';
-        } else if (normBgColor === 'rgba(0,0,0,0.6)') {
-            bgColorToggle = 'black';
-        }
+        if (currentBgColor === '#facc15' || currentBgColor === 'yellow') bgColorToggle = 'yellow';
+        if (currentBgColor === 'rgba(0,0,0,0.6)' || currentBgColor === 'rgba(0, 0, 0, 0.6)') bgColorToggle = 'black';
+
+        // Reactive signal wrap
+        const presets = presetState.presets.value;
+        const isLoading = presetState.isLoading.value;
 
         return html`
+            <!-- Presets Header -->
+            <div class="preset-header">
+                ${isLoading ? html`<sl-icon name="arrow-clockwise" class="spin"></sl-icon> Loading presets...` : html`
+                    <sl-select class="preset-select" placeholder="Choose a saved preset..." clearable @sl-change=${this.handleApplyPreset}>
+                        ${presets.map((p: any) => html`
+                            <sl-option value="${p.id}">
+                                ${p.name}
+                                <sl-icon slot="suffix" name="trash" @click=${(e: Event) => {
+                e.stopPropagation();
+                this.handleDeletePreset(p.id);
+            }} style="cursor: pointer; color: var(--yts-text-3, #94a3b8);"></sl-icon>
+                            </sl-option>
+                        `)}
+                    </sl-select>
+                `}
+                
+                <sl-tooltip content="Save current styles as a new preset">
+                    <sl-button variant="primary" size="small" @click=${() => this.isSavePresetDialogOpen = true}>
+                        <sl-icon slot="prefix" name="save"></sl-icon> Save
+                    </sl-button>
+                </sl-tooltip>
+            </div>
+
+            <!-- Save Dialog -->
+            <sl-dialog label="Save Subtitle Preset" ?open=${this.isSavePresetDialogOpen} @sl-request-close=${() => this.isSavePresetDialogOpen = false}>
+                <sl-input 
+                    label="Preset Name" 
+                    placeholder="e.g. Big Yellow Impact" 
+                    .value=${this.presetNameInput} 
+                    @sl-input=${(e: Event) => this.presetNameInput = (e.target as HTMLInputElement).value}
+                    autofocus
+                ></sl-input>
+                <sl-button slot="footer" variant="default" @click=${() => this.isSavePresetDialogOpen = false}>Cancel</sl-button>
+                <sl-button slot="footer" variant="primary" @click=${this.handleSavePreset} ?disabled=${!this.presetNameInput.trim()}>Save</sl-button>
+            </sl-dialog>
+
             <!-- Font Row -->
             <div class="panel-row">
                 <label class="label" id="font-label">Font</label>
@@ -520,9 +616,6 @@ export class YtsSubtitleStylePanel extends LitElement {
 
             <!-- Footer Buttons -->
             <div class="footer-actions">
-                <sl-tooltip content="Save current styles as a preset (Coming Soon)">
-                    <button type="button" class="footer-btn" aria-label="Save Preset" @click=${() => console.log('Save Preset - To do')}>Save Preset</button>
-                </sl-tooltip>
                 <sl-tooltip content="Apply these styles to all subtitles">
                     <button type="button" class="footer-btn" aria-label="Apply to All" @click=${this.handleApplyToAll}>Apply to All</button>
                 </sl-tooltip>

@@ -14,6 +14,8 @@ import { Project } from './entities/project.entity';
 import { Short } from './entities/short.entity';
 import { Job } from './entities/job.entity';
 import { Subtitle } from './entities/subtitle.entity';
+import { SubtitlePreset } from './entities/subtitle-preset.entity';
+import { PresetsModule } from './modules/presets/presets.module';
 
 /**
  * Root application module for YouTube Shorter Gemini backend
@@ -35,7 +37,7 @@ import { Subtitle } from './entities/subtitle.entity';
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: 'data/youtube-shorter.db', // Stored in apps/back/data/
-      entities: [Project, Short, Job, Subtitle],
+      entities: [Project, Short, Job, Subtitle, SubtitlePreset],
       // CRITICAL: synchronize MUST be false in production to prevent data loss
       // Schema changes require migrations in production
       synchronize: process.env.NODE_ENV !== 'production',
@@ -46,6 +48,7 @@ import { Subtitle } from './entities/subtitle.entity';
     VideoModule,
     AnalysisModule,
     ProcessingModule,
+    PresetsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

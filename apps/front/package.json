@@ -14,6 +14,7 @@
     "test:a11y": "vitest run test/accessibility.spec.ts"
   },
   "dependencies": {
+    "@lit-labs/preact-signals": "^1.0.3",
     "@lit-labs/signals": "^0.2.0",
     "@shoelace-style/shoelace": "^2.20.1",
     "@tailwindcss/vite": "^4.1.18",
