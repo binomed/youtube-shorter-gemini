@@ -24,8 +24,7 @@ export class YtsSubtitleStylePanel extends LitElement {
     @property({ type: Object })
     subtitleStyle: SubtitleStyle = {};
 
-    @state() private textColorToggle = 'white';
-    @state() private bgColorToggle = 'black';
+
 
     private emitStyleChange(update: Partial<SubtitleStyle>) {
         const newStyle = { ...this.subtitleStyle, ...update };
@@ -54,12 +53,10 @@ export class YtsSubtitleStylePanel extends LitElement {
     }
 
     private setTextColor(color: string) {
-        this.textColorToggle = color;
         this.emitStyleChange({ color: color === 'white' ? '#ffffff' : '#000000' });
     }
 
     private setBgColor(color: string) {
-        this.bgColorToggle = color;
         this.emitStyleChange({
             backgroundColor: color === 'yellow' ? '#facc15' : color === 'black' ? 'rgba(0,0,0,0.6)' : 'transparent'
         });
@@ -74,8 +71,6 @@ export class YtsSubtitleStylePanel extends LitElement {
             positionX: 0,
             positionY: 0
         });
-        this.textColorToggle = 'white';
-        this.bgColorToggle = 'black';
     }
 
     private handleApplyToAll() {
@@ -222,7 +217,10 @@ export class YtsSubtitleStylePanel extends LitElement {
             height: 24px;
             border-radius: 50%;
             cursor: pointer;
-            border: 2px solid transparent;
+            border: initial;
+            overflow: hidden;
+            background-clip: padding-box;
+            box-sizing: border-box;
         }
 
         .color-bubble:focus, .color-bubble:focus-visible, .color-bubble:active {
@@ -231,11 +229,12 @@ export class YtsSubtitleStylePanel extends LitElement {
         }
 
         .color-bubble.active {
-            border-color: #0ea5e9;
+            border: 2px solid #0ea5e9;
         }
 
         .rainbow-picker {
-            background: conic-gradient(from 180deg at 50% 50%, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0000ff, #8000ff, #ff00ff, #ff0000);
+            background: conic-gradient(#ff0097 0%, #ff0097 100%); /* Fallback SDR gradient */
+            background: conic-gradient(in oklch longer hue, oklch(70% .3 0) 0%, oklch(70% .3 0) 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -262,6 +261,14 @@ export class YtsSubtitleStylePanel extends LitElement {
             justify-content: center;
             cursor: pointer;
             color: #94a3b8;
+        }
+
+        sl-color-picker {
+            background: #1e2332;
+            padding: 8px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
         }
 
         /* Generic Preview Box */
@@ -387,6 +394,24 @@ export class YtsSubtitleStylePanel extends LitElement {
         const currentSize = this.subtitleStyle?.fontSize || 24;
         const currentPosY = this.subtitleStyle?.positionY || 0;
 
+        const currentColor = this.subtitleStyle?.color || '#ffffff';
+        let textColorToggle = 'custom';
+        const normColor = currentColor.trim().toLowerCase().replace(/\s/g, '');
+        if (normColor === '#ffffff' || normColor === 'rgba(255,255,255,1)' || normColor === 'rgb(255,255,255)' || normColor === 'white') {
+            textColorToggle = 'white';
+        } else if (normColor === '#000000' || normColor === 'rgba(0,0,0,1)' || normColor === 'rgb(0,0,0)' || normColor === 'black') {
+            textColorToggle = 'black';
+        }
+
+        const currentBgColor = this.subtitleStyle?.backgroundColor || 'rgba(0,0,0,0.6)';
+        let bgColorToggle = 'custom';
+        const normBgColor = currentBgColor.trim().toLowerCase().replace(/\s/g, '');
+        if (normBgColor === '#facc15' || normBgColor === 'rgba(250,204,21,1)' || normBgColor === 'rgb(250,204,21)') {
+            bgColorToggle = 'yellow';
+        } else if (normBgColor === 'rgba(0,0,0,0.6)') {
+            bgColorToggle = 'black';
+        }
+
         return html`
             <!-- Font Row -->
             <div class="panel-row">
@@ -417,23 +442,22 @@ export class YtsSubtitleStylePanel extends LitElement {
                         <div class="color-group-title">Colors</div>
                         <div class="color-bubbles">
                             <sl-dropdown distance="5">
-                                <div slot="trigger" class="color-bubble rainbow-picker ${this.textColorToggle === 'custom' ? 'active' : ''}" title="Custom Color">
+                                <div slot="trigger" class="color-bubble rainbow-picker ${textColorToggle === 'custom' ? 'active' : ''}" title="Custom Color">
                                     <sl-icon name="eyedropper"></sl-icon>
                                 </div>
                                 <sl-color-picker 
                                     inline 
                                     format="rgba"
                                     opacity
-                                    .value=${this.subtitleStyle?.color && this.subtitleStyle.color.startsWith('#') ? this.subtitleStyle.color : '#ffffff'} 
+                                    .value=${currentColor} 
                                     @sl-change=${(e: Event) => {
-                this.textColorToggle = 'custom';
                 this.emitStyleChange({ color: (e.target as any).value });
             }}
                                 ></sl-color-picker>
                             </sl-dropdown>
 
-                            <div class="color-bubble ${this.textColorToggle === 'black' ? 'active' : ''}" style="background: #000;" @click=${() => this.setTextColor('black')}></div>
-                            <div class="color-bubble ${this.textColorToggle === 'white' ? 'active' : ''}" style="background: #fff;" @click=${() => this.setTextColor('white')}></div>
+                            <div class="color-bubble ${textColorToggle === 'black' ? 'active' : ''}" style="background: #000;" @click=${() => this.setTextColor('black')}></div>
+                            <div class="color-bubble ${textColorToggle === 'white' ? 'active' : ''}" style="background: #fff;" @click=${() => this.setTextColor('white')}></div>
                         </div>
                         <!-- Style Icons -->
                         <div class="style-icons">
@@ -447,23 +471,22 @@ export class YtsSubtitleStylePanel extends LitElement {
                         <div class="color-group-title">Background Color</div>
                         <div class="color-bubbles">
                             <sl-dropdown distance="5">
-                                <div slot="trigger" class="color-bubble rainbow-picker ${this.bgColorToggle === 'custom' ? 'active' : ''}" title="Custom Background">
+                                <div slot="trigger" class="color-bubble rainbow-picker ${bgColorToggle === 'custom' ? 'active' : ''}" title="Custom Background">
                                     <sl-icon name="eyedropper"></sl-icon>
                                 </div>
                                 <sl-color-picker 
                                     inline 
                                     format="rgba"
                                     opacity
-                                    .value=${this.subtitleStyle?.backgroundColor || 'rgba(0,0,0,0.6)'} 
+                                    .value=${currentBgColor} 
                                     @sl-change=${(e: Event) => {
-                this.bgColorToggle = 'custom';
                 this.emitStyleChange({ backgroundColor: (e.target as any).value });
             }}
                                 ></sl-color-picker>
                             </sl-dropdown>
 
-                            <div class="color-bubble ${this.bgColorToggle === 'yellow' ? 'active' : ''}" style="background: #facc15;" @click=${() => this.setBgColor('yellow')}></div>
-                            <div class="color-bubble ${this.bgColorToggle === 'black' ? 'active' : ''}" style="background: rgba(0,0,0,0.6);" @click=${() => this.setBgColor('black')}></div>
+                            <div class="color-bubble ${bgColorToggle === 'yellow' ? 'active' : ''}" style="background: #facc15;" @click=${() => this.setBgColor('yellow')}></div>
+                            <div class="color-bubble ${bgColorToggle === 'black' ? 'active' : ''}" style="background: rgba(0,0,0,0.6);" @click=${() => this.setBgColor('black')}></div>
                         </div>
                     </div>
                 </div>
