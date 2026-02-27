@@ -4,6 +4,7 @@
  */
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { SignalWatcher } from '@lit-labs/preact-signals';
 import type { SubtitleStyle } from '@youtube-shorter/shared';
 import '@shoelace-style/shoelace/dist/components/select/select.js';
 import '@shoelace-style/shoelace/dist/components/option/option.js';
@@ -25,7 +26,7 @@ import { presetState } from '../../state/preset-state';
  * @element yts-subtitle-style-panel
  */
 @customElement('yts-subtitle-style-panel')
-export class YtsSubtitleStylePanel extends LitElement {
+export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
     @property({ type: Object })
     subtitleStyle: SubtitleStyle | null = null;
 
