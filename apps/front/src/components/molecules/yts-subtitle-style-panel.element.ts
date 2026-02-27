@@ -15,9 +15,6 @@ import '@shoelace-style/shoelace/dist/components/color-picker/color-picker.js';
 import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import '@shoelace-style/shoelace/dist/components/select/select.js';
 import '@shoelace-style/shoelace/dist/components/option/option.js';
-import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
-import '@shoelace-style/shoelace/dist/components/button/button.js';
-import '@shoelace-style/shoelace/dist/components/input/input.js';
 
 import { presetState } from '../../state/preset-state';
 
@@ -318,6 +315,38 @@ export class YtsSubtitleStylePanel extends LitElement {
             gap: 8px;
         }
 
+        .save-preset-block {
+            background: var(--yts-glass-bg, #2a2d3d);
+            border: 1px solid var(--yts-border, rgba(255,255,255,0.1));
+            border-radius: var(--yts-radius, 12px);
+            padding: 12px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .custom-input {
+            flex: 1;
+            background: var(--yts-surface-1, #0f172a);
+            border: 1px solid var(--yts-border, rgba(255,255,255,0.1));
+            color: var(--yts-text-1, #f8fafc);
+            padding: 8px 12px;
+            border-radius: var(--yts-radius, 6px);
+            outline: none;
+            font-size: 13px;
+        }
+
+        .custom-input:focus {
+            border-color: var(--yts-primary, #0ea5e9);
+        }
+
         /* Generic Preview Box */
         .generic-preview {
             background: linear-gradient(135deg, rgba(79, 70, 229, 0.4), rgba(14, 165, 233, 0.4));
@@ -477,24 +506,28 @@ export class YtsSubtitleStylePanel extends LitElement {
                 `}
                 
                 <sl-tooltip content="Save current styles as a new preset">
-                    <sl-button variant="primary" size="small" @click=${() => this.isSavePresetDialogOpen = true}>
+                    <button class="footer-btn" style="width: auto; padding: 6px 12px; border-radius: 6px; flex: none;" @click=${() => this.isSavePresetDialogOpen = !this.isSavePresetDialogOpen}>
                         <sl-icon slot="prefix" name="save"></sl-icon> Save
-                    </sl-button>
+                    </button>
                 </sl-tooltip>
             </div>
 
-            <!-- Save Dialog -->
-            <sl-dialog label="Save Subtitle Preset" ?open=${this.isSavePresetDialogOpen} @sl-request-close=${() => this.isSavePresetDialogOpen = false}>
-                <sl-input 
-                    label="Preset Name" 
-                    placeholder="e.g. Big Yellow Impact" 
-                    .value=${this.presetNameInput} 
-                    @sl-input=${(e: Event) => this.presetNameInput = (e.target as HTMLInputElement).value}
-                    autofocus
-                ></sl-input>
-                <sl-button slot="footer" variant="default" @click=${() => this.isSavePresetDialogOpen = false}>Cancel</sl-button>
-                <sl-button slot="footer" variant="primary" @click=${this.handleSavePreset} ?disabled=${!this.presetNameInput.trim()}>Save</sl-button>
-            </sl-dialog>
+            <!-- Inline Save Form -->
+            ${this.isSavePresetDialogOpen ? html`
+                <div class="save-preset-block">
+                    <input 
+                        type="text" 
+                        class="custom-input" 
+                        placeholder="e.g. Big Yellow Impact" 
+                        .value=${this.presetNameInput} 
+                        @input=${(e: Event) => this.presetNameInput = (e.target as HTMLInputElement).value}
+                        @keyup=${(e: KeyboardEvent) => { if (e.key === 'Enter') this.handleSavePreset() }}
+                    />
+                    <button class="footer-btn" style="flex: none; padding: 8px 16px;" @click=${this.handleSavePreset} ?disabled=${!this.presetNameInput.trim()}>
+                        Save
+                    </button>
+                </div>
+            ` : ''}
 
             <!-- Font Row -->
             <div class="panel-row">
