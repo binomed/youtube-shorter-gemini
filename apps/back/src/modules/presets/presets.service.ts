@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SubtitlePreset } from '../../entities/subtitle-preset.entity';
 import { CreatePresetDto } from './dto/create-preset.dto';
+import { UpdatePresetDto } from './dto/update-preset.dto';
 
 /**
  * Service handling subtitle preset logic.
@@ -50,6 +51,26 @@ export class PresetsService {
                 createdAt: 'DESC',
             }
         });
+    }
+
+    /**
+     * Updates an existing preset by ID.
+     * 
+     * @param id - ID of the preset to update
+     * @param dto - Partial update payload
+     * @returns Updated preset entity
+     */
+    async update(id: string, dto: UpdatePresetDto): Promise<SubtitlePreset> {
+        const preset = await this.presetRepository.findOne({ where: { id } });
+
+        if (!preset) {
+            throw new NotFoundException(`Preset with ID ${id} not found`);
+        }
+
+        const updatedPreset = this.presetRepository.merge(preset, dto);
+        updatedPreset.updatedAt = new Date().toISOString();
+
+        return this.presetRepository.save(updatedPreset);
     }
 
     /**

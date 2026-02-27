@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Delete, Body, Param, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Patch, Body, Param, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PresetsService } from './presets.service';
 import { CreatePresetDto } from './dto/create-preset.dto';
+import { UpdatePresetDto } from './dto/update-preset.dto';
 
 /**
  * Handles endpoints for subtitle preset CRUD.
@@ -45,6 +46,24 @@ export class PresetsController {
         return {
             success: true,
             data: presets,
+        };
+    }
+
+    /**
+     * Update an existing subtitle preset by ID.
+     */
+    @Patch(':id')
+    @ApiOperation({ summary: 'Update a saved style preset' })
+    @ApiResponse({
+        status: HttpStatus.OK,
+        description: 'Preset updated successfully'
+    })
+    async update(@Param('id') id: string, @Body() dto: UpdatePresetDto) {
+        const preset = await this.presetsService.update(id, dto);
+
+        return {
+            success: true,
+            data: preset,
         };
     }
 
