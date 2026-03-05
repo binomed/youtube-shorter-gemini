@@ -46,7 +46,7 @@ The project uses **Demucs** (Meta Research) to isolate vocals from background mu
 python3 --version
 
 # Install demucs and torchcodec (required for saving audio)
-python3 -m pip install -U demucs torchcodec
+python3 -m pip install -U demucs torchcodec soundfile
 ```
 
 **Verification:**

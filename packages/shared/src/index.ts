@@ -8,9 +8,10 @@ export * from './config/constants';
 
 // DTOs
 export { CreateProjectDto } from './dtos/create-project.dto';
+export { UpdateShortSegmentsDto } from './dtos/update-short.dto';
 
 // Types
 export { ProjectResponse } from './types/project.types';
-export { ShortResponse, AnalysisResponse, AnalysisProgressEvent, DetectedSegment, StemProgressEvent, SubtitleResponse } from './types/short.types';
+export { ShortResponse, AnalysisResponse, AnalysisProgressEvent, DetectedSegment, StemProgressEvent, SubtitleResponse, VideoSegment } from './types/short.types';
 export { SubtitlePreset, CreateSubtitlePresetDto, SubtitleStyle } from './types/subtitle-preset.types';
 export { ErrorResponse, ValidationErrorResponse, ValidationError } from './types/error.types';

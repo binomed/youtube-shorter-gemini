@@ -14,12 +14,12 @@ setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.19.1/cdn/')
 
 /**
  * Root application component.
- * 
+ *
  * Responsibilities:
  * - Manages routing via @vaadin/router
  * - Handles global events like project creation and analysis completion
  * - Manages global project state updates
- * 
+ *
  * @element yts-app
  */
 @customElement('yts-app')

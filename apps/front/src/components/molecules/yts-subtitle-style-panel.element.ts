@@ -22,7 +22,7 @@ import { presetState } from '../../state/preset-state';
 /**
  * Panel for configuring subtitle styles (font, size, color, bg color, position).
  * Dispatches 'style-changed' events when user customizes styling.
- * 
+ *
  * @element yts-subtitle-style-panel
  */
 @customElement('yts-subtitle-style-panel')
@@ -213,7 +213,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             border-radius: 2px;
             outline: none;
         }
-        
+
         .custom-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             width: 14px;
@@ -302,7 +302,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         .color-bubble:focus {
             outline: none;
         }
-        
+
         .color-bubble:focus-visible {
             outline: 2px solid var(--yts-text-1, #ffffff);
             outline-offset: 2px;
@@ -456,7 +456,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             outline: 2px solid var(--yts-primary, #0ea5e9);
             outline-offset: 2px;
         }
-        
+
         .footer-btn-reset {
             display: flex;
             align-items: center;
@@ -551,7 +551,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                         `)}
                     </sl-select>
                 `}
-                
+
                 ${presetState.activePresetId.value ? html`
                     <sl-tooltip content="Update the currently selected preset">
                         <button class="footer-btn" style="width: auto; padding: 6px 12px; border-radius: 6px; flex: none; margin-right: 8px;" @click=${this.handleUpdatePreset}>
@@ -570,11 +570,11 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             <!-- Inline Save Form -->
             ${this.isSavePresetDialogOpen ? html`
                 <div class="save-preset-block">
-                    <input 
-                        type="text" 
-                        class="custom-input" 
-                        placeholder="e.g. Big Yellow Impact" 
-                        .value=${this.presetNameInput} 
+                    <input
+                        type="text"
+                        class="custom-input"
+                        placeholder="e.g. Big Yellow Impact"
+                        .value=${this.presetNameInput}
                         @input=${(e: Event) => this.presetNameInput = (e.target as HTMLInputElement).value}
                         @keyup=${(e: KeyboardEvent) => { if (e.key === 'Enter') this.handleSavePreset() }}
                     />
@@ -626,12 +626,12 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                                         <sl-icon name="eyedropper"></sl-icon>
                                     </button>
                                 </sl-tooltip>
-                                <sl-color-picker 
-                                    inline 
+                                <sl-color-picker
+                                    inline
                                     format="rgba"
                                     opacity
                                     label="Custom text color picker"
-                                    .value=${currentColor} 
+                                    .value=${currentColor}
                                     @sl-change=${(e: Event) => {
                 this.emitStyleChange({ color: (e.target as any).value });
             }}
@@ -647,7 +647,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                         </div>
                         <!-- TODO: Add advanced style edit buttons here later (Outline, Shadow, Background Padding) -->
                     </div>
-                    
+
                     <div style="margin-top: 8px;">
                         <div class="color-group-title" id="bg-color-label">Background Color</div>
                         <div class="color-bubbles" role="group" aria-labelledby="bg-color-label">
@@ -657,12 +657,12 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                                         <sl-icon name="eyedropper"></sl-icon>
                                     </button>
                                 </sl-tooltip>
-                                <sl-color-picker 
-                                    inline 
+                                <sl-color-picker
+                                    inline
                                     format="rgba"
                                     opacity
                                     label="Custom background color picker"
-                                    .value=${currentBgColor} 
+                                    .value=${currentBgColor}
                                     @sl-change=${(e: Event) => {
                 this.emitStyleChange({ backgroundColor: (e.target as any).value });
             }}

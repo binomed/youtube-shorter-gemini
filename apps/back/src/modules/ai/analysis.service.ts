@@ -15,11 +15,13 @@ import { Project } from '../../entities/project.entity';
 import { UpdateSubtitleStyleDto, UpdateSubtitleTextDto } from './dto/update-subtitle.dto';
 import { GeminiService } from './gemini.service';
 import { WhisperService } from './whisper.service';
+import { StemService } from './stem.service';
 import { parseSrt } from './utils/srt-parser.util';
 import { FFmpegService } from '../../workers/ffmpeg.service';
-import type {
+import {
   AnalysisProgressEvent,
   DetectedSegment,
+  UpdateShortSegmentsDto,
 } from '@youtube-shorter/shared';
 
 /**
@@ -44,6 +46,7 @@ export class AnalysisService {
     private readonly geminiService: GeminiService,
     private readonly ffmpegService: FFmpegService,
     private readonly whisperService: WhisperService,
+    private readonly stemService: StemService,
   ) { }
 
   /**
@@ -439,5 +442,77 @@ export class AnalysisService {
 
     subtitle.text = textDto.text;
     await this.subtitleRepository.save(subtitle);
+  }
+
+  /**
+   * Update segments for a short manually (Epic 4.1).
+   * Also invalidates stems as the cuts have changed.
+   */
+  async updateShortSegments(
+    projectId: string,
+    shortId: string,
+    updateDto: UpdateShortSegmentsDto,
+  ): Promise<Short> {
+    const short = await this.shortRepository.findOne({
+      where: { id: shortId, projectId },
+    });
+    if (!short) {
+      throw new NotFoundException(`Short ${shortId} not found`);
+    }
+
+    // 1. Update basic boundaries
+    short.segments = updateDto.segments;
+    if (updateDto.segments.length > 0) {
+      short.startTime = Math.min(...updateDto.segments.map((s) => s.startTime));
+      short.endTime = Math.max(...updateDto.segments.map((s) => s.endTime));
+    }
+    await this.shortRepository.save(short);
+
+    // 2. Sync Subtitles from master transcript
+    const project = await this.projectRepository.findOneBy({ id: projectId });
+    if (project && project.transcript) {
+      this.logger.log(`Re-syncing subtitles for short ${shortId} from project transcript`);
+
+      // Clear existing subtitles for this short
+      await this.subtitleRepository.delete({ shortId });
+
+      // Parse and filter new subtitles
+      const allSubtitles = parseSrt(project.transcript);
+      const segmentSubtitles = allSubtitles.filter(
+        (sub) => sub.startTime <= short.endTime && sub.endTime >= short.startTime,
+      );
+
+      if (segmentSubtitles.length > 0) {
+        const subtitleEntities = segmentSubtitles.map((sub, index) => {
+          return this.subtitleRepository.create({
+            shortId: short.id,
+            startTime: sub.startTime,
+            endTime: sub.endTime,
+            text: sub.text,
+            orderIndex: index,
+          });
+        });
+        await this.subtitleRepository.save(subtitleEntities);
+        this.logger.debug(`Saved ${subtitleEntities.length} new subtitles for short ${shortId}`);
+      }
+    }
+
+    // 3. Invalidate stems when segments change
+    await this.stemService.invalidateStems(shortId);
+
+    // 4. Return the updated short with its new subtitles
+    const updatedShort = await this.shortRepository.findOne({
+      where: { id: shortId },
+      relations: { subtitles: true },
+      order: { subtitles: { startTime: 'ASC' } } as any,
+    });
+
+    if (!updatedShort) {
+      throw new NotFoundException(`Short ${shortId} not found after update`);
+    }
+
+    this.logger.debug(`Returning short ${shortId} with ${updatedShort.subtitles?.length || 0} subtitles`);
+
+    return updatedShort;
   }
 }

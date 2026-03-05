@@ -7,15 +7,15 @@ import { customElement } from 'lit/decorators.js';
 
 /**
  * Main application layout component.
- * 
+ *
  * Structure:
  * - Header (Logo, User Actions)
  * - Sidebar/Navigation (if applicable)
  * - Main Content Area (Slot)
  * - Footer
- * 
+ *
  * Provides the common structure for all application pages.
- * 
+ *
  * @element main-layout
  * @slot - The main content to display within the layout
  */
@@ -28,7 +28,7 @@ export class MainLayout extends LitElement {
       background-color: var(--yts-bg-primary);
       color: var(--yts-text-primary);
     }
-    
+
     main {
       width: 100%;
       height: 100%;

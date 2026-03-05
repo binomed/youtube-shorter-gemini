@@ -13,14 +13,14 @@ import { projectSignal, setProject } from '../state/project.state.js';
 
 /**
  * Analysis loading page — transitional screen between Dashboard and Editor.
- * 
+ *
  * Shows animated progress phases as Gemini analyzes the video:
  * - Phase 1: Extracting video frames (FFmpeg)
  * - Phase 2: Analyzing with AI (Gemini)
  * - Phase 3: Preparing your Shorts (saving results)
- * 
+ *
  * Auto-dispatches 'analysis-complete' when done.
- * 
+ *
  * @element analysis-page
  * @fires analysis-complete - When analysis finishes successfully
  */

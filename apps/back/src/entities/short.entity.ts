@@ -144,6 +144,20 @@ export class Short {
   subtitleStyle?: Record<string, unknown>;
 
   /**
+   * List of segments (jump cuts) that compose this short.
+   * JSON structure: Array<{ startTime: number, endTime: number }>
+   */
+  @Column({
+    type: 'text',
+    nullable: true,
+    transformer: {
+      to: (value: any[] | null | undefined) => JSON.stringify(value),
+      from: (value: string) => (value ? (JSON.parse(value) as any[]) : null),
+    },
+  })
+  segments?: any[];
+
+  /**
    * Timestamp when the short was created/detected
    */
   @CreateDateColumn()

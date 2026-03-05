@@ -6,18 +6,18 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
-import type { SubtitleResponse, SubtitleStyle } from '@youtube-shorter/shared';
+import type { SubtitleResponse, SubtitleStyle, VideoSegment } from '@youtube-shorter/shared';
 import './molecules/yts-subtitle-overlay.element.js';
 
 /**
  * Component for playing and editing short-form videos.
- * 
+ *
  * Features:
  * - Displays video preview with overlay controls
  * - Editable floating caption
  * - Play/Pause functionality
  * - Used in the Editor Page for final adjustments
- * 
+ *
  * @element short-player
  */
 @customElement('short-player')
@@ -28,6 +28,7 @@ export class ShortPlayer extends LitElement {
   @property({ type: Object }) subtitleStyle?: SubtitleStyle;
   @property({ type: Number }) startTime = 0;
   @property({ type: Number }) endTime = 0;
+  @property({ type: Array }) segments: VideoSegment[] = [];
 
   @query('video') videoElement!: HTMLVideoElement;
   @state() private isPlaying = false;
@@ -48,15 +49,38 @@ export class ShortPlayer extends LitElement {
   private handleTimeUpdate = (): void => {
     this.currentTime = this.videoElement.currentTime;
 
-    // Enforce end time if set
+    // Handle segment jump cuts (now single segment to match user request)
+    if (this.segments && this.segments.length > 0) {
+      const seg = this.segments[0];
+      if (this.currentTime < seg.startTime) {
+        this.videoElement.currentTime = seg.startTime;
+      } else if (this.currentTime >= seg.endTime) {
+        this.videoElement.currentTime = seg.startTime;
+      }
+      return;
+    }
+
+    // Legacy single segment logic
     if (this.endTime > 0 && this.currentTime >= this.endTime) {
       this.videoElement.currentTime = this.startTime;
       void this.videoElement.play();
     }
 
-    // Enforce start time (prevent playing before start)
     if (this.startTime > 0 && this.currentTime < this.startTime) {
       this.videoElement.currentTime = this.startTime;
+    }
+  }
+
+  private _getCurrentSegmentIndex(time: number): number {
+    return this.segments.findIndex(s => time >= s.startTime && time < s.endTime);
+  }
+
+  /**
+   * Public method to seek to a specific time
+   */
+  public seekTo(time: number): void {
+    if (this.videoElement) {
+      this.videoElement.currentTime = time;
     }
   }
 
@@ -85,6 +109,42 @@ export class ShortPlayer extends LitElement {
     this.isPlaying = false;
   }
 
+  connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener('keydown', this._handleKeydown);
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener('keydown', this._handleKeydown);
+    super.disconnectedCallback();
+  }
+
+  private _handleKeydown = (e: KeyboardEvent) => {
+    // Only handle if not typing in an input
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+    if (e.key.toLowerCase() === 'u') {
+      this._markDelta('in', -1);
+    } else if (e.key.toLowerCase() === 'i') {
+      this._markDelta('in', 1);
+    } else if (e.key.toLowerCase() === 'o') {
+      this._markDelta('out', -1);
+    } else if (e.key.toLowerCase() === 'p') {
+      this._markDelta('out', 1);
+    } else if (e.code === 'Space') {
+      e.preventDefault();
+      this.togglePlay();
+    }
+  };
+
+  private _markDelta(boundary: 'in' | 'out', delta: number) {
+    this.dispatchEvent(new CustomEvent('mark-delta', {
+      detail: { boundary, delta },
+      bubbles: true,
+      composed: true
+    }));
+  }
+
   private formatTime(seconds: number): string {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = Math.floor(seconds % 60).toString().padStart(2, '0');
@@ -96,10 +156,15 @@ export class ShortPlayer extends LitElement {
       display: block;
       width: 100%;
       height: 100%;
-      max-width: 405px; /* 720p portrait width (720 * 9/16 = 405) */
+      max-width: 100%;
+      max-height: 100%;
       aspect-ratio: 9/16;
       position: relative;
-      margin: 0 auto; /* Center in parent */
+      margin: 0 auto;
+      min-height: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     .player-container {
@@ -125,7 +190,7 @@ export class ShortPlayer extends LitElement {
       font-size: 14px;
       cursor: pointer;
     }
-    
+
     /* Top Overlay (Header) */
     .top-overlay {
         position: absolute;
@@ -138,6 +203,12 @@ export class ShortPlayer extends LitElement {
         color: white;
         z-index: 10;
         text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        pointer-events: none;
+    }
+
+    .top-overlay sl-icon {
+        pointer-events: auto;
+        cursor: pointer;
     }
 
     /* Floating Text Bubble */
@@ -161,13 +232,13 @@ export class ShortPlayer extends LitElement {
       transition: all 0.2s ease;
       cursor: text;
     }
-    
+
     .text-bubble:focus-within {
         background: rgba(255, 255, 255, 0.25);
         border-color: rgba(255, 255, 255, 0.6);
         outline: none;
     }
-    
+
     .bubble-pointer {
         position: absolute;
         right: 12px;
@@ -187,17 +258,22 @@ export class ShortPlayer extends LitElement {
     /* Controls Overlay */
     .controls-overlay {
       position: absolute;
-      bottom: 30px;
+      bottom: 20px;
       left: 0;
       right: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
       z-index: 20;
-      padding: 0 20px;
+      padding: 0 10px;
+      pointer-events: none;
     }
-    
+
+    .play-btn, .nudge-group, .progress-bar, .text-bubble {
+        pointer-events: auto;
+    }
+
     .play-btn {
         background: rgba(255, 255, 255, 0.2);
         backdrop-filter: blur(4px);
@@ -212,12 +288,12 @@ export class ShortPlayer extends LitElement {
         border: 1px solid rgba(255,255,255,0.1);
         margin-bottom: 8px; /* Space between btn and bar */
     }
-    
+
     .play-btn:hover {
         background: rgba(255, 255, 255, 0.3);
         transform: scale(1.05);
     }
-    
+
     .progress-container {
         width: 100%;
         display: flex;
@@ -232,7 +308,7 @@ export class ShortPlayer extends LitElement {
         min-width: 80px;
         text-align: center;
     }
-    
+
     .progress-bar {
         flex: 1;
         height: 4px;
@@ -241,12 +317,69 @@ export class ShortPlayer extends LitElement {
         position: relative;
         cursor: pointer;
     }
-    
+
     .progress-fill {
         height: 100%;
         background: white;
         border-radius: 2px;
         transition: width 0.1s linear;
+    }
+
+    .capture-controls {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 4px;
+    }
+
+    .nudge-group {
+        display: flex;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 4px 10px;
+        gap: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+
+    .nudge-label {
+        font-size: 9px;
+        font-weight: 900;
+        color: #818cf8; /* Indigo accent */
+        margin-right: 2px;
+        letter-spacing: 1px;
+    }
+
+    .nudge-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.2s ease;
+    }
+
+    .nudge-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.3);
+        transform: translateY(-1px);
+    }
+
+    .nudge-btn:active {
+        transform: translateY(0);
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .nudge-btn sl-icon {
+        font-size: 13px;
     }
   `;
 
@@ -261,13 +394,20 @@ export class ShortPlayer extends LitElement {
     }
 
     // Progress is relative to the segment
-    const progressPercent = effectiveDuration > 0
-      ? (effectiveCurrentTime / effectiveDuration) * 100
-      : 0;
+    let progressPercent = 0;
+    if (this.segments && this.segments.length > 0) {
+      const seg = this.segments[0];
+      const segDur = seg.endTime - seg.startTime;
+      progressPercent = segDur > 0 ? ((this.currentTime - seg.startTime) / segDur) * 100 : 0;
+    } else {
+      progressPercent = effectiveDuration > 0
+        ? (effectiveCurrentTime / effectiveDuration) * 100
+        : 0;
+    }
 
     return html`
       <div class="player-container">
-      
+
         <!-- Top Info -->
         <div class="top-overlay">
            <span>${isSegment ? 'Viral Moment' : 'YouTube Short'}</span>
@@ -276,10 +416,10 @@ export class ShortPlayer extends LitElement {
 
         <!-- Video Content -->
         <div class="video-surface" @click="${this.togglePlay}">
-          <video 
-            src="${this.src}" 
-            style="width: 100%; height: 100%; object-fit: cover;" 
-            loop 
+          <video
+            src="${this.src}"
+            style="width: 100%; height: 100%; object-fit: cover;"
+            loop
             playsinline
             @timeupdate="${this.handleTimeUpdate}"
             @loadedmetadata="${this.handleLoadedMetadata}"
@@ -319,7 +459,29 @@ export class ShortPlayer extends LitElement {
           <div class="play-btn" @click="${(e: Event): void => { e.stopPropagation(); this.togglePlay(); }}">
              <sl-icon name="${this.isPlaying ? 'pause-fill' : 'play-fill'}" style="color: white; font-size: 28px;"></sl-icon>
           </div>
-          
+
+          <div class="capture-controls">
+            <div class="nudge-group">
+              <span class="nudge-label">IN</span>
+              <button class="nudge-btn" @click=${() => this._markDelta('in', -1)} title="In -1s (U)">
+                <sl-icon name="dash-circle"></sl-icon> U
+              </button>
+              <button class="nudge-btn" @click=${() => this._markDelta('in', 1)} title="In +1s (I)">
+                <sl-icon name="plus-circle"></sl-icon> I
+              </button>
+            </div>
+            
+            <div class="nudge-group">
+              <span class="nudge-label">OUT</span>
+              <button class="nudge-btn" @click=${() => this._markDelta('out', -1)} title="Out -1s (O)">
+                <sl-icon name="dash-circle"></sl-icon> O
+              </button>
+              <button class="nudge-btn" @click=${() => this._markDelta('out', 1)} title="Out +1s (P)">
+                <sl-icon name="plus-circle"></sl-icon> P
+              </button>
+            </div>
+          </div>
+
           <div class="progress-container">
              <div class="time-display">
                 ${this.formatTime(effectiveCurrentTime)} / ${this.formatTime(effectiveDuration)}
@@ -329,7 +491,7 @@ export class ShortPlayer extends LitElement {
              </div>
           </div>
         </div>
-        
+
       </div>
     `;
   }
@@ -347,8 +509,9 @@ export class ShortPlayer extends LitElement {
 
     if (isSegment) {
       // Seek relative to segment
-      const segmentDuration = this.endTime - this.startTime;
-      const targetTime = this.startTime + (percent * segmentDuration);
+      const seg = this.segments?.length > 0 ? this.segments[0] : { startTime: this.startTime, endTime: this.endTime };
+      const segmentDuration = seg.endTime - seg.startTime;
+      const targetTime = seg.startTime + (percent * segmentDuration);
       this.videoElement.currentTime = targetTime;
     } else {
       // Seek relative to full video

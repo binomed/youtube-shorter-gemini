@@ -43,7 +43,7 @@ export class StemService {
     private readonly projectRepository: Repository<Project>,
     private readonly ffmpegService: FFmpegService,
     private readonly jobService: JobService,
-  ) {}
+  ) { }
 
   /**
    * Run stem separation for a specific Short.
@@ -159,7 +159,7 @@ export class StemService {
       const saved = await this.shortRepository.save(short);
 
       // Cleanup the temporary segment audio (keep stems only)
-      await fs.unlink(segmentAudioPath).catch(() => {});
+      await fs.unlink(segmentAudioPath).catch(() => { });
 
       await this.jobService.complete(job.id);
       this.emitProgress(progress$, {
@@ -181,6 +181,35 @@ export class StemService {
       });
       throw error;
     }
+  }
+
+  /**
+   * Invalidate and delete stems for a short.
+   * Called when segment boundaries are modified.
+   */
+  async invalidateStems(shortId: string): Promise<void> {
+    const short = await this.shortRepository.findOneBy({ id: shortId });
+    if (!short) return;
+
+    this.logger.log(`Invalidating stems for short ${shortId}`);
+
+    // 1. Delete physical files
+    if (short.vocalsPath) {
+      await fs.unlink(short.vocalsPath)
+        .then(() => this.logger.debug(`Deleted vocals: ${short.vocalsPath}`))
+        .catch((err) => this.logger.warn(`Failed to delete vocals: ${err.message}`));
+    }
+    if (short.accompanimentPath) {
+      await fs.unlink(short.accompanimentPath)
+        .then(() => this.logger.debug(`Deleted accompaniment: ${short.accompanimentPath}`))
+        .catch((err) => this.logger.warn(`Failed to delete accompaniment: ${err.message}`));
+    }
+
+    // 2. Clear paths in entity (using null for explicit DB update)
+    short.vocalsPath = null as any;
+    short.accompanimentPath = null as any;
+    await this.shortRepository.save(short);
+    this.logger.log(`Stems invalidated in database for short ${shortId}`);
   }
 
   /**
@@ -263,7 +292,7 @@ export class StemService {
           this.logger.error(`demucs failed (exit code ${code}): ${stderr}`);
           reject(
             new Error(
-              `Stem separation failed (exit code ${code}). Ensure demucs is installed: pip install demucs`,
+              `Stem separation failed (exit code ${code}). Ensure demucs and soundfile are installed: pip install demucs soundfile`,
             ),
           );
         }
@@ -272,7 +301,7 @@ export class StemService {
       proc.on('error', (err) => {
         reject(
           new Error(
-            `Could not run demucs: ${err.message}. Install with: pip install demucs`,
+            `Could not run demucs: ${err.message}. Install with: pip install demucs soundfile`,
           ),
         );
       });

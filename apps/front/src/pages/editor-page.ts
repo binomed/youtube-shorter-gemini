@@ -14,9 +14,10 @@ import '@shoelace-style/shoelace/dist/components/badge/badge.js';
 import '../components/short-player.js';
 import '../components/molecules/yts-subtitle-editor.element.js';
 import '../components/molecules/yts-subtitle-style-panel.element.js';
+import '../components/molecules/yts-precision-multi-timeline.element.js';
 import { projectService } from '../services/project.service.js';
 import { projectSignal, setProject } from '../state/project.state.js';
-import type { ShortResponse, StemProgressEvent, SubtitleResponse } from '@youtube-shorter/shared';
+import type { ShortResponse, StemProgressEvent, SubtitleResponse, VideoSegment } from '@youtube-shorter/shared';
 
 @customElement('editor-page')
 export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnterObserver {
@@ -27,8 +28,10 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   @state() private stemProgress = 0;
   @state() private stemMessage = '';
   @state() private stemAvailable = false;
+  @state() private stemTimestamp = Date.now();
   @state() private editingSubtitle: SubtitleResponse | null = null;
   @state() private activeTab: 'captions' | 'style' | 'audio' = 'style';
+
 
   async onBeforeEnter(location: RouterLocation): Promise<void> {
     const projectId = location.params.projectId as string;
@@ -150,6 +153,72 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     }
   }
 
+  private async handleMarkDelta(e: CustomEvent): Promise<void> {
+    const { boundary, delta } = e.detail;
+    if (!this.currentShort || !this.currentShort.segments || this.currentShort.segments.length === 0) return;
+
+    const segment = { ...this.currentShort.segments[0] };
+    if (boundary === 'in') {
+      segment.startTime = Math.max(0, segment.startTime + delta);
+    } else {
+      segment.endTime = Math.max(segment.startTime + 0.1, segment.endTime + delta);
+    }
+
+    await this.saveSegments([segment]);
+
+    // Redémarrer la vidéo au nouveau point "In" pour vérification
+    const player = this.shadowRoot?.querySelector('short-player') as any;
+    if (player && player.seekTo) {
+      player.seekTo(segment.startTime);
+    }
+  }
+
+  private async handleSegmentSettled(e: CustomEvent): Promise<void> {
+    const segment = e.detail.segment;
+    await this.saveSegments([segment]);
+
+    // Redémarrer la vidéo au début du segment
+    const player = this.shadowRoot?.querySelector('short-player') as any;
+    if (player && player.seekTo) {
+      player.seekTo(segment.startTime);
+    }
+  }
+
+  private async saveSegments(segments: VideoSegment[]): Promise<void> {
+    if (!this.currentShort) return;
+
+    // Optimistic update
+    this.currentShort.segments = segments;
+    this.currentShort = { ...this.currentShort };
+    this.stemAvailable = false; // Invalidate stems in UI immediately
+
+    try {
+      const projectId = projectSignal.get()?.id;
+      if (projectId) {
+        const response = await fetch(`/api/projects/${projectId}/shorts/${this.currentShort.id}/segments`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ segments })
+        });
+        if (response.ok) {
+          const updatedShort = await response.json();
+          this.currentShort = updatedShort;
+          this.stemAvailable = updatedShort.stemsAvailable ?? false;
+
+          // Update projectSignal to refresh the left sidebar timings
+          const currentProject = projectSignal.get();
+          if (currentProject && currentProject.shorts) {
+            const updatedShorts = currentProject.shorts.map(s => s.id === updatedShort.id ? updatedShort : s);
+            projectSignal.set({ ...currentProject, shorts: updatedShorts });
+          }
+          this.requestUpdate();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to save segments:', err);
+    }
+  }
+
   /**
    * Trigger stem separation for the current short.
    */
@@ -175,6 +244,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       if (data.phase === 'complete') {
         this.stemSeparating = false;
         this.stemAvailable = true;
+        this.stemTimestamp = Date.now();
         eventSource.close();
       } else if (data.phase === 'error') {
         this.stemSeparating = false;
@@ -195,6 +265,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       const result = await response.json();
       if (result.success) {
         this.stemAvailable = true;
+        this.stemTimestamp = Date.now();
       }
     } catch (e) {
       console.error('Stem separation failed:', e);
@@ -213,6 +284,9 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     }
     try {
       this.shorts = await projectService.getShorts(projectId);
+      if (this.shorts.length > 0 && !this.currentShort) {
+        this.playShort(this.shorts[0]);
+      }
     } catch (e) {
       console.error('Failed to load shorts:', e);
     }
@@ -268,7 +342,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       flex-direction: column;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     }
-    
+
     .panel-header {
       font-size: 16px;
       font-weight: 500;
@@ -292,10 +366,14 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     }
 
     .sidebar-right {
-      background: #1e202a; /* Deep navy from mockup */
-      border: 1px solid rgba(255,255,255,0.05); /* Very subtle border */
+      background: #1e202a;
+      border: 1px solid rgba(255,255,255,0.05);
       box-shadow: none;
       padding: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0; /* Allow content to shrink */
     }
 
     .tools-header {
@@ -315,6 +393,59 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       color: #f8fafc;
     }
 
+    .captions-list {
+      flex: 1; /* Allow captions list to take available space */
+      overflow-y: auto; /* Enable scrolling for captions */
+      padding-right: 4px; /* Space for scrollbar */
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .captions-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .captions-list::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .captions-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+    }
+
+    .caption-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      transition: all 0.2s ease;
+    }
+
+    .caption-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.1);
+        transform: translateX(2px);
+    }
+
+    .caption-text {
+        flex: 1;
+        font-size: 13px;
+        color: #f1f5f9;
+        line-height: 1.4;
+    }
+
+    .caption-time {
+        font-size: 11px;
+        color: #64748b;
+        font-family: monospace;
+        margin-top: 2px;
+    }
     .active-pill-btn {
       background: transparent;
       color: #94a3b8;
@@ -326,7 +457,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       cursor: pointer;
       transition: all 0.2s;
     }
-    
+
     .active-pill-btn.selected {
       background: #0ea5e9; /* Light blue */
       color: white;
@@ -339,12 +470,31 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       --track-width: 0;
       --indicator-color: transparent;
     }
-    
+
     sl-tab {
-      display: none; /* Hide default tabs, we'll control it via state if needed, but keeping it simple for now */
+      display: none;
     }
 
-    /* ... */
+    .reel-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr 340px;
+      height: 100vh;
+      max-height: 100vh;
+      gap: 24px;
+      padding: 24px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
   `;
 
   render(): unknown {
@@ -376,20 +526,19 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         : this.shorts.length === 0
           ? html`<div style="color:#64748b; text-align:center; padding:20px;">No shorts detected yet.</div>`
           : this.shorts.map(s => html`
-                  <div class="segment-card" @click="${(): void => this.playShort(s)}">
-                    <div class="segment-thumb">
-                      ${s.thumbnailUrl
+            <div class="segment-card" @click="${(): void => this.playShort(s)}">
+              <div class="segment-thumb">
+                ${s.thumbnailUrl
               ? html`<img src="${s.thumbnailUrl}" alt="${s.title}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`
               : ''
             }
-                    </div>
-                    <div class="segment-info">
-                      <div class="segment-title">${s.title}</div>
-                      <div class="segment-meta">${this.formatTime(s.startTime)} - ${this.formatTime(s.endTime)}</div>
-                    </div>
-                  </div>
-                `)
-      }
+              </div>
+              <div class="segment-info">
+                <div class="segment-title">${s.title}</div>
+                <div class="segment-meta">${this.formatTime(s.startTime)} - ${this.formatTime(s.endTime)}</div>
+              </div>
+            </div>
+          `)}
         </div>
       </aside>
     `;
@@ -397,21 +546,40 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
   /** Renders the center reel/preview area with the short-player component. */
   private renderReelCenter(): unknown {
+    const projectId = projectSignal.get()?.id;
     return html`
       <main class="reel-container" style="position: relative;">
-        ${projectSignal.get()
-        ? html`<short-player
-                src="/api/projects/${projectSignal.get()?.id}/video"
-                .subtitles=${this.currentShort?.subtitles || []}
-                .subtitleStyle=${this.currentShort?.subtitleStyle}
-                .startTime=${this.currentShort?.startTime || 0}
-                .endTime=${this.currentShort?.endTime || 0}
-                @edit-subtitle=${this.handleEditSubtitle}
-                @style-changed=${this.handleStyleChange}
-              ></short-player>`
+        ${projectId
+        ? html`
+            <div style="display: flex; flex-direction: column; gap: 16px; height: 100%; width: 100%; overflow: hidden; justify-content: space-between; align-items: center; padding: 0 12px;">
+              <div style="flex: 1; min-height: 0; width: 100%; display: flex; justify-content: center; align-items: center;">
+                <short-player
+                  style="max-height: 100%; max-width: 100%; width: auto; height: auto;"
+                  src="/api/projects/${projectId}/video"
+                  .subtitles=${this._getFilteredSubtitles()}
+                  .subtitleStyle=${this.currentShort?.subtitleStyle}
+                  .startTime=${this.currentShort?.startTime || 0}
+                  .endTime=${this.currentShort?.endTime || 0}
+                  .segments=${this.currentShort?.segments || []}
+                  @edit-subtitle=${this.handleEditSubtitle}
+                  @style-changed=${this.handleStyleChange}
+                  @mark-delta=${this.handleMarkDelta}
+                  @segment-settled=${this.handleSegmentSettled}
+                  ></short-player>
+              </div>
+
+              ${this.currentShort ? html`
+                  <yts-precision-multi-timeline
+                      style="flex-shrink: 0; width: 100%; max-width: 800px; padding-bottom: 24px;"
+                      .duration=${projectSignal.get()?.duration || 0}
+                      .segment=${this.currentShort.segments?.[0] || { startTime: this.currentShort.startTime, endTime: this.currentShort.endTime }}
+                      @segment-settled=${this.handleSegmentSettled}
+                  ></yts-precision-multi-timeline>
+              ` : ''}
+            </div>`
         : html`<div>Loading project...</div>`
       }
-      
+
       ${this.editingSubtitle ? html`
         <yts-subtitle-editor
           .subtitle=${this.editingSubtitle}
@@ -419,9 +587,26 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
           @save-subtitle=${this.handleSaveSubtitle}
           @cancel-edit=${this.handleCancelEdit}
         ></yts-subtitle-editor>
-      ` : ''}
-      </main>
-    `;
+      ` : ''
+      }
+</main>
+  `;
+  }
+
+  private _getFilteredSubtitles(): SubtitleResponse[] {
+    if (!this.currentShort) return [];
+    const segments = this.currentShort.segments;
+    if (!segments || segments.length === 0) {
+      // Fallback to original detection if no manual segments
+      const start = this.currentShort.startTime;
+      const end = this.currentShort.endTime;
+      return (this.currentShort.subtitles || []).filter(sub => sub.startTime >= start && sub.endTime <= end);
+    }
+
+    const seg = segments[0];
+    return (this.currentShort.subtitles || []).filter(sub =>
+      sub.startTime <= seg.endTime && sub.endTime >= seg.startTime
+    );
   }
 
   /** Renders the right tools panel (captions, style, audio tabs). */
@@ -434,6 +619,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
             <span>Captions & Audio</span>
           </div>
           <div style="display: flex; gap: 8px;">
+            <button class="active-pill-btn ${this.activeTab === 'captions' ? 'selected' : 'unselected'}" @click=${() => this.activeTab = 'captions'}>Captions</button>
             <button class="active-pill-btn ${this.activeTab === 'style' ? 'selected' : 'unselected'}" @click=${() => this.activeTab = 'style'}>Style</button>
             <button class="active-pill-btn ${this.activeTab === 'audio' ? 'selected' : 'unselected'}" @click=${() => this.activeTab = 'audio'}>Audio</button>
           </div>
@@ -460,20 +646,21 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
         ${this.activeTab === 'captions' ? html`
             <div class="captions-list">
-              ${[1, 2, 3, 4, 5].map(i => html`
-                <div class="caption-item">
-                  <sl-icon name="lock" style="color:#64748b; font-size: 14px;"></sl-icon>
-                  <div class="caption-text">Caption line number ${i} text content...</div>
-                  <div class="caption-time">00:${i * 5}</div>
-                </div>
-              `)}
+              ${!this.currentShort?.subtitles || this.currentShort.subtitles.length === 0
+          ? html`<div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">No captions found. Move boundaries or wait for transcription.</div>`
+          : this.currentShort.subtitles.map(sub => html`
+                    <div class="caption-item" @click=${() => this.handleEditSubtitle(new CustomEvent('edit-subtitle', { detail: { subtitle: sub } }))}>
+                      <sl-icon name="chat-square-text" style="color:#818cf8; font-size: 14px;"></sl-icon>
+                      <div class="caption-text">${sub.text}</div>
+                      <div class="caption-time">${this.formatTime(sub.startTime)}</div>
+                    </div>
+                  `)
+        }
             </div>
         ` : ''}
       </aside>
     `;
   }
-
-
 
   /** Renders the audio stem separation panel (state-driven: idle / separating / available). */
   private renderAudioPanel(): unknown {
@@ -492,21 +679,22 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       `;
     }
     if (this.stemAvailable) {
+      const projectId = projectSignal.get()?.id;
       return html`
         <div style="display: flex; flex-direction: column; gap: 12px;">
           <sl-badge variant="success" style="align-self: flex-start;">Stems Ready</sl-badge>
           <div style="display: flex; gap: 8px; align-items: center;">
             <sl-icon name="mic" style="color: #818cf8;"></sl-icon>
             <span style="font-size: 13px; color: #e2e8f0;">Vocals</span>
-            <audio controls style="flex: 1; height: 32px;">
-              <source src="/api/projects/${projectSignal.get()?.id}/shorts/${this.currentShort.id}/stems/vocals" type="audio/wav">
+            <audio controls style="flex: 1; height: 32px;" 
+                   src="/api/projects/${projectId}/shorts/${this.currentShort.id}/stems/vocals?t=${this.stemTimestamp}">
             </audio>
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
             <sl-icon name="music-note-beamed" style="color: #818cf8;"></sl-icon>
             <span style="font-size: 13px; color: #e2e8f0;">Music</span>
-            <audio controls style="flex: 1; height: 32px;">
-              <source src="/api/projects/${projectSignal.get()?.id}/shorts/${this.currentShort.id}/stems/accompaniment" type="audio/wav">
+            <audio controls style="flex: 1; height: 32px;"
+                   src="/api/projects/${projectId}/shorts/${this.currentShort.id}/stems/accompaniment?t=${this.stemTimestamp}">
             </audio>
           </div>
           <sl-button variant="text" size="small" @click="${(): void => { void this.triggerStemSeparation(); }}">Re-run separation</sl-button>

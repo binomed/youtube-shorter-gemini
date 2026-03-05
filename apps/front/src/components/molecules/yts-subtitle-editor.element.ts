@@ -10,7 +10,7 @@ import { styleMap } from 'lit/directives/style-map.js';
 /**
  * Component for editing subtitle text inline over the video.
  * Auto-pauses video (handled by parent logic) and saves on blur/Enter.
- * 
+ *
  * @element yts-subtitle-editor
  */
 @customElement('yts-subtitle-editor')
@@ -106,7 +106,7 @@ export class YtsSubtitleEditor extends LitElement {
             flex-direction: column;
             align-items: stretch;
             gap: 8px;
-            
+
             /* Add some transform to place it correctly if defined */
             transition: all 0.2s;
         }

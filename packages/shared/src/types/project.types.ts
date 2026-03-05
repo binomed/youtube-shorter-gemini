@@ -37,4 +37,7 @@ export interface ProjectResponse {
 
     /** Project has been analyzed (has transcript) */
     isAnalyzed?: boolean;
+
+    /** Associated shorts (viral segments) */
+    shorts?: ShortResponse[];
 }

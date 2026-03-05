@@ -31,6 +31,7 @@ import type {
   StemProgressEvent,
   ShortResponse,
   SubtitleStyle,
+  UpdateShortSegmentsDto,
 } from '@youtube-shorter/shared';
 
 /**
@@ -93,6 +94,7 @@ export class AnalysisController {
           ? `/api/projects/${id}/shorts/${s.id}/thumbnail`
           : undefined,
         stemsAvailable: !!(s.vocalsPath && s.accompanimentPath),
+        segments: s.segments,
         createdAt: s.createdAt.toISOString(),
       }));
 
@@ -159,6 +161,7 @@ export class AnalysisController {
         : undefined,
       stemsAvailable: !!(s.vocalsPath && s.accompanimentPath),
       subtitleStyle: s.subtitleStyle as SubtitleStyle,
+      segments: s.segments,
       subtitles: s.subtitles?.map((sub) => ({
         id: sub.id,
         shortId: sub.shortId,
@@ -378,5 +381,25 @@ export class AnalysisController {
       subtitleId,
       textDto,
     );
+  }
+
+  /**
+   * Update the segments (jump cuts) for a specific short.
+   *
+   * @param id - Project UUID
+   * @param shortId - Short UUID
+   * @param segmentsDto - New segments list
+   */
+  @Patch(':id/shorts/:shortId/segments')
+  async updateShortSegments(
+    @Param('id') id: string,
+    @Param('shortId') shortId: string,
+    @Body() updateDto: UpdateShortSegmentsDto,
+  ): Promise<ShortResponse> {
+    const short = await this.analysisService.updateShortSegments(id, shortId, updateDto);
+    return {
+      ...(short as any),
+      stemsAvailable: !!(short.vocalsPath && short.accompanimentPath),
+    } as ShortResponse;
   }
 }

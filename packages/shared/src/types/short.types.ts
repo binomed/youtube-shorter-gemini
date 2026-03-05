@@ -2,6 +2,14 @@
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 /**
+ * Individual video segment within a short
+ */
+export interface VideoSegment {
+    startTime: number;
+    endTime: number;
+}
+
+/**
  * Response DTO for a Short (viral segment detected by AI)
  */
 export interface ShortResponse {
@@ -42,6 +50,12 @@ export interface ShortResponse {
      * User-customized subtitle styling preferences.
      */
     subtitleStyle?: SubtitleStyle;
+
+    /**
+     * List of segments (jump cuts) that compose this short.
+     * If empty, fallback to the top-level startTime/endTime.
+     */
+    segments?: VideoSegment[];
 
     /**
      * List of subtitles associated with this short.

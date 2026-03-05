@@ -10,7 +10,7 @@ import type { SubtitleResponse, SubtitleStyle } from '@youtube-shorter/shared';
 /**
  * Component responsible for displaying and styling the active subtitle
  * over the video player during playback.
- * 
+ *
  * @element yts-subtitle-overlay
  */
 @customElement('yts-subtitle-overlay')
@@ -146,7 +146,7 @@ export class YtsSubtitleOverlay extends LitElement {
             max-width: 90%;
             word-wrap: break-word;
             touch-action: none; /* Prevent scrolling on mobile while dragging */
-            
+
             /* Default styles overridden by subtitleStyle prop */
             background-color: rgba(0, 0, 0, 0.6);
             color: #ffffff;
@@ -181,8 +181,8 @@ export class YtsSubtitleOverlay extends LitElement {
 
         return html`
             ${this.activeSubtitle ? html`
-                <div 
-                    class="subtitle-container" 
+                <div
+                    class="subtitle-container"
                     style=${styleMap(styles)}
                     @pointerdown=${this._onPointerDown}
                     role="button"

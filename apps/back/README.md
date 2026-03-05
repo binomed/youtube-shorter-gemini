@@ -31,7 +31,7 @@ This backend uses system `ffprobe` and `ffmpeg` binaries.
 ### Python ML Tools (Demucs & WhisperX)
 For AI audio capabilities, the following Python libraries must be installed globally (or in a pip environment accessible to the host).
 
-**Demucs (Stem Separation):** `pip install demucs`
+**Demucs (Stem Separation):** `pip install demucs soundfile`
 **WhisperX (Word-Level Subtitles):** `pip install git+https://github.com/m-bain/whisperx.git`
 
 ## Description

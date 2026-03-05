@@ -29,7 +29,7 @@ export class DashboardPage extends LitElement {
       --yts-text-1: #f8fafc;
       --yts-text-2: #cbd5e1;
       --yts-text-3: #94a3b8;
-      
+
       background: radial-gradient(circle at 50% 50%, #232334 0%, #111116 100%);
       font-family: 'Inter', sans-serif;
     }
@@ -43,18 +43,18 @@ export class DashboardPage extends LitElement {
       -webkit-backdrop-filter: blur(24px);
       border: 1px solid var(--yts-border);
       border-radius: 20px;
-      box-shadow: 0 0 40px rgba(0, 0, 0, 0.5), 
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.5),
                   0 0 15px rgba(99, 102, 241, 0.2),
                   inset 0 0 20px rgba(255, 255, 255, 0.02);
       position: relative;
       overflow: hidden;
-      
+
       /* Restored min-height, removed fixed height */
       min-height: 520px;
       display: flex;
       flex-direction: column;
     }
-    
+
     /* Top highlight line simulating light source */
     .glass-card::before {
         content: '';
@@ -98,7 +98,7 @@ export class DashboardPage extends LitElement {
       border-bottom-color: #818cf8;
       box-shadow: 0 2px 0 rgba(129, 140, 248, 0.2);
     }
-    
+
     input[type="text"]::placeholder {
         color: #475569;
     }
@@ -130,11 +130,11 @@ export class DashboardPage extends LitElement {
         color: #e2e8f0; /* White icon */
         transition: transform 0.3s ease;
     }
-    
+
     .drop-zone:hover .icon-wrapper {
         transform: scale(1.1);
     }
-    
+
     .drop-text {
       color: var(--yts-text-1);
       font-size: 20px;
@@ -170,7 +170,7 @@ export class DashboardPage extends LitElement {
       box-shadow: 0 6px 25px rgba(79, 70, 229, 0.6);
       filter: brightness(1.1);
     }
-    
+
     button.neon-btn:active {
         transform: translateY(0);
     }
@@ -245,7 +245,7 @@ export class DashboardPage extends LitElement {
 
     sl-tab-panel::part(base) {
         padding: 0;
-        border-top: none; 
+        border-top: none;
         margin-top: 20px;
         position: relative;
         z-index: 0;
@@ -261,16 +261,16 @@ export class DashboardPage extends LitElement {
     .project-list::-webkit-scrollbar {
         width: 6px;
     }
-    
+
     .project-list::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.02);
     }
-    
+
     .project-list::-webkit-scrollbar-thumb {
         background: rgba(99, 102, 241, 0.3);
         border-radius: 3px;
     }
-    
+
     .project-list::-webkit-scrollbar-thumb:hover {
         background: rgba(99, 102, 241, 0.5);
     }
@@ -404,9 +404,9 @@ export class DashboardPage extends LitElement {
         <div style="padding-top: 20px;">
             <div class="input-group">
             <label for="project-name">Project Name</label>
-            <input 
-                type="text" 
-                id="project-name" 
+            <input
+                type="text"
+                id="project-name"
                 .value=${this.projectName}
                 @input=${(e: Event): void => { this.projectName = (e.target as HTMLInputElement).value; }}
                 placeholder="Enter project name..."
@@ -414,21 +414,21 @@ export class DashboardPage extends LitElement {
             >
             </div>
 
-            <div 
+            <div
             class=${classMap({ 'drop-zone': true, 'drag-active': this.isDragActive })}
             @dragover=${this.handleDragOver}
             @dragleave=${this.handleDragLeave}
             @drop=${this.handleDrop}
             @click=${this.triggerFileInput}
             >
-            <input 
-                type="file" 
-                id="file-input" 
-                accept="video/*" 
-                style="display: none" 
+            <input
+                type="file"
+                id="file-input"
+                accept="video/*"
+                style="display: none"
                 @change=${this.handleFileSelect}
             >
-            
+
             ${this.selectedFile ? html`
                 <div class="icon-wrapper">
                     <sl-icon name="file-earmark-play" style="font-size: 48px;"></sl-icon>
@@ -443,14 +443,14 @@ export class DashboardPage extends LitElement {
             </div>
 
             <div class="actions">
-            <button 
-                class="neon-btn" 
-                @click=${this.handleCreateProject} 
+            <button
+                class="neon-btn"
+                @click=${this.handleCreateProject}
                 ?disabled=${!this.projectName || !this.selectedFile}
             >
                 Create Project
             </button>
-            
+
             <div class="footer-note">
                 Files are processed locally.
             </div>
@@ -473,26 +473,26 @@ export class DashboardPage extends LitElement {
             ` : html`
                 ${this.projects.map(p => html`
                     <div class="project-item" @click=${(): void => this.handleProjectClick(p.id)} style="
-                        display: flex; 
-                        justify-content: space-between; 
-                        align-items: center; 
-                        padding: 12px; 
-                        border-bottom: 1px solid rgba(255,255,255,0.05); 
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 12px;
+                        border-bottom: 1px solid rgba(255,255,255,0.05);
                         cursor: pointer;
                         transition: background 0.2s;
                     ">
                         <div class="info">
                             <div style="font-weight: 500; color: var(--yts-text-1);">${p.name}</div>
                             <div style="font-size: 12px; color: #64748b;">
-                                ${new Date(p.createdAt).toLocaleDateString()} • 
+                                ${new Date(p.createdAt).toLocaleDateString()} •
                                 ${p.duration ? Math.round(p.duration) + 's' : 'Unknown duration'} •
                                 ${p.isAnalyzed ? 'Analyzed' : 'In Progress'}
                             </div>
                         </div>
                         <div class="actions">
-                            <sl-icon-button 
-                                name="trash" 
-                                label="Delete" 
+                            <sl-icon-button
+                                name="trash"
+                                label="Delete"
                                 style="color: #ef4444;"
                                 @click=${(e: Event): void => { this.handleDeleteProject(p.id, e); }}
                             ></sl-icon-button>
@@ -520,7 +520,7 @@ export class DashboardPage extends LitElement {
             </sl-tab-panel>
         </sl-tab-group>
       </div>
-      
+
       <div class="star-deco">
         ✦
       </div>
