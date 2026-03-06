@@ -133,7 +133,7 @@ export class YtsSubtitleOverlay extends LitElement {
             align-items: center;
             justify-content: flex-end; /* Default bottom alignment */
             padding-bottom: 20%;
-            z-index: 20;
+            z-index: 2;
         }
 
         .subtitle-container {

@@ -11,6 +11,8 @@ import '@shoelace-style/shoelace/dist/components/range/range.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/badge/badge.js';
+import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
+import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
 import '../components/short-player.js';
 import '../components/molecules/yts-subtitle-editor.element.js';
 import '../components/molecules/yts-subtitle-style-panel.element.js';
@@ -32,6 +34,13 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   @state() private editingSubtitle: SubtitleResponse | null = null;
   @state() private activeTab: 'captions' | 'style' | 'audio' = 'style';
 
+  // Export State
+  @state() private showExportDialog = false;
+  @state() private exporting = false;
+  @state() private exportProgress = 0;
+  @state() private exportMessage = '';
+  @state() private exportIncludeVocals = true;
+  @state() private exportIncludeMusic = true;
 
   async onBeforeEnter(location: RouterLocation): Promise<void> {
     const projectId = location.params.projectId as string;
@@ -276,6 +285,86 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     }
   }
 
+  // ==== EXPORT LOGIC ====
+  private openExportDialog(): void {
+    if (!this.currentShort) return;
+    this.exportIncludeVocals = true;
+    this.exportIncludeMusic = true;
+    this.showExportDialog = true;
+  }
+
+  private closeExportDialog(): void {
+    if (this.exporting) return;
+    this.showExportDialog = false;
+  }
+
+  private async startExport(): Promise<void> {
+    const projectId = projectSignal.get()?.id;
+    const shortId = this.currentShort?.id;
+    if (!projectId || !shortId) return;
+
+    this.exporting = true;
+    this.exportProgress = 0;
+    this.exportMessage = 'Starting export...';
+
+    const eventSource = new EventSource(
+      `/api/projects/${projectId}/shorts/${shortId}/export/progress`
+    );
+
+    eventSource.addEventListener('export-progress', (event: Event): void => {
+      const data = JSON.parse((event as MessageEvent).data);
+      this.exportProgress = data.progress;
+      this.exportMessage = data.message;
+
+      if (data.phase === 'complete') {
+        this.exporting = false;
+        eventSource.close();
+
+        // Trigger download
+        if (data.exportUrl) {
+          const a = document.createElement('a');
+          a.href = data.exportUrl;
+          a.download = '';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+
+        // Wait briefly for download to start then close
+        setTimeout(() => {
+          this.showExportDialog = false;
+        }, 1500);
+
+      } else if (data.phase === 'error') {
+        this.exporting = false;
+        eventSource.close();
+        alert('Export failed: ' + data.message);
+      }
+    });
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/shorts/${shortId}/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shortId,
+          includeVocals: this.exportIncludeVocals,
+          includeMusic: this.exportIncludeMusic,
+        }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message);
+      }
+    } catch (e) {
+      console.error('Export request failed:', e);
+      this.exportMessage = 'Export failed to start.';
+      this.exporting = false;
+      eventSource.close();
+      alert('Failed to start export');
+    }
+  }
+
   private async loadShorts(): Promise<void> {
     const projectId = projectSignal.get()?.id;
     if (!projectId) {
@@ -310,6 +399,8 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       color: #e2e8f0;
       font-family: 'Inter', sans-serif;
       overflow: hidden;
+    }
+
     .home-button-icon {
       color: #94a3b8;
       font-size: 20px;
@@ -495,6 +586,16 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       box-sizing: border-box;
       overflow: hidden;
     }
+
+    .dialog-overview::part(panel) {
+      background-color: var(--yts-bg-secondary, #12121a);
+      border: 1px solid var(--yts-glass-border, rgba(99, 102, 241, 0.5));
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+    }
+
+    .dialog-overview::part(overlay) {
+      backdrop-filter: blur(8px);
+    }
   `;
 
   render(): unknown {
@@ -504,7 +605,55 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         ${this.renderReelCenter()}
         ${this.renderToolsPanel()}
       </div>
+      ${this.renderExportDialog()}
     `;
+  }
+
+  private renderExportDialog(): unknown {
+    return html`
+       <sl-dialog 
+         hoist
+         label="Export Short" 
+         class="dialog-overview" 
+         style="--sl-z-index-dialog: 9999; z-index: 9999;"
+         ?open=${this.showExportDialog}
+         @sl-request-close=${(e: CustomEvent) => {
+        if (this.exporting) e.preventDefault();
+        else this.closeExportDialog();
+      }}
+       >
+         ${this.exporting ? html`
+            <div style="text-align: center; padding: 20px 0;">
+              <sl-spinner style="font-size: 2rem; --indicator-color: #818cf8;"></sl-spinner>
+              <div style="margin-top: 12px; color: #94a3b8; font-size: 13px;">${this.exportMessage}</div>
+              <div style="margin-top: 8px; background: rgba(99,102,241,0.2); border-radius: 8px; height: 6px; overflow: hidden;">
+                <div style="height: 100%; background: #818cf8; border-radius: 8px; width: ${this.exportProgress}%; transition: width 0.3s;"></div>
+              </div>
+            </div>
+         ` : html`
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+               <p style="color: #e2e8f0; font-size: 14px; margin: 0;">Configure your export settings for this Short. Re-rendering will burn in your subtitle styles.</p>
+               
+               ${this.stemAvailable ? html`
+                 <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 12px;">
+                    <strong style="color: #f8fafc; font-size: 14px;">Audio Options (Stems detected)</strong>
+                    <sl-checkbox ?checked=${this.exportIncludeVocals} @click=${() => this.exportIncludeVocals = !this.exportIncludeVocals}>Include Vocals Track</sl-checkbox>
+                    <sl-checkbox ?checked=${this.exportIncludeMusic} @click=${() => this.exportIncludeMusic = !this.exportIncludeMusic}>Include Music & Accompaniment</sl-checkbox>
+                 </div>
+               ` : html`
+                 <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px;">
+                    <span style="color: #94a3b8; font-size: 13px;">Default video audio will be used. Run Stem Separation first to control vocal levels.</span>
+                 </div>
+               `}
+            </div>
+         `}
+         
+         <sl-button slot="footer" variant="default" @click=${this.closeExportDialog} ?disabled=${this.exporting}>Cancel</sl-button>
+         <sl-button slot="footer" variant="primary" @click=${this.startExport} ?disabled=${this.exporting}>
+            ${this.exporting ? 'Exporting...' : 'Start Export'}
+         </sl-button>
+       </sl-dialog>
+     `;
   }
 
   /** Renders the left sidebar listing the Gemini-detected source segments (shorts). */
@@ -614,9 +763,14 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     return html`
       <aside class="glass-panel sidebar-right">
         <div class="tools-header">
-          <div class="header-title-group">
-            <sl-icon name="person-fill" style="color: #94a3b8; font-size: 18px;"></sl-icon>
-            <span>Captions & Audio</span>
+          <div class="header-title-group" style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+               <sl-icon name="person-fill" style="color: #94a3b8; font-size: 18px;"></sl-icon>
+               <span>Captions & Audio</span>
+            </div>
+            <sl-button variant="primary" size="small" ?disabled=${!this.currentShort} @click=${this.openExportDialog}>
+              <sl-icon slot="prefix" name="download"></sl-icon> Export
+            </sl-button>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="active-pill-btn ${this.activeTab === 'captions' ? 'selected' : 'unselected'}" @click=${() => this.activeTab = 'captions'}>Captions</button>

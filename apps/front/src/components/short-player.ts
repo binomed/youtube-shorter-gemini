@@ -71,10 +71,6 @@ export class ShortPlayer extends LitElement {
     }
   }
 
-  private _getCurrentSegmentIndex(time: number): number {
-    return this.segments.findIndex(s => time >= s.startTime && time < s.endTime);
-  }
-
   /**
    * Public method to seek to a specific time
    */
@@ -201,7 +197,7 @@ export class ShortPlayer extends LitElement {
         display: flex;
         justify-content: space-between;
         color: white;
-        z-index: 10;
+        z-index: 1;
         text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         pointer-events: none;
     }
@@ -227,7 +223,7 @@ export class ShortPlayer extends LitElement {
       font-size: 20px; /* Larger text for realism */
       font-weight: 600;
       line-height: 1.4;
-      z-index: 20;
+      z-index: 2;
       box-shadow: 0 4px 15px rgba(0,0,0,0.2);
       transition: all 0.2s ease;
       cursor: text;
@@ -265,7 +261,7 @@ export class ShortPlayer extends LitElement {
       flex-direction: column;
       align-items: center;
       gap: 8px;
-      z-index: 20;
+      z-index: 2;
       padding: 0 10px;
       pointer-events: none;
     }

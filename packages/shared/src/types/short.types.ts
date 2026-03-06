@@ -127,6 +127,26 @@ export interface StemProgressEvent {
 }
 
 /**
+ * SSE progress event during export.
+ */
+export interface ExportProgressEvent {
+    /** Current phase */
+    phase: 'extracting' | 'processing' | 'saving' | 'complete' | 'error';
+
+    /** Progress percentage (0-100) */
+    progress: number;
+
+    /** Human-readable status message */
+    message: string;
+
+    /** Short ID being exported */
+    shortId: string;
+
+    /** Final URL for downloading the exported file (set when phase is complete) */
+    exportUrl?: string;
+}
+
+/**
  * User-customizable subtitle styling preferences.
  */
 export interface SubtitleStyle {

@@ -6,12 +6,15 @@
 // Configuration
 export * from './config/constants';
 
+import 'reflect-metadata';
+
 // DTOs
 export { CreateProjectDto } from './dtos/create-project.dto';
 export { UpdateShortSegmentsDto } from './dtos/update-short.dto';
+export { ExportShortDto } from './dtos/export.dto';
 
 // Types
 export { ProjectResponse } from './types/project.types';
-export { ShortResponse, AnalysisResponse, AnalysisProgressEvent, DetectedSegment, StemProgressEvent, SubtitleResponse, VideoSegment } from './types/short.types';
+export { ShortResponse, AnalysisResponse, AnalysisProgressEvent, DetectedSegment, StemProgressEvent, ExportProgressEvent, SubtitleResponse, VideoSegment } from './types/short.types';
 export { SubtitlePreset, CreateSubtitlePresetDto, SubtitleStyle } from './types/subtitle-preset.types';
 export { ErrorResponse, ValidationErrorResponse, ValidationError } from './types/error.types';

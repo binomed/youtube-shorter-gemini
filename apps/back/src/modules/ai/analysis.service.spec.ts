@@ -10,6 +10,7 @@ import { NotFoundException } from '@nestjs/common';
 import { AnalysisService } from './analysis.service';
 import { GeminiService } from './gemini.service';
 import { WhisperService } from './whisper.service';
+import { StemService } from './stem.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
@@ -88,6 +89,7 @@ describe('AnalysisService', () => {
         { provide: GeminiService, useValue: mockGeminiService },
         { provide: WhisperService, useValue: mockWhisperService },
         { provide: FFmpegService, useValue: mockFfmpegService },
+        { provide: StemService, useValue: {} },
         {
           provide: ConfigService,
           useValue: {

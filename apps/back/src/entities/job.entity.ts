@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-export type JobType = 'stem_separation' | 'analysis';
+export type JobType = 'stem_separation' | 'analysis' | 'export';
 export type JobStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 /**

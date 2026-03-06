@@ -57,10 +57,11 @@ development_status:
   BF-1-1-project-deletion-filesystem-cleanup: review
   3-2-dynamic-subtitle-interaction: done
   epic-3-retrospective: optional
-  epic-4: in-progress
+  epic-4: done # Pivoted: 4.1 done, 4.2 deferred
   4-1-multi-segment-composition-jump-cuts: done
-  4-2-real-time-progress-tracking: backlog
+  4-2-real-time-progress-tracking: backlog # Note: User mentioned 4.2 was Real-time Jump-Cut, but YAML says progress tracking. Rectifying.
+  DEFERRED-4-2-real-time-jump-cut-preview: deferred
   epic-4-retrospective: optional
-  epic-5: backlog
-  5-1-high-quality-local-export: backlog
+  epic-5: in-progress
+  5-1-high-quality-local-export: in-progress
   epic-5-retrospective: optional
