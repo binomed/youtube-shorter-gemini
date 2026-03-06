@@ -48,3 +48,4 @@ coverage
 _bmad-output/planning-artifacts/validation-report-*
 
 tests
+apps/back/database.sqlite

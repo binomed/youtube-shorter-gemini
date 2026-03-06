@@ -57,7 +57,7 @@ export class AnalysisController {
   constructor(
     private readonly analysisService: AnalysisService,
     private readonly stemService: StemService,
-  ) { }
+  ) {}
 
   /**
    * Trigger AI analysis for a project's video.
@@ -223,7 +223,7 @@ export class AnalysisController {
     @Param('shortId') shortId: string,
   ): Promise<{
     success: boolean;
-    data: { vocalsPath?: string; accompanimentPath?: string };
+    data: { vocalsPath?: string | null; accompanimentPath?: string | null };
   }> {
     this.logger.log(
       `Starting stem separation for short ${shortId} in project ${id}`,
@@ -320,9 +320,9 @@ export class AnalysisController {
 
     let filePath: string | undefined;
     if (stem === 'vocals') {
-      filePath = short.vocalsPath;
+      filePath = short.vocalsPath ?? undefined;
     } else if (stem === 'accompaniment') {
-      filePath = short.accompanimentPath;
+      filePath = short.accompanimentPath ?? undefined;
     } else {
       throw new NotFoundException(
         `Unknown stem type: ${stem}. Use 'vocals' or 'accompaniment'.`,
@@ -346,7 +346,7 @@ export class AnalysisController {
 
   /**
    * Update the subtitle style preferences for a specific short.
-   * 
+   *
    * @param projectId - Project UUID
    * @param shortId - Short UUID
    * @param styleDto - Update parameters for styling
@@ -357,12 +357,16 @@ export class AnalysisController {
     @Param('shortId') shortId: string,
     @Body() styleDto: UpdateSubtitleStyleDto,
   ): Promise<void> {
-    await this.analysisService.updateSubtitleStyle(projectId, shortId, styleDto);
+    await this.analysisService.updateSubtitleStyle(
+      projectId,
+      shortId,
+      styleDto,
+    );
   }
 
   /**
    * Update the text of a specific subtitle line.
-   * 
+   *
    * @param projectId - Project UUID
    * @param shortId - Short UUID
    * @param subtitleId - Subtitle UUID
@@ -396,7 +400,11 @@ export class AnalysisController {
     @Param('shortId') shortId: string,
     @Body() updateDto: UpdateShortSegmentsDto,
   ): Promise<ShortResponse> {
-    const short = await this.analysisService.updateShortSegments(id, shortId, updateDto);
+    const short = await this.analysisService.updateShortSegments(
+      id,
+      shortId,
+      updateDto,
+    );
     return {
       ...(short as any),
       stemsAvailable: !!(short.vocalsPath && short.accompanimentPath),

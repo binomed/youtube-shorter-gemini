@@ -3,7 +3,7 @@
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindOptionsOrder } from 'typeorm';
 import { Subject } from 'rxjs';
 import { spawn } from 'child_process';
 import * as fs from 'fs/promises';
@@ -12,7 +12,10 @@ import * as os from 'os';
 import { Short } from '../../entities/short.entity';
 import { Subtitle } from '../../entities/subtitle.entity';
 import { Project } from '../../entities/project.entity';
-import { UpdateSubtitleStyleDto, UpdateSubtitleTextDto } from './dto/update-subtitle.dto';
+import {
+  UpdateSubtitleStyleDto,
+  UpdateSubtitleTextDto,
+} from './dto/update-subtitle.dto';
 import { GeminiService } from './gemini.service';
 import { WhisperService } from './whisper.service';
 import { StemService } from './stem.service';
@@ -47,7 +50,7 @@ export class AnalysisService {
     private readonly ffmpegService: FFmpegService,
     private readonly whisperService: WhisperService,
     private readonly stemService: StemService,
-  ) { }
+  ) {}
 
   /**
    * Run full analysis pipeline for a project.
@@ -111,7 +114,8 @@ export class AnalysisService {
         // Extract audio
         await this.ffmpegService.extractAudio(project.videoPath, audioPath);
 
-        const useGeminiForSubtitles = process.env.USE_GEMINI_SUBTITLES === 'true';
+        const useGeminiForSubtitles =
+          process.env.USE_GEMINI_SUBTITLES === 'true';
 
         if (useGeminiForSubtitles) {
           // Read audio buffer
@@ -133,7 +137,7 @@ export class AnalysisService {
         }
 
         // Cleanup audio file
-        await fs.unlink(audioPath).catch(() => { });
+        await fs.unlink(audioPath).catch(() => {});
       } catch (error) {
         this.logger.warn(`Transcription failed: ${(error as Error).message}`);
         // Continue without transcript
@@ -297,7 +301,7 @@ export class AnalysisService {
       }
     } finally {
       // Cleanup temp directory
-      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => { });
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
     }
 
     this.logger.log(`Extracted ${frames.length} frames from video`);
@@ -343,7 +347,8 @@ export class AnalysisService {
       // Save corresponding subtitles
       if (allSubtitles.length > 0) {
         const segmentSubtitles = allSubtitles.filter(
-          (sub) => sub.startTime <= short.endTime && sub.endTime >= short.startTime,
+          (sub) =>
+            sub.startTime <= short.endTime && sub.endTime >= short.startTime,
         );
 
         if (segmentSubtitles.length > 0) {
@@ -471,7 +476,9 @@ export class AnalysisService {
     // 2. Sync Subtitles from master transcript
     const project = await this.projectRepository.findOneBy({ id: projectId });
     if (project && project.transcript) {
-      this.logger.log(`Re-syncing subtitles for short ${shortId} from project transcript`);
+      this.logger.log(
+        `Re-syncing subtitles for short ${shortId} from project transcript`,
+      );
 
       // Clear existing subtitles for this short
       await this.subtitleRepository.delete({ shortId });
@@ -479,7 +486,8 @@ export class AnalysisService {
       // Parse and filter new subtitles
       const allSubtitles = parseSrt(project.transcript);
       const segmentSubtitles = allSubtitles.filter(
-        (sub) => sub.startTime <= short.endTime && sub.endTime >= short.startTime,
+        (sub) =>
+          sub.startTime <= short.endTime && sub.endTime >= short.startTime,
       );
 
       if (segmentSubtitles.length > 0) {
@@ -493,7 +501,9 @@ export class AnalysisService {
           });
         });
         await this.subtitleRepository.save(subtitleEntities);
-        this.logger.debug(`Saved ${subtitleEntities.length} new subtitles for short ${shortId}`);
+        this.logger.debug(
+          `Saved ${subtitleEntities.length} new subtitles for short ${shortId}`,
+        );
       }
     }
 
@@ -504,14 +514,16 @@ export class AnalysisService {
     const updatedShort = await this.shortRepository.findOne({
       where: { id: shortId },
       relations: { subtitles: true },
-      order: { subtitles: { startTime: 'ASC' } } as any,
+      order: { subtitles: { startTime: 'ASC' } } as FindOptionsOrder<Short>,
     });
 
     if (!updatedShort) {
       throw new NotFoundException(`Short ${shortId} not found after update`);
     }
 
-    this.logger.debug(`Returning short ${shortId} with ${updatedShort.subtitles?.length || 0} subtitles`);
+    this.logger.debug(
+      `Returning short ${shortId} with ${updatedShort.subtitles?.length || 0} subtitles`,
+    );
 
     return updatedShort;
   }

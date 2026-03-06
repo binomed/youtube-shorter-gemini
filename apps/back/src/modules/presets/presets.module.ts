@@ -5,9 +5,9 @@ import { PresetsService } from './presets.service';
 import { PresetsController } from './presets.controller';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([SubtitlePreset])],
-    controllers: [PresetsController],
-    providers: [PresetsService],
-    exports: [PresetsService],
+  imports: [TypeOrmModule.forFeature([SubtitlePreset])],
+  controllers: [PresetsController],
+  providers: [PresetsService],
+  exports: [PresetsService],
 })
-export class PresetsModule { }
+export class PresetsModule {}

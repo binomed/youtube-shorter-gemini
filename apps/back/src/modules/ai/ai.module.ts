@@ -25,7 +25,13 @@ import { WhisperService } from './whisper.service';
 @Module({
   imports: [TypeOrmModule.forFeature([Short, Project])],
   controllers: [AnalysisController],
-  providers: [GeminiService, AnalysisService, StemService, FFmpegService, WhisperService],
+  providers: [
+    GeminiService,
+    AnalysisService,
+    StemService,
+    FFmpegService,
+    WhisperService,
+  ],
   exports: [AnalysisService, GeminiService, StemService, WhisperService],
 })
-export class AiModule { }
+export class AiModule {}

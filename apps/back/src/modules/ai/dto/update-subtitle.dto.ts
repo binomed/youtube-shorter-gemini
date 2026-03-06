@@ -1,46 +1,64 @@
 // Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
-import { IsOptional, IsString, IsNumber, Min, Max, Matches, MaxLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  Min,
+  Max,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 export class UpdateSubtitleStyleDto {
-    @IsOptional()
-    @IsString()
-    @Matches(/^[a-zA-Z0-9\s,'"-]+$/, { message: 'Font name contains invalid characters' })
-    @MaxLength(50)
-    font?: string;
+  @IsOptional()
+  @IsString()
+  @Matches(/^[a-zA-Z0-9\s,'"-]+$/, {
+    message: 'Font name contains invalid characters',
+  })
+  @MaxLength(50)
+  font?: string;
 
-    @IsOptional()
-    @IsNumber()
-    @Min(8)
-    @Max(120)
-    fontSize?: number;
+  @IsOptional()
+  @IsNumber()
+  @Min(8)
+  @Max(120)
+  fontSize?: number;
 
-    @IsOptional()
-    @IsString()
-    @Matches(/^rgba?\(\d+,\s*\d+,\s*\d+(?:,\s*[\d.]+)?\)|#[0-9a-fA-F]{3,8}$/, { message: 'Color must be a valid hex or rgba string' })
-    color?: string;
+  @IsOptional()
+  @IsString()
+  @Matches(/^rgba?\(\d+,\s*\d+,\s*\d+(?:,\s*[\d.]+)?\)|#[0-9a-fA-F]{3,8}$/, {
+    message: 'Color must be a valid hex or rgba string',
+  })
+  color?: string;
 
-    @IsOptional()
-    @IsString()
-    @Matches(/^rgba?\(\d+,\s*\d+,\s*\d+(?:,\s*[\d.]+)?\)|#[0-9a-fA-F]{3,8}|transparent$/, { message: 'Background color must be a valid hex, rgba string, or transparent' })
-    backgroundColor?: string;
+  @IsOptional()
+  @IsString()
+  @Matches(
+    /^rgba?\(\d+,\s*\d+,\s*\d+(?:,\s*[\d.]+)?\)|#[0-9a-fA-F]{3,8}|transparent$/,
+    {
+      message:
+        'Background color must be a valid hex, rgba string, or transparent',
+    },
+  )
+  backgroundColor?: string;
 
-    @IsOptional()
-    @IsNumber()
-    @Min(-2000)
-    @Max(2000)
-    positionY?: number;
+  @IsOptional()
+  @IsNumber()
+  @Min(-2000)
+  @Max(2000)
+  positionY?: number;
 
-    @IsOptional()
-    @IsNumber()
-    @Min(-2000)
-    @Max(2000)
-    positionX?: number;
+  @IsOptional()
+  @IsNumber()
+  @Min(-2000)
+  @Max(2000)
+  positionX?: number;
 }
 
 export class UpdateSubtitleTextDto {
-    @IsString()
-    @MaxLength(500)
-    text: string;
+  @IsString()
+  @MaxLength(500)
+  text: string;
 }

@@ -16,11 +16,6 @@ interface GeminiApiError extends Error {
   statusCode?: number;
 }
 
-/** Typed JSON parsed from subtitles response */
-interface SubtitleResponse {
-  srt?: string;
-}
-
 /** Typed JSON parsed from segment response */
 interface RawSegment {
   startTime?: number;
@@ -157,12 +152,21 @@ export class GeminiService {
           items: {
             type: SchemaType.OBJECT,
             properties: {
-              startTime: { type: SchemaType.NUMBER, description: 'Start time in seconds (e.g. 1.25)' },
-              endTime: { type: SchemaType.NUMBER, description: 'End time in seconds (e.g. 2.50)' },
-              text: { type: SchemaType.STRING, description: 'The exact spoken words. MAXIMUM 7 WORDS!' }
+              startTime: {
+                type: SchemaType.NUMBER,
+                description: 'Start time in seconds (e.g. 1.25)',
+              },
+              endTime: {
+                type: SchemaType.NUMBER,
+                description: 'End time in seconds (e.g. 2.50)',
+              },
+              text: {
+                type: SchemaType.STRING,
+                description: 'The exact spoken words. MAXIMUM 7 WORDS!',
+              },
             },
-            required: ['startTime', 'endTime', 'text']
-          }
+            required: ['startTime', 'endTime', 'text'],
+          },
         },
       },
     });
@@ -209,16 +213,31 @@ export class GeminiService {
 
       const text = result.response.text().trim();
       this.logger.log(`[Gemini] Subtitles raw response received`);
-      this.logger.debug(`Text return by gemini `, text.substring(0, 200) + '...');
+      this.logger.debug(
+        `Text return by gemini `,
+        text.substring(0, 200) + '...',
+      );
 
-      let segments: Array<{ startTime: number, endTime: number, text: string }> = [];
+      let segments: Array<{
+        startTime: number;
+        endTime: number;
+        text: string;
+      }> = [];
       try {
-        segments = JSON.parse(text);
+        segments = JSON.parse(text) as Array<{
+          startTime: number;
+          endTime: number;
+          text: string;
+        }>;
       } catch {
         // Fallback for markdown blocks
         const cleanText = text.replace(/```json\n?|```/g, '').trim();
         try {
-          segments = JSON.parse(cleanText);
+          segments = JSON.parse(cleanText) as Array<{
+            startTime: number;
+            endTime: number;
+            text: string;
+          }>;
         } catch {
           throw new GeminiParseError(
             'Could not process subtitle JSON format',
@@ -279,14 +298,14 @@ export class GeminiService {
     const parts: Array<
       { text: string } | { inlineData: { mimeType: string; data: string } }
     > = [
-        { text: prompt },
-        ...videoFrames.map((frame) => ({
-          inlineData: {
-            mimeType: 'image/jpeg' as const,
-            data: frame,
-          },
-        })),
-      ];
+      { text: prompt },
+      ...videoFrames.map((frame) => ({
+        inlineData: {
+          mimeType: 'image/jpeg' as const,
+          data: frame,
+        },
+      })),
+    ];
 
     // Retry with exponential backoff for quota/rate-limit errors
     const maxRetries = 3;

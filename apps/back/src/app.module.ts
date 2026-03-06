@@ -53,4 +53,4 @@ import { PresetsModule } from './modules/presets/presets.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

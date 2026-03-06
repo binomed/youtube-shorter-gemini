@@ -113,13 +113,13 @@ export class Short {
    * Path to the separated vocals audio stem file
    */
   @Column({ type: 'varchar', nullable: true })
-  vocalsPath?: string;
+  vocalsPath?: string | null;
 
   /**
    * Path to the separated accompaniment (music) audio stem file
    */
   @Column({ type: 'varchar', nullable: true })
-  accompanimentPath?: string;
+  accompanimentPath?: string | null;
 
   /**
    * Subtitles associated with this Short
@@ -151,11 +151,16 @@ export class Short {
     type: 'text',
     nullable: true,
     transformer: {
-      to: (value: any[] | null | undefined) => JSON.stringify(value),
-      from: (value: string) => (value ? (JSON.parse(value) as any[]) : null),
+      to: (
+        value: Array<{ startTime: number; endTime: number }> | null | undefined,
+      ) => JSON.stringify(value),
+      from: (value: string) =>
+        value
+          ? (JSON.parse(value) as Array<{ startTime: number; endTime: number }>)
+          : null,
     },
   })
-  segments?: any[];
+  segments?: Array<{ startTime: number; endTime: number }>;
 
   /**
    * Timestamp when the short was created/detected

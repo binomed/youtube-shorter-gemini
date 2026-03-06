@@ -43,7 +43,7 @@ export class StemService {
     private readonly projectRepository: Repository<Project>,
     private readonly ffmpegService: FFmpegService,
     private readonly jobService: JobService,
-  ) { }
+  ) {}
 
   /**
    * Run stem separation for a specific Short.
@@ -159,7 +159,7 @@ export class StemService {
       const saved = await this.shortRepository.save(short);
 
       // Cleanup the temporary segment audio (keep stems only)
-      await fs.unlink(segmentAudioPath).catch(() => { });
+      await fs.unlink(segmentAudioPath).catch(() => {});
 
       await this.jobService.complete(job.id);
       this.emitProgress(progress$, {
@@ -195,19 +195,33 @@ export class StemService {
 
     // 1. Delete physical files
     if (short.vocalsPath) {
-      await fs.unlink(short.vocalsPath)
+      await fs
+        .unlink(short.vocalsPath)
         .then(() => this.logger.debug(`Deleted vocals: ${short.vocalsPath}`))
-        .catch((err) => this.logger.warn(`Failed to delete vocals: ${err.message}`));
+        .catch((err: unknown) =>
+          this.logger.warn(
+            `Failed to delete vocals: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
     }
     if (short.accompanimentPath) {
-      await fs.unlink(short.accompanimentPath)
-        .then(() => this.logger.debug(`Deleted accompaniment: ${short.accompanimentPath}`))
-        .catch((err) => this.logger.warn(`Failed to delete accompaniment: ${err.message}`));
+      await fs
+        .unlink(short.accompanimentPath)
+        .then(() =>
+          this.logger.debug(
+            `Deleted accompaniment: ${short.accompanimentPath}`,
+          ),
+        )
+        .catch((err: unknown) =>
+          this.logger.warn(
+            `Failed to delete accompaniment: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
     }
 
     // 2. Clear paths in entity (using null for explicit DB update)
-    short.vocalsPath = null as any;
-    short.accompanimentPath = null as any;
+    short.vocalsPath = null as string | null;
+    short.accompanimentPath = null as string | null;
     await this.shortRepository.save(short);
     this.logger.log(`Stems invalidated in database for short ${shortId}`);
   }

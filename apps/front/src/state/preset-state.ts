@@ -25,8 +25,8 @@ class PresetState {
             this.error.value = null;
             const data = await presetService.getPresets();
             this.presets.value = data;
-        } catch (err: any) {
-            this.error.value = err.message || 'Failed to load presets';
+        } catch (err: unknown) {
+            this.error.value = (err as Error).message || 'Failed to load presets';
             console.error(err);
         } finally {
             this.isLoading.value = false;
@@ -43,8 +43,8 @@ class PresetState {
             // We can append to the signals `.value`
             this.presets.value = [newPreset, ...this.presets.value];
             this.activePresetId.value = newPreset.id;
-        } catch (err: any) {
-            this.error.value = err.message || 'Failed to save preset';
+        } catch (err: unknown) {
+            this.error.value = (err as Error).message || 'Failed to save preset';
             console.error(err);
             throw err; // Re-throw so the UI can show a toast or error message
         }
@@ -58,8 +58,8 @@ class PresetState {
             this.error.value = null;
             const updated = await presetService.updatePreset(id, dto);
             this.presets.value = this.presets.value.map(p => p.id === id ? updated : p);
-        } catch (err: any) {
-            this.error.value = err.message || 'Failed to update preset';
+        } catch (err: unknown) {
+            this.error.value = (err as Error).message || 'Failed to update preset';
             console.error(err);
             throw err;
         }
@@ -77,8 +77,8 @@ class PresetState {
             if (this.activePresetId.value === id) {
                 this.activePresetId.value = null;
             }
-        } catch (err: any) {
-            this.error.value = err.message || 'Failed to delete preset';
+        } catch (err: unknown) {
+            this.error.value = (err as Error).message || 'Failed to delete preset';
             console.error(err);
             throw err;
         }

@@ -32,4 +32,4 @@ import { ExportController } from './export.controller';
   providers: [StemService, FFmpegService, JobService, ExportService],
   exports: [StemService, FFmpegService, JobService, ExportService],
 })
-export class ProcessingModule { }
+export class ProcessingModule {}

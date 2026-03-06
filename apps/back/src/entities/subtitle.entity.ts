@@ -2,12 +2,12 @@
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    ManyToOne,
-    Index,
-    JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  Index,
+  JoinColumn,
 } from 'typeorm';
 import { Short } from './short.entity';
 
@@ -21,26 +21,26 @@ import { Short } from './short.entity';
  */
 @Entity('subtitles')
 export class Subtitle {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column({ type: 'varchar' })
-    @Index()
-    shortId: string;
+  @Column({ type: 'varchar' })
+  @Index()
+  shortId: string;
 
-    @ManyToOne(() => Short, (short) => short.subtitles, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'shortId' })
-    short: Short;
+  @ManyToOne(() => Short, (short) => short.subtitles, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'shortId' })
+  short: Short;
 
-    @Column({ type: 'float' })
-    startTime: number;
+  @Column({ type: 'float' })
+  startTime: number;
 
-    @Column({ type: 'float' })
-    endTime: number;
+  @Column({ type: 'float' })
+  endTime: number;
 
-    @Column({ type: 'text' })
-    text: string;
+  @Column({ type: 'text' })
+  text: string;
 
-    @Column({ type: 'integer', default: 0 })
-    orderIndex: number;
+  @Column({ type: 'integer', default: 0 })
+  orderIndex: number;
 }

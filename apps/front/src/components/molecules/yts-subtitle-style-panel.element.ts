@@ -5,7 +5,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/preact-signals';
-import type { SubtitleStyle } from '@youtube-shorter/shared';
+import type { SubtitleStyle, SubtitlePreset } from '@youtube-shorter/shared';
 import '@shoelace-style/shoelace/dist/components/select/select.js';
 import '@shoelace-style/shoelace/dist/components/option/option.js';
 import '@shoelace-style/shoelace/dist/components/range/range.js';
@@ -65,7 +65,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         presetState.activePresetId.value = match ? match.id : null;
     }
 
-    private stylesMatch(a: any, b: any): boolean {
+    private stylesMatch(a: Partial<SubtitleStyle> | null, b: Partial<SubtitleStyle> | null): boolean {
         if (!a || !b) return false;
 
         // Convert to strings for normalized hex comparison or just direct value comparison
@@ -487,14 +487,14 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
     }
 
     private handleApplyPreset(event: Event) {
-        const select = event.target as any;
+        const select = event.target as HTMLSelectElement;
         const presetId = select.value;
         if (!presetId) {
             presetState.activePresetId.value = null;
             return;
         }
 
-        const preset = presetState.presets.value.find((p: any) => p.id === presetId);
+        const preset = presetState.presets.value.find((p: SubtitlePreset) => p.id === presetId);
         if (preset && preset.style) {
             presetState.activePresetId.value = preset.id;
             this.emitStyleChange(preset.style);
@@ -540,7 +540,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             <div class="preset-header">
                 ${isLoading ? html`<sl-icon name="arrow-clockwise" class="spin"></sl-icon> Loading presets...` : html`
                     <sl-select class="preset-select" placeholder="Choose a saved preset..." clearable .value=${presetState.activePresetId.value || ''} @sl-change=${this.handleApplyPreset}>
-                        ${presets.map((p: any) => html`
+                        ${presets.map((p: SubtitlePreset) => html`
                             <sl-option value="${p.id}">
                                 ${p.name}
                                 <sl-icon slot="suffix" name="trash" @click=${(e: Event) => {
@@ -633,7 +633,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                                     label="Custom text color picker"
                                     .value=${currentColor}
                                     @sl-change=${(e: Event) => {
-                this.emitStyleChange({ color: (e.target as any).value });
+                this.emitStyleChange({ color: (e.target as HTMLInputElement).value });
             }}
                                 ></sl-color-picker>
                             </sl-dropdown>
@@ -664,7 +664,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                                     label="Custom background color picker"
                                     .value=${currentBgColor}
                                     @sl-change=${(e: Event) => {
-                this.emitStyleChange({ backgroundColor: (e.target as any).value });
+                this.emitStyleChange({ backgroundColor: (e.target as HTMLInputElement).value });
             }}
                                 ></sl-color-picker>
                             </sl-dropdown>

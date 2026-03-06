@@ -49,7 +49,7 @@ export class FFmpegService {
   // Dependencies removed: @ffmpeg/ffmpeg, @ffmpeg/util, fs/promises (for cache)
   // Configuration FFMPEG_CACHE_DIR is now unused but kept in Config for compatibility if needed later.
 
-  constructor(private readonly configService: ConfigService) { }
+  constructor(private readonly configService: ConfigService) {}
 
   /**
    * Extract metadata from video file using ffprobe
@@ -181,16 +181,13 @@ export class FFmpegService {
     onProgress?: (percentage: number) => void,
   ): Promise<string[]> {
     const TEMP_DIR = '/tmp/yts-processing';
-    await fs.mkdir(TEMP_DIR, { recursive: true }).catch(() => { });
+    await fs.mkdir(TEMP_DIR, { recursive: true }).catch(() => {});
     const outputPaths: string[] = [];
     const totalSegments = segments.length;
 
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
-      const outputPath = path.join(
-        TEMP_DIR,
-        `segment-${Date.now()}-${i}.mp4`,
-      );
+      const outputPath = path.join(TEMP_DIR, `segment-${Date.now()}-${i}.mp4`);
 
       await this.extractSegment(
         inputPath,
@@ -220,11 +217,16 @@ export class FFmpegService {
       const duration = endTime - startTime;
 
       const args = [
-        '-ss', startTime.toString(),
-        '-i', inputPath,
-        '-t', duration.toString(),
-        '-c', 'copy',
-        '-avoid_negative_ts', 'make_zero',
+        '-ss',
+        startTime.toString(),
+        '-i',
+        inputPath,
+        '-t',
+        duration.toString(),
+        '-c',
+        'copy',
+        '-avoid_negative_ts',
+        'make_zero',
         '-y',
         outputPath,
       ];
@@ -232,13 +234,15 @@ export class FFmpegService {
       const ffmpeg = spawn('ffmpeg', args);
       let stderr = '';
 
-      ffmpeg.stderr.on('data', (data) => {
+      ffmpeg.stderr.on('data', (data: Buffer) => {
         stderr += data.toString();
       });
 
       ffmpeg.on('close', (code) => {
         if (code !== 0) {
-          this.logger.error(`FFmpeg segment extraction failed: ${stderr.substring(stderr.length - 1000)}`);
+          this.logger.error(
+            `FFmpeg segment extraction failed: ${stderr.substring(stderr.length - 1000)}`,
+          );
           return reject(new Error(`FFmpeg exited with code ${code}`));
         }
         resolve();
@@ -271,14 +275,12 @@ export class FFmpegService {
     },
   ): Promise<void> {
     const TEMP_DIR = '/tmp/yts-processing'; // Shared temp directory mapped by OS
-    await fs.mkdir(TEMP_DIR, { recursive: true }).catch(() => { });
+    await fs.mkdir(TEMP_DIR, { recursive: true }).catch(() => {});
 
     // Create concat file list
     const concatListPath = path.join(TEMP_DIR, `concat-${Date.now()}.txt`);
     // Format required for ffmpeg concat demuxer
-    const concatContent = segmentPaths
-      .map((p) => `file '${p}'`)
-      .join('\n');
+    const concatContent = segmentPaths.map((p) => `file '${p}'`).join('\n');
 
     await fs.writeFile(concatListPath, concatContent);
 
@@ -286,7 +288,7 @@ export class FFmpegService {
       await this.renderVerticalVideo(concatListPath, outputPath, options);
     } finally {
       // Cleanup concat file
-      await fs.unlink(concatListPath).catch(() => { });
+      await fs.unlink(concatListPath).catch(() => {});
     }
   }
 
@@ -317,7 +319,7 @@ export class FFmpegService {
       // Video scale and pad
       const videoFilters = [
         'scale=1080:1920:force_original_aspect_ratio=increase',
-        'crop=1080:1920'
+        'crop=1080:1920',
       ];
 
       if (options?.subtitleAssPath) {
@@ -327,16 +329,24 @@ export class FFmpegService {
         // Embed the custom fonts directory (where we downloaded Montserrat) to ensure identical rendering
         // Fix duplicate apps/back path due to CWD scoping
         const cwd = process.cwd();
-        const appBackPath = cwd.endsWith('apps/back') ? cwd : path.join(cwd, 'apps', 'back');
-        const fontsDir = path.join(appBackPath, 'assets', 'fonts').replace(/'/g, "'\\\\''");
+        const appBackPath = cwd.endsWith('apps/back')
+          ? cwd
+          : path.join(cwd, 'apps', 'back');
+        const fontsDir = path
+          .join(appBackPath, 'assets', 'fonts')
+          .replace(/'/g, "'\\\\''");
 
-        videoFilters.push(`subtitles=filename='${filterPath}':fontsdir='${fontsDir}'`);
+        videoFilters.push(
+          `subtitles=filename='${filterPath}':fontsdir='${fontsDir}'`,
+        );
       }
 
       // Video mapped out as 'v'
       let filterComplex = `[0:v]${videoFilters.join(',')}[v]`;
 
-      this.logger.log(`FFmpeg Command Args: ffmpeg ${args.join(' ')} -filter_complex "${filterComplex}" -map "[v]" ...`);
+      this.logger.log(
+        `FFmpeg Command Args: ffmpeg ${args.join(' ')} -filter_complex "${filterComplex}" -map "[v]" ...`,
+      );
 
       const audioStreamsToMix: string[] = [];
       if (options?.vocalsPath) {
@@ -362,12 +372,18 @@ export class FFmpegService {
 
       // 3. Output formats
       args.push(
-        '-c:v', 'libx264',
-        '-preset', 'medium',
-        '-crf', '23',
-        '-c:a', 'aac',
-        '-b:a', '128k',
-        '-movflags', '+faststart', // For web streaming compatibility
+        '-c:v',
+        'libx264',
+        '-preset',
+        'medium',
+        '-crf',
+        '23',
+        '-c:a',
+        'aac',
+        '-b:a',
+        '128k',
+        '-movflags',
+        '+faststart', // For web streaming compatibility
         outputPath,
       );
 
@@ -376,7 +392,7 @@ export class FFmpegService {
       let stderr = '';
       let duration: number | null = null;
 
-      ffmpeg.stderr.on('data', (data) => {
+      ffmpeg.stderr.on('data', (data: Buffer) => {
         const output = data.toString();
         stderr += output;
 
@@ -387,10 +403,15 @@ export class FFmpegService {
 
         // Extract total duration
         if (!duration) {
-          const durationMatch = output.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.\d+/);
+          const durationMatch = output.match(
+            /Duration: (\d{2}):(\d{2}):(\d{2})\.\d+/,
+          );
           if (durationMatch) {
             const [, hours, minutes, seconds] = durationMatch;
-            duration = parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds);
+            duration =
+              parseInt(hours) * 3600 +
+              parseInt(minutes) * 60 +
+              parseInt(seconds);
           }
         }
 
@@ -398,18 +419,27 @@ export class FFmpegService {
         const timeMatch = output.match(/time=(\d{2}):(\d{2}):(\d{2})\.\d+/);
         if (timeMatch && duration) {
           const [, hours, minutes, seconds] = timeMatch;
-          const currentTime = parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds);
-          const percentage = Math.min(Math.round((currentTime / duration) * 100), 100);
+          const currentTime =
+            parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseInt(seconds);
+          const percentage = Math.min(
+            Math.round((currentTime / duration) * 100),
+            100,
+          );
 
           if (options?.onProgress) {
-            options.onProgress(percentage, `Rendering: ${currentTime}s / ${duration}s`);
+            options.onProgress(
+              percentage,
+              `Rendering: ${currentTime}s / ${duration}s`,
+            );
           }
         }
       });
 
       ffmpeg.on('close', (code) => {
         if (code !== 0) {
-          this.logger.error(`FFmpeg render failed: ${stderr.substring(stderr.length - 1000)}`);
+          this.logger.error(
+            `FFmpeg render failed: ${stderr.substring(stderr.length - 1000)}`,
+          );
           return reject(new Error(`FFmpeg exited with code ${code}`));
         }
 
