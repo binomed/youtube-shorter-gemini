@@ -9,6 +9,8 @@ import { Job } from '../../entities/job.entity';
 import { StemService } from '../ai/stem.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { JobService } from './job.service';
+import { ExportService } from './export.service';
+import { ExportController } from './export.controller';
 
 /**
  * ProcessingModule — Domaine: Traitement média local (FFmpeg + Demucs).
@@ -17,6 +19,7 @@ import { JobService } from './job.service';
  * - Séparation audio via Demucs (appel CLI local)
  * - Orchestration FFmpeg pour les traitements bas-niveau
  * - Gestion des Jobs persistants (SQL-Queue, ADR-004)
+ * - Exportation des Shorts finaux avec sous-titres incrustés
  *
  * Ne pas inclure ici : GeminiService (API externe, appartient à AnalysisModule)
  *
@@ -25,7 +28,8 @@ import { JobService } from './job.service';
  */
 @Module({
   imports: [TypeOrmModule.forFeature([Short, Project, Job])],
-  providers: [StemService, FFmpegService, JobService],
-  exports: [StemService, FFmpegService, JobService],
+  controllers: [ExportController],
+  providers: [StemService, FFmpegService, JobService, ExportService],
+  exports: [StemService, FFmpegService, JobService, ExportService],
 })
-export class ProcessingModule {}
+export class ProcessingModule { }

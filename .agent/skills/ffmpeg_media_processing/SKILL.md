@@ -526,6 +526,26 @@ describe('FfmpegService', () => {
 });
 ```
 
+## Advanced ASS Subtitle Styling Tricks
+
+When rendering `.ass` subtitles via FFmpeg, styling background boxes can cause severe overlapping rendering bugs on multiline text.
+
+### Fixing Multiline Transparent Background Overlaps (`BorderStyle`)
+- **The Problem**: Using `BorderStyle=3` (Opaque Box) paints an individual rectangular background for *every single line of text*. When the text is multiline (`\N`) and has transparency (e.g., `&H80000000&`), the boxes of adjacent lines overlap in the center, causing vertical dark blending artifacts. Furthermore, in `BorderStyle=3` (depending on the renderer), `OutlineColour` may unexpectedly act as the box fill, and `BackColour` as the box drop shadow.
+- **The Solution (BorderStyle 4)**: To fix this gracefully without manual `\clip` calculations or complex scaling/outlining hacks, use `BorderStyle=4` (Uniform Background). 
+  - `BorderStyle 4` natively treats the entire multiline text block as a single unified bounding box.
+  - It maps the `BackColour` (7th parameter) correctly to the box fill.
+  - Due to ASS format quirks, `BorderStyle 4` does NOT natively support outlining or text drop shadows on the text itself.
+- **Best Practice for UI Fidelity**: To replicate modern web UI (background box + text drop shadow), separate your subtitles into **two synchronously overlaid layers**:
+  1. **Layer 0 (Background)**: Uses `BorderStyle 4`, a transparent `PrimaryColour`/`SecondaryColour` (hiding the text), and your desired `BackColour`. Ensure `Outline` is 0.
+  2. **Layer 1 (Text & Shadow)**: Uses `BorderStyle 1` (Outline/Shadow), your desired `PrimaryColour` (white text), a transparent `OutlineColour`, and your drop shadow color as the `BackColour`. Ensure `Shadow` is >0.
+
+### Border Radius Limitations
+The Advanced SubStation Alpha (.ass) format **does not natively support `border-radius`** or rounded corners on its background bounding boxes (`BorderStyle 3` or `4`).
+- While `BorderStyle=1` with an extreme `Outline` value can create rounded "bubbles" mathematically wrapping the words, it cannot produce a uniform *rectangular* rounded box and will cause severe alpha blending overlaps on multiline text.
+- Creating a true rounded rectangle requires injecting manual ASS vector drawing commands (e.g., `{\p1}m 0 0 l 100 0...{\p0}`). However, since vector shapes in ASS have fixed pixel dimensions, they do not dynamically expand or wrap around generated dynamic text lengths natively.
+- **Conclusion**: For dynamic FFmpeg subtitles, the background box (`BorderStyle 4`) will invariably feature sharp, 90-degree corners.
+
 ## FFmpeg Cheat Sheet
 
 | Task | Command Pattern |
