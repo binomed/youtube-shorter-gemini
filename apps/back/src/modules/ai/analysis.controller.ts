@@ -8,6 +8,7 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   Sse,
   Logger,
   HttpCode,
@@ -16,18 +17,23 @@ import {
   StreamableFile,
   Res,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { Observable, Subject, map, finalize } from 'rxjs';
-import { AnalysisService } from './analysis.service';
+import { Observable, map, finalize } from 'rxjs';
+import {
+  AnalysisService,
+  type AnalysisProgressEvent,
+  type AnalysisResponse,
+} from './analysis.service';
 import { StemService } from './stem.service';
+import { JobProgressService } from '../processing/job-progress.service';
 import {
   UpdateSubtitleStyleDto,
   UpdateSubtitleTextDto,
 } from './dto/update-subtitle.dto';
 import type {
-  AnalysisResponse,
-  AnalysisProgressEvent,
   StemProgressEvent,
   ShortResponse,
   SubtitleStyle,
@@ -42,22 +48,16 @@ import type {
  * - GET /api/projects/:id/analyze/progress — SSE stream for analysis progress
  * - GET /api/projects/:id/shorts — Get existing shorts for a project
  */
+@ApiTags('analysis')
 @Controller('api/projects')
 export class AnalysisController {
   private readonly logger = new Logger(AnalysisController.name);
-  private readonly activeAnalyses = new Map<
-    string,
-    Subject<AnalysisProgressEvent>
-  >();
-  private readonly activeStemJobs = new Map<
-    string,
-    Subject<StemProgressEvent>
-  >();
 
   constructor(
     private readonly analysisService: AnalysisService,
     private readonly stemService: StemService,
-  ) {}
+    private readonly jobProgressService: JobProgressService,
+  ) { }
 
   /**
    * Trigger AI analysis for a project's video.
@@ -68,69 +68,72 @@ export class AnalysisController {
    */
   @Post(':id/analyze')
   @HttpCode(HttpStatus.OK)
-  async analyzeProject(@Param('id') id: string): Promise<AnalysisResponse> {
+  @ApiOperation({ summary: 'Trigger AI analysis for a project' })
+  @ApiResponse({
+    status: 200,
+    description: 'Analysis started and results returned',
+  })
+  @ApiResponse({ status: 404, description: 'Project not found' })
+  async analyzeProject(@Param('id') id: string): Promise<{ projectId: string; jobId: string }> {
     this.logger.log(`Starting analysis for project ${id}`);
 
-    // Reuse SSE progress subject if SSE was connected first, otherwise create one
-    let progress$ = this.activeAnalyses.get(id);
-    if (!progress$) {
-      progress$ = new Subject<AnalysisProgressEvent>();
-      this.activeAnalyses.set(id, progress$);
-    }
+    // Initialize Job in SQLite via unified service
+    const jobId = await this.jobProgressService.startJob({
+      type: 'analysis',
+      projectId: id,
+    });
 
-    try {
-      const shorts = await this.analysisService.analyzeProject(id, progress$);
+    // Run analysis in background
+    void (async () => {
+      try {
+        await this.analysisService.analyzeProject(id, jobId);
+      } catch (err) {
+        this.logger.error(`Background analysis failed for ${id}: ${(err as Error).message}`);
+        // Error already handled in service.analyzeProject (it calls jobProgressService.fail)
+      }
+    })();
 
-      const shortResponses: ShortResponse[] = shorts.map((s) => ({
-        id: s.id,
-        projectId: s.projectId,
-        title: s.title,
-        description: s.description,
-        startTime: s.startTime,
-        endTime: s.endTime,
-        confidence: s.confidence,
-        orderIndex: s.orderIndex,
-        thumbnailUrl: s.thumbnailPath
-          ? `/api/projects/${id}/shorts/${s.id}/thumbnail`
-          : undefined,
-        stemsAvailable: !!(s.vocalsPath && s.accompanimentPath),
-        segments: s.segments,
-        createdAt: s.createdAt.toISOString(),
-      }));
-
-      return {
-        projectId: id,
-        count: shortResponses.length,
-        shorts: shortResponses,
-      };
-    } finally {
-      progress$.complete();
-      this.activeAnalyses.delete(id);
-    }
+    return {
+      projectId: id,
+      jobId,
+    };
   }
 
   /**
    * SSE endpoint for real-time analysis progress.
-   * Connect BEFORE triggering POST /analyze to receive all events.
    *
    * @param id - Project UUID
+   * @param jobId - Job ID to monitor
    */
   @Sse(':id/analyze/progress')
-  analyzeProgress(@Param('id') id: string): Observable<MessageEvent> {
-    this.logger.log(`SSE connection opened for project ${id}`);
+  @ApiOperation({ summary: 'SSE stream for real-time analysis progress' })
+  @ApiParam({ name: 'id', description: 'Project UUID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Observable stream of AnalysisProgressEvent',
+  })
+  async analyzeProgress(
+    @Param('id') id: string,
+    @Query('jobId') queryJobId?: string,
+  ): Promise<Observable<MessageEvent>> {
+    let jobId = queryJobId;
 
-    // Get or create progress subject
-    let progress$ = this.activeAnalyses.get(id);
-    if (!progress$) {
-      progress$ = new Subject<AnalysisProgressEvent>();
-      this.activeAnalyses.set(id, progress$);
+    if (!jobId) {
+      jobId = await this.jobProgressService.getLatestJobIdByProject(id, 'analysis');
     }
 
-    return progress$.pipe(
-      map((event) => ({
-        data: JSON.stringify(event),
-        type: 'analysis-progress',
-      })),
+    if (!jobId) {
+      throw new BadRequestException('jobId query parameter is required and no recent job found');
+    }
+
+    return this.jobProgressService.getStream<AnalysisProgressEvent>(jobId).pipe(
+      map(
+        (event) =>
+          ({
+            data: event,
+            type: 'analysis-progress',
+          }) as MessageEvent,
+      ),
       finalize(() => {
         this.logger.log(`SSE connection closed for project ${id}`);
       }),
@@ -144,10 +147,19 @@ export class AnalysisController {
    * @returns Array of shorts
    */
   @Get(':id/shorts')
+  @ApiOperation({ summary: 'Get all segments/shorts detected for a project' })
+  @ApiResponse({ status: 200, description: 'List of detected shorts' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
   async getShorts(@Param('id') id: string): Promise<ShortResponse[]> {
     const shorts = await this.analysisService.getShortsByProject(id);
+    return shorts.map((s) => this.mapToShortResponse(s, id));
+  }
 
-    return shorts.map((s) => ({
+  /**
+   * Helper to map Short entity to ShortResponse DTO.
+   */
+  private mapToShortResponse(s: any, projectId: string): ShortResponse {
+    return {
       id: s.id,
       projectId: s.projectId,
       title: s.title,
@@ -157,20 +169,20 @@ export class AnalysisController {
       confidence: s.confidence,
       orderIndex: s.orderIndex,
       thumbnailUrl: s.thumbnailPath
-        ? `/api/projects/${id}/shorts/${s.id}/thumbnail`
+        ? `/api/projects/${projectId}/shorts/${s.id}/thumbnail`
         : undefined,
       stemsAvailable: !!(s.vocalsPath && s.accompanimentPath),
       subtitleStyle: s.subtitleStyle as SubtitleStyle,
       segments: s.segments,
-      subtitles: s.subtitles?.map((sub) => ({
+      subtitles: s.subtitles?.map((sub: any) => ({
         id: sub.id,
         shortId: sub.shortId,
         startTime: sub.startTime,
         endTime: sub.endTime,
         text: sub.text,
       })),
-      createdAt: s.createdAt.toISOString(),
-    }));
+      createdAt: (s.createdAt instanceof Date ? s.createdAt : new Date(s.createdAt)).toISOString(),
+    };
   }
 
   /**
@@ -182,6 +194,9 @@ export class AnalysisController {
    * @returns StreamableFile
    */
   @Get(':id/shorts/:shortId/thumbnail')
+  @ApiOperation({ summary: 'Get thumbnail image for a short' })
+  @ApiResponse({ status: 200, description: 'Returns JPEG image stream' })
+  @ApiResponse({ status: 404, description: 'Short or thumbnail not found' })
   async getThumbnail(
     @Param('id') id: string,
     @Param('shortId') shortId: string,
@@ -214,77 +229,82 @@ export class AnalysisController {
    *
    * @param id - Project UUID
    * @param shortId - Short UUID
-   * @returns Success with stem paths
+   * @returns Success with jobId
    */
   @Post(':id/shorts/:shortId/stems')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Trigger audio stem separation for a short' })
+  @ApiResponse({ status: 200, description: 'Stem separation started' })
   async separateStems(
     @Param('id') id: string,
     @Param('shortId') shortId: string,
   ): Promise<{
     success: boolean;
-    data: { vocalsPath?: string | null; accompanimentPath?: string | null };
+    jobId: string;
   }> {
     this.logger.log(
       `Starting stem separation for short ${shortId} in project ${id}`,
     );
 
-    // Reuse SSE progress subject if SSE was connected first
-    const stemKey = `${id}:${shortId}`;
-    let progress$ = this.activeStemJobs.get(stemKey);
-    if (!progress$) {
-      progress$ = new Subject<StemProgressEvent>();
-      this.activeStemJobs.set(stemKey, progress$);
-    }
+    // Initialize Job in SQLite via unified service
+    const jobId = await this.jobProgressService.startJob({
+      type: 'stem_separation',
+      projectId: id,
+      shortId,
+    });
 
-    try {
-      const short = await this.stemService.separateStems(
-        id,
-        shortId,
-        progress$,
-      );
+    // Background trigger
+    void (async () => {
+      try {
+        await this.stemService.separateStems(id, shortId, jobId);
+      } catch (err) {
+        this.logger.error(
+          `Stem separation failed for ${shortId}: ${(err as Error).message}`,
+        );
+      }
+    })();
 
-      return {
-        success: true,
-        data: {
-          vocalsPath: short.vocalsPath,
-          accompanimentPath: short.accompanimentPath,
-        },
-      };
-    } finally {
-      progress$.complete();
-      this.activeStemJobs.delete(stemKey);
-    }
+    return {
+      success: true,
+      jobId,
+    };
   }
 
   /**
    * SSE endpoint for real-time stem separation progress.
-   * Connect BEFORE triggering POST stems to receive all events.
    *
    * @param id - Project UUID
    * @param shortId - Short UUID
+   * @param jobId - Job ID to monitor
    */
   @Sse(':id/shorts/:shortId/stems/progress')
-  stemProgress(
+  @ApiOperation({ summary: 'SSE stream for stem separation progress' })
+  @ApiResponse({
+    status: 200,
+    description: 'Observable stream of StemProgressEvent',
+  })
+  async stemProgress(
     @Param('id') id: string,
     @Param('shortId') shortId: string,
-  ): Observable<MessageEvent> {
-    this.logger.log(
-      `SSE connection opened for stem separation: ${id}/${shortId}`,
-    );
-
-    const stemKey = `${id}:${shortId}`;
-    let progress$ = this.activeStemJobs.get(stemKey);
-    if (!progress$) {
-      progress$ = new Subject<StemProgressEvent>();
-      this.activeStemJobs.set(stemKey, progress$);
+    @Query('jobId') queryJobId?: string,
+  ): Promise<Observable<MessageEvent>> {
+    let jobId = queryJobId;
+    if (!jobId) {
+      jobId = await this.jobProgressService.getLatestJobIdByShort(shortId);
     }
 
-    return progress$.pipe(
-      map((event) => ({
-        data: JSON.stringify(event),
-        type: 'stem-progress',
-      })),
+    if (!jobId) {
+      throw new BadRequestException('jobId query parameter is required and no recent job found');
+    }
+
+    return this.jobProgressService.getStream<StemProgressEvent>(jobId).pipe(
+      map(
+        (event) =>
+          ({
+            data: event,
+            type: 'stem-progress',
+          }) as MessageEvent,
+      ),
       finalize(() => {
         this.logger.log(
           `SSE connection closed for stem separation: ${id}/${shortId}`,
@@ -303,6 +323,9 @@ export class AnalysisController {
    * @returns StreamableFile
    */
   @Get(':id/shorts/:shortId/stems/:stem')
+  @ApiOperation({ summary: 'Download/Stream separated audio stem' })
+  @ApiResponse({ status: 200, description: 'Returns WAV audio stream' })
+  @ApiResponse({ status: 404, description: 'Stem file not found' })
   async getStemAudio(
     @Param('id') id: string,
     @Param('shortId') shortId: string,
@@ -352,6 +375,8 @@ export class AnalysisController {
    * @param styleDto - Update parameters for styling
    */
   @Patch(':id/shorts/:shortId/style')
+  @ApiOperation({ summary: 'Update subtitle style for a short' })
+  @ApiResponse({ status: 200, description: 'Style updated' })
   async updateSubtitleStyle(
     @Param('id') projectId: string,
     @Param('shortId') shortId: string,
@@ -373,6 +398,8 @@ export class AnalysisController {
    * @param textDto - Update parameters containing text
    */
   @Patch(':id/shorts/:shortId/subtitles/:subtitleId')
+  @ApiOperation({ summary: 'Update specific subtitle line text' })
+  @ApiResponse({ status: 200, description: 'Text updated' })
   async updateSubtitleText(
     @Param('id') projectId: string,
     @Param('shortId') shortId: string,
@@ -395,6 +422,8 @@ export class AnalysisController {
    * @param segmentsDto - New segments list
    */
   @Patch(':id/shorts/:shortId/segments')
+  @ApiOperation({ summary: 'Update jump cut segments for a short' })
+  @ApiResponse({ status: 200, description: 'Segments updated' })
   async updateShortSegments(
     @Param('id') id: string,
     @Param('shortId') shortId: string,
@@ -405,9 +434,6 @@ export class AnalysisController {
       shortId,
       updateDto,
     );
-    return {
-      ...(short as any),
-      stemsAvailable: !!(short.vocalsPath && short.accompanimentPath),
-    } as ShortResponse;
+    return this.mapToShortResponse(short, id);
   }
 }

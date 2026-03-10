@@ -4,86 +4,103 @@ import {
   Get,
   Param,
   Body,
+  Query,
   Sse,
   MessageEvent,
   BadRequestException,
   Res,
 } from '@nestjs/common';
-import { Subject, Observable, map } from 'rxjs';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import type { Response } from 'express';
+import { Observable, map } from 'rxjs';
 import * as path from 'path';
 import { ExportService } from './export.service';
+import { JobProgressService } from './job-progress.service';
 import { ExportShortDto } from '@youtube-shorter/shared';
 import type { ExportProgressEvent } from '@youtube-shorter/shared';
 
+@ApiTags('processing')
 @Controller('api/projects/:projectId/shorts/:shortId/export')
 export class ExportController {
-  // Store active SSE subjects per short export job
-  private exportSubjects = new Map<string, Subject<ExportProgressEvent>>();
-
-  constructor(private readonly exportService: ExportService) {}
+  constructor(
+    private readonly exportService: ExportService,
+    private readonly jobProgressService: JobProgressService,
+  ) { }
 
   @Post()
-  // eslint-disable-next-line @typescript-eslint/require-await
+  @ApiOperation({ summary: 'Request high-quality export for a short' })
+  @ApiResponse({ status: 200, description: 'Export job started' })
   async requestExport(
     @Param('projectId') projectId: string,
     @Param('shortId') shortId: string,
     @Body() dto: ExportShortDto,
-  ): Promise<{ success: boolean; message: string; exportUrl?: string }> {
+  ): Promise<{ success: boolean; message: string; jobId: string }> {
     if (dto.shortId !== shortId) {
       throw new BadRequestException('Path shortId must match body shortId');
     }
 
-    // Create new subject for SSE
-    const exportKey = `${projectId}_${shortId}`;
-    let subject = this.exportSubjects.get(exportKey);
-    if (!subject) {
-      subject = new Subject<ExportProgressEvent>();
-      this.exportSubjects.set(exportKey, subject);
-    }
+    // Initialize Job in SQLite via unified service
+    const jobId = await this.jobProgressService.startJob({
+      type: 'export',
+      projectId,
+      shortId,
+    });
 
-    try {
-      // Non-blocking trigger of export logic. Handled via async
-      void this.exportService
-        .exportShort(projectId, dto, subject)
-        .then((filename) => {
-          const exportUrl = `/api/projects/${projectId}/shorts/${shortId}/export/download/${filename}`;
-          subject.next({
-            phase: 'complete',
-            progress: 100,
-            message: 'Ready',
-            shortId,
-            exportUrl,
-          });
-          this.exportSubjects.delete(exportKey);
-        })
-        .catch(() => {
-          this.exportSubjects.delete(exportKey);
-        });
+    // Non-blocking trigger of export logic.
+    void (async () => {
+      try {
+        const filename = await this.exportService.exportShort(
+          projectId,
+          dto,
+          jobId,
+        );
+        const exportUrl = `/api/projects/${projectId}/shorts/${shortId}/export/download/${filename}`;
 
-      return { success: true, message: 'Export job registered and started' };
-    } catch (error) {
-      this.exportSubjects.delete(exportKey);
-      throw error;
-    }
+        // Re-emit completion with the download URL
+        await this.jobProgressService.emit(jobId, {
+          phase: 'complete',
+          progress: 100,
+          message: 'Ready',
+          shortId,
+          exportUrl,
+        } as any);
+      } catch (err: unknown) {
+        // Ensure job is marked as failed if an unexpected error bubbles up
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        await this.jobProgressService.fail(jobId, errorMessage);
+      }
+    })();
+
+    return {
+      success: true,
+      message: 'Export job registered and started',
+      jobId,
+    };
   }
 
   @Sse('progress')
-  exportProgress(
+  @ApiOperation({ summary: 'SSE stream for export progress' })
+  @ApiResponse({
+    status: 200,
+    description: 'Observable stream of ExportProgressEvent',
+  })
+  async exportProgress(
     @Param('projectId') projectId: string,
     @Param('shortId') shortId: string,
-  ): Observable<MessageEvent> {
-    const exportKey = `${projectId}_${shortId}`;
-    let subject = this.exportSubjects.get(exportKey);
-
-    // If client connects after job completion or before start, just send an idle event
-    if (!subject) {
-      subject = new Subject<ExportProgressEvent>();
-      setTimeout(() => {
-        subject!.complete();
-      }, 500);
+    @Query('jobId') queryJobId?: string,
+  ): Promise<Observable<MessageEvent>> {
+    let jobId = queryJobId;
+    if (!jobId) {
+      jobId = await this.jobProgressService.getLatestJobIdByShort(shortId);
     }
 
-    return subject.pipe(
+    if (!jobId) {
+      throw new BadRequestException(
+        'jobId query parameter is required for SSE subscription and no recent job found',
+      );
+    }
+
+    return this.jobProgressService.getStream<ExportProgressEvent>(jobId).pipe(
       map(
         (event) =>
           ({
@@ -95,14 +112,20 @@ export class ExportController {
   }
 
   @Get('download/:filename')
-  downloadExport(@Param('filename') filename: string, @Res() res: any): void {
+  @ApiOperation({ summary: 'Download final exported MP4 file' })
+  @ApiResponse({ status: 200, description: 'Returns MP4 file binary stream' })
+  @ApiResponse({ status: 400, description: 'Invalid filename' })
+  downloadExport(
+    @Param('filename') filename: string,
+    @Res() res: Response,
+  ): void {
     // Security check: only allow .mp4 files and alphanumeric/dash names
     if (!/^[a-zA-Z0-0123456789-_]+\.mp4$/.test(filename)) {
       throw new BadRequestException('Invalid filename');
     }
 
     const filePath = path.join(process.cwd(), 'uploads', 'exports', filename);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+
     res.download(filePath, filename);
   }
 }

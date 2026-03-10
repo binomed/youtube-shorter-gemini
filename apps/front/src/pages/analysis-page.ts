@@ -34,6 +34,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
   @state() private loadingProject = false;
   @state() private phases: { key: string; label: string; icon: string; done: boolean }[] = [
     { key: 'extracting_frames', label: 'Extracting video frames', icon: '🎬', done: false },
+    { key: 'transcribing', label: 'Transcribing Audio', icon: '📝', done: false },
     { key: 'analyzing', label: 'Analyzing with Gemini AI', icon: '✨', done: false },
     { key: 'saving', label: 'Preparing your Shorts', icon: '💾', done: false },
   ];
@@ -206,6 +207,23 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
       background: rgba(255, 255, 255, 0.2);
       transform: translateY(-2px);
     }
+
+    .retry-button {
+      margin-top: 24px;
+      background: #6366f1;
+      border: none;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .retry-button:hover {
+      background: #4f46e5;
+      transform: translateY(-2px);
+    }
   `;
 
   async onBeforeEnter(location: RouterLocation): Promise<void> {
@@ -248,9 +266,28 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     if (!project?.id) return;
 
     const projectId = project.id;
+    this.error = null; // Clear error on start/retry
 
-    // Connect to SSE for progress updates
-    const eventSource = new EventSource(`/api/projects/${projectId}/analyze/progress`);
+    // Trigger the analysis first to get the jobId
+    let jobId: string;
+    try {
+      const response = await fetch(`/api/projects/${projectId}/analyze`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        this.error = (errData as Record<string, string>).message || 'Analysis failed to start';
+        return;
+      }
+      const data = await response.json();
+      jobId = data.jobId;
+    } catch (err) {
+      this.error = `Network error starting analysis: ${(err as Error).message}`;
+      return;
+    }
+
+    // Connect to SSE for progress updates using the jobId
+    const eventSource = new EventSource(`/api/projects/${projectId}/analyze/progress?jobId=${jobId}`);
 
     eventSource.addEventListener('analysis-progress', (event: MessageEvent) => {
       try {
@@ -279,23 +316,12 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     });
 
     eventSource.onerror = (): void => {
-      // SSE may error before analyze starts, that's ok — we'll get events once analysis begins
-    };
-
-    // Trigger the analysis (fire-and-forget, SSE handles progress)
-    try {
-      const response = await fetch(`/api/projects/${projectId}/analyze`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        this.error = (errData as Record<string, string>).message || 'Analysis failed';
+      // If error occurs and we haven't received 'complete' yet, show generic error
+      if (this.currentPhase !== 'complete' && !this.error) {
+        this.error = 'Lost connection to analysis server.';
         eventSource.close();
       }
-    } catch (err) {
-      this.error = `Network error: ${(err as Error).message}`;
-      eventSource.close();
-    }
+    };
   }
 
   private handleProgressEvent(event: AnalysisProgressEvent): void {
@@ -304,7 +330,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     this.message = event.message;
 
     // Update phase states
-    const phaseOrder = ['extracting_frames', 'analyzing', 'saving', 'complete'];
+    const phaseOrder = ['extracting_frames', 'transcribing', 'analyzing', 'saving', 'complete'];
     const currentIndex = phaseOrder.indexOf(event.phase);
 
     this.phases = this.phases.map((p, i) => ({
@@ -357,8 +383,12 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
         </div>
 
         <p class="status-message">${this.message}</p>
-
-        ${this.error ? html`<div class="error-message">${this.error}</div>` : ''}
+        ${this.error ? html`
+          <div class="error-message">${this.error}</div>
+          <button class="retry-button" @click="${this.startAnalysis}">
+            Retry Analysis
+          </button>
+        ` : ''}
       </div>
     `;
   }

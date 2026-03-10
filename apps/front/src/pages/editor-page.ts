@@ -240,9 +240,27 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     this.stemProgress = 0;
     this.stemMessage = 'Starting stem separation...';
 
-    // Connect SSE for progress
+    let jobId: string;
+    try {
+      const response = await fetch(
+        `/api/projects/${projectId}/shorts/${shortId}/stems`,
+        { method: 'POST' }
+      );
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to start stem separation');
+      }
+      jobId = result.jobId;
+    } catch (e) {
+      console.error('Stem separation request failed:', e);
+      this.stemMessage = 'Failed to start stem separation.';
+      this.stemSeparating = false;
+      return;
+    }
+
+    // Connect SSE for progress using the jobId
     const eventSource = new EventSource(
-      `/api/projects/${projectId}/shorts/${shortId}/stems/progress`
+      `/api/projects/${projectId}/shorts/${shortId}/stems/progress?jobId=${jobId}`
     );
 
     eventSource.addEventListener('stem-progress', (event: Event): void => {
@@ -257,32 +275,18 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         eventSource.close();
       } else if (data.phase === 'error') {
         this.stemSeparating = false;
+        this.stemMessage = data.message || 'Separation failed.';
         eventSource.close();
       }
     });
 
     eventSource.onerror = (): void => {
+      if (this.stemSeparating) {
+        this.stemMessage = 'Lost connection to separation server.';
+        this.stemSeparating = false;
+      }
       eventSource.close();
     };
-
-    // Trigger the actual separation
-    try {
-      const response = await fetch(
-        `/api/projects/${projectId}/shorts/${shortId}/stems`,
-        { method: 'POST' }
-      );
-      const result = await response.json();
-      if (result.success) {
-        this.stemAvailable = true;
-        this.stemTimestamp = Date.now();
-      }
-    } catch (e) {
-      console.error('Stem separation failed:', e);
-      this.stemMessage = 'Stem separation failed.';
-    } finally {
-      this.stemSeparating = false;
-      eventSource.close();
-    }
   }
 
   // ==== EXPORT LOGIC ====
@@ -307,8 +311,32 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     this.exportProgress = 0;
     this.exportMessage = 'Starting export...';
 
+    let jobId: string;
+    try {
+      const response = await fetch(`/api/projects/${projectId}/shorts/${shortId}/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shortId,
+          includeVocals: this.exportIncludeVocals,
+          includeMusic: this.exportIncludeMusic,
+        }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to start export');
+      }
+      jobId = result.jobId;
+    } catch (e) {
+      console.error('Export request failed:', e);
+      this.exportMessage = 'Export failed to start.';
+      this.exporting = false;
+      alert('Failed to start export');
+      return;
+    }
+
     const eventSource = new EventSource(
-      `/api/projects/${projectId}/shorts/${shortId}/export/progress`
+      `/api/projects/${projectId}/shorts/${shortId}/export/progress?jobId=${jobId}`
     );
 
     eventSource.addEventListener('export-progress', (event: Event): void => {
@@ -342,27 +370,13 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       }
     });
 
-    try {
-      const response = await fetch(`/api/projects/${projectId}/shorts/${shortId}/export`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shortId,
-          includeVocals: this.exportIncludeVocals,
-          includeMusic: this.exportIncludeMusic,
-        }),
-      });
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.message);
+    eventSource.onerror = (): void => {
+      if (this.exporting) {
+        this.exportMessage = 'Lost connection to export server.';
+        this.exporting = false;
       }
-    } catch (e) {
-      console.error('Export request failed:', e);
-      this.exportMessage = 'Export failed to start.';
-      this.exporting = false;
       eventSource.close();
-      alert('Failed to start export');
-    }
+    };
   }
 
   private async loadShorts(): Promise<void> {

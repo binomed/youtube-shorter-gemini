@@ -5,7 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AnalysisController } from './analysis.controller';
 import { AnalysisService } from './analysis.service';
 import { StemService } from './stem.service';
-import { AnalysisResponse } from '@youtube-shorter/shared';
+import { JobProgressService } from '../processing/job-progress.service';
 
 const mockAnalysisService = {
   analyzeProject: jest.fn(),
@@ -13,7 +13,14 @@ const mockAnalysisService = {
 
 const mockStemService = {
   separateStems: jest.fn(),
-  getJobStatus: jest.fn(),
+};
+
+const mockJobProgressService = {
+  startJob: jest.fn().mockResolvedValue('job-123'),
+  emit: jest.fn().mockResolvedValue(undefined),
+  getStream: jest.fn(),
+  complete: jest.fn().mockResolvedValue(undefined),
+  fail: jest.fn().mockResolvedValue(undefined),
 };
 
 describe('AnalysisController', () => {
@@ -27,6 +34,7 @@ describe('AnalysisController', () => {
       providers: [
         { provide: AnalysisService, useValue: mockAnalysisService },
         { provide: StemService, useValue: mockStemService },
+        { provide: JobProgressService, useValue: mockJobProgressService },
       ],
     }).compile();
 
@@ -38,24 +46,24 @@ describe('AnalysisController', () => {
   });
 
   describe('POST /projects/:projectId/analyze', () => {
-    it('should trigger analysis and return 202 Accepted', async () => {
+    it('should trigger analysis and return projectId + jobId', async () => {
       mockAnalysisService.analyzeProject.mockResolvedValue([]);
 
-      // The controller returns a response object with success flag
-      const result = (await controller.analyzeProject(
-        'proj-1',
-      )) as unknown as AnalysisResponse;
+      const result = await controller.analyzeProject('proj-1');
 
-      expect(result).toBeDefined();
+      expect(result).toEqual({
+        projectId: 'proj-1',
+        jobId: 'job-123',
+      });
       expect(mockAnalysisService.analyzeProject).toHaveBeenCalledWith(
         'proj-1',
-        expect.anything(),
+        'job-123',
       );
     });
   });
 
   describe('POST /projects/:projectId/shorts/:shortId/stems', () => {
-    it('should trigger stem separation', async () => {
+    it('should trigger stem separation and return success + jobId', async () => {
       mockStemService.separateStems.mockResolvedValue({
         id: 'short-1',
         vocalsPath: '/tmp/vocals.wav',
@@ -63,11 +71,14 @@ describe('AnalysisController', () => {
 
       const result = await controller.separateStems('proj-1', 'short-1');
 
-      expect(result).toBeDefined();
+      expect(result).toEqual({
+        success: true,
+        jobId: 'job-123',
+      });
       expect(mockStemService.separateStems).toHaveBeenCalledWith(
         'proj-1',
         'short-1',
-        expect.anything(),
+        'job-123',
       );
     });
   });

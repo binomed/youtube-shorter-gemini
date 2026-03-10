@@ -63,10 +63,10 @@ export class GeminiService {
 
     this.genAI = new GoogleGenerativeAI(apiKey || '');
 
-    // Use configurable model, default to gemini-3-flash
+    // Use configurable model, default to gemini-1.5-flash (more stable than preview)
     const modelName = this.configService.get<string>(
       'GEMINI_MODEL',
-      'gemini-3-flash-preview',
+      'gemini-1.5-flash',
     );
     this.model = this.genAI.getGenerativeModel({
       model: modelName,
@@ -140,9 +140,9 @@ export class GeminiService {
    * Generate SRT subtitles from audio buffer using Gemini.
    */
   async generateSubtitles(audioBuffer: Buffer): Promise<string> {
-    // Use Gemini 2.5 Flash for better compliance with structured JSON lists
+    // Use stable model for better compliance
     const model = this.genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-1.5-flash',
       generationConfig: {
         temperature: 0.1,
         responseMimeType: 'application/json',
@@ -257,6 +257,7 @@ export class GeminiService {
     } catch (error) {
       this.logger.error(
         `Subtitle generation failed: ${(error as Error).message}`,
+        error,
       );
       return ''; // Return empty string on failure to allow analysis to proceed
     }
@@ -298,14 +299,14 @@ export class GeminiService {
     const parts: Array<
       { text: string } | { inlineData: { mimeType: string; data: string } }
     > = [
-      { text: prompt },
-      ...videoFrames.map((frame) => ({
-        inlineData: {
-          mimeType: 'image/jpeg' as const,
-          data: frame,
-        },
-      })),
-    ];
+        { text: prompt },
+        ...videoFrames.map((frame) => ({
+          inlineData: {
+            mimeType: 'image/jpeg' as const,
+            data: frame,
+          },
+        })),
+      ];
 
     // Retry with exponential backoff for quota/rate-limit errors
     const maxRetries = 3;
@@ -387,13 +388,13 @@ export class GeminiService {
         }
 
         if (isRetryableApiError) {
-          this.logger.error('Gemini API unavailable after retries');
+          this.logger.error(`Gemini API unavailable (retryable) after retries. Error: ${errorMessage}`);
           throw new Error(
-            'Gemini API is currently unavailable. Please wait a few minutes and try again, or switch to a different model (e.g. gemini-2.5-flash).',
+            `Gemini API is currently unavailable (${errorMessage}). Please wait a few minutes and try again.`,
           );
         }
 
-        this.logger.error(`Gemini API error: ${errorMessage}`);
+        this.logger.error(`Gemini API error (non-retryable): ${errorMessage}`, error);
         throw error;
       }
     }
