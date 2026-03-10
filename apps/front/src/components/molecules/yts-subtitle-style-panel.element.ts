@@ -518,8 +518,6 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         const currentFont = this.subtitleStyle?.font || 'inherit';
         const currentSize = this.subtitleStyle?.fontSize || 40;
         const currentPosY = this.subtitleStyle?.positionY || 0;
-        // ... (We keep custom colors processing)
-
         const currentColor = this.subtitleStyle?.color || '#ffffff';
         const currentBgColor = this.subtitleStyle?.backgroundColor || 'rgba(0,0,0,0.6)';
 
@@ -531,12 +529,22 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         if (currentBgColor === '#facc15' || currentBgColor === 'yellow') bgColorToggle = 'yellow';
         if (currentBgColor === 'rgba(0,0,0,0.6)' || currentBgColor === 'rgba(0, 0, 0, 0.6)') bgColorToggle = 'black';
 
-        // Reactive signal wrap
         const presets = presetState.presets.value;
         const isLoading = presetState.isLoading.value;
 
         return html`
-            <!-- Presets Header -->
+            ${this._renderPresetsHeader(presets, isLoading)}
+            ${this.isSavePresetDialogOpen ? this._renderSavePresetForm() : ''}
+            ${this._renderFontSection(currentFont)}
+            ${this._renderSizeSection(currentSize)}
+            ${this._renderColorsPreviewSection(currentFont, currentColor, currentBgColor, textColorToggle, bgColorToggle)}
+            ${this._renderPositionSection(currentPosY)}
+            ${this._renderFooterActions()}
+        `;
+    }
+
+    private _renderPresetsHeader(presets: SubtitlePreset[], isLoading: boolean) {
+        return html`
             <div class="preset-header">
                 ${isLoading ? html`<sl-icon name="arrow-clockwise" class="spin"></sl-icon> Loading presets...` : html`
                     <sl-select class="preset-select" placeholder="Choose a saved preset..." clearable .value=${presetState.activePresetId.value || ''} @sl-change=${this.handleApplyPreset}>
@@ -566,25 +574,29 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                     </button>
                 </sl-tooltip>
             </div>
+        `;
+    }
 
-            <!-- Inline Save Form -->
-            ${this.isSavePresetDialogOpen ? html`
-                <div class="save-preset-block">
-                    <input
-                        type="text"
-                        class="custom-input"
-                        placeholder="e.g. Big Yellow Impact"
-                        .value=${this.presetNameInput}
-                        @input=${(e: Event) => this.presetNameInput = (e.target as HTMLInputElement).value}
-                        @keyup=${(e: KeyboardEvent) => { if (e.key === 'Enter') this.handleSavePreset() }}
-                    />
-                    <button class="footer-btn" style="flex: none; padding: 8px 16px;" @click=${this.handleSavePreset} ?disabled=${!this.presetNameInput.trim()}>
-                        Save
-                    </button>
-                </div>
-            ` : ''}
+    private _renderSavePresetForm() {
+        return html`
+            <div class="save-preset-block">
+                <input
+                    type="text"
+                    class="custom-input"
+                    placeholder="e.g. Big Yellow Impact"
+                    .value=${this.presetNameInput}
+                    @input=${(e: Event) => this.presetNameInput = (e.target as HTMLInputElement).value}
+                    @keyup=${(e: KeyboardEvent) => { if (e.key === 'Enter') this.handleSavePreset() }}
+                />
+                <button class="footer-btn" style="flex: none; padding: 8px 16px;" @click=${this.handleSavePreset} ?disabled=${!this.presetNameInput.trim()}>
+                    Save
+                </button>
+            </div>
+        `;
+    }
 
-            <!-- Font Row -->
+    private _renderFontSection(currentFont: string) {
+        return html`
             <div class="panel-row">
                 <label class="label" id="font-label">Font</label>
                 <div class="select-wrapper">
@@ -599,8 +611,11 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                     </sl-tooltip>
                 </div>
             </div>
+        `;
+    }
 
-            <!-- Size Slider Row -->
+    private _renderSizeSection(currentSize: number) {
+        return html`
             <div class="size-slider-group">
                 <label class="label" id="size-label" style="width: 70px;">Size: ${currentSize}px</label>
                 <sl-tooltip content="Adjust subtitle font size">
@@ -613,8 +628,11 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                     <button type="button" class="size-btn" aria-label="Increase font size" @click=${() => this.emitStyleChange({ fontSize: Math.min(150, currentSize + 2) })}>+</button>
                 </sl-tooltip>
             </div>
+        `;
+    }
 
-            <!-- Colors & Preview Grid -->
+    private _renderColorsPreviewSection(currentFont: string, currentColor: string, currentBgColor: string, textColorToggle: string, bgColorToggle: string) {
+        return html`
             <div class="colors-preview-container">
                 <div class="colors-col">
                     <div>
@@ -645,7 +663,6 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                                 <button type="button" class="color-bubble ${textColorToggle === 'white' ? 'active' : ''}" style="background: #fff;" aria-label="Set text color to White" @click=${() => this.setTextColor('white')}></button>
                             </sl-tooltip>
                         </div>
-                        <!-- TODO: Add advanced style edit buttons here later (Outline, Shadow, Background Padding) -->
                     </div>
 
                     <div style="margin-top: 8px;">
@@ -690,9 +707,11 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                     ">Hey Listen!</div>
                 </div>
             </div>
+        `;
+    }
 
-            <!-- TODO: Add "Highlight Words" feature toggle here later -->
-
+    private _renderPositionSection(currentPosY: number) {
+        return html`
             <div class="positioning-container" style="grid-template-columns: 1fr;">
                 <div class="v-offset-group">
                     <label class="label" id="v-offset-label">Vertical Offset</label>
@@ -701,8 +720,11 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                     </sl-tooltip>
                 </div>
             </div>
+        `;
+    }
 
-            <!-- Footer Buttons -->
+    private _renderFooterActions() {
+        return html`
             <div class="footer-actions">
                 <sl-tooltip content="Apply these styles to all subtitles">
                     <button type="button" class="footer-btn" aria-label="Apply to All" @click=${this.handleApplyToAll}>Apply to All</button>
@@ -716,6 +738,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             </div>
         `;
     }
+
 }
 
 declare global {

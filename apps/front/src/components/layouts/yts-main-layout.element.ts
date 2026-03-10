@@ -16,11 +16,11 @@ import { customElement } from 'lit/decorators.js';
  *
  * Provides the common structure for all application pages.
  *
- * @element main-layout
+ * @element yts-main-layout
  * @slot - The main content to display within the layout
  */
-@customElement('main-layout')
-export class MainLayout extends LitElement {
+@customElement('yts-main-layout')
+export class YtsMainLayout extends LitElement {
   static styles = css`
     :host {
       display: block;
@@ -46,6 +46,6 @@ export class MainLayout extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'main-layout': MainLayout;
+    'yts-main-layout': YtsMainLayout;
   }
 }

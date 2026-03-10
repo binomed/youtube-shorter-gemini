@@ -352,9 +352,9 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     const project = projectSignal.get();
 
     return html`
-      <a class="home-button" @click="${(): void => { Router.go('/'); }}">
+      <button class="home-button" @click="${(): void => { Router.go('/'); }}" aria-label="Back to Dashboard">
         <sl-icon name="house-door-fill"></sl-icon> Home
-      </a>
+      </button>
       <div class="analysis-container">
         <div class="brand-icon">🧠</div>
         <h1>Analyzing Your Video</h1>

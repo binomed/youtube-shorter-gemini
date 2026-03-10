@@ -472,15 +472,25 @@ export class DashboardPage extends LitElement {
                 </div>
             ` : html`
                 ${this.projects.map(p => html`
-                    <div class="project-item" @click=${(): void => this.handleProjectClick(p.id)} style="
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        padding: 12px;
-                        border-bottom: 1px solid rgba(255,255,255,0.05);
-                        cursor: pointer;
-                        transition: background 0.2s;
-                    ">
+                    <button 
+                        class="project-item" 
+                        @click=${(): void => this.handleProjectClick(p.id)} 
+                        aria-label="Open project ${p.name}"
+                        style="
+                            display: flex;
+                            width: 100%;
+                            background: transparent;
+                            border: none;
+                            border-bottom: 1px solid rgba(255,255,255,0.05);
+                            justify-content: space-between;
+                            align-items: center;
+                            padding: 12px;
+                            cursor: pointer;
+                            transition: background 0.2s;
+                            text-align: left;
+                            font-family: inherit;
+                        "
+                    >
                         <div class="info">
                             <div style="font-weight: 500; color: var(--yts-text-1);">${p.name}</div>
                             <div style="font-size: 12px; color: #64748b;">
@@ -497,7 +507,7 @@ export class DashboardPage extends LitElement {
                                 @click=${(e: Event): void => { this.handleDeleteProject(p.id, e); }}
                             ></sl-icon-button>
                         </div>
-                    </div>
+                    </button>
                 `)}
             `}
         </div>

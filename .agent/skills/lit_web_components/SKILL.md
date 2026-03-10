@@ -34,6 +34,11 @@ Use this skill when working on ANY frontend component in `apps/front/src/compone
 - Implement ARIA attributes systematically
 - Test keyboard navigation in all interactive components
 
+### 4. Clean Code & Maintainability
+- **Decompose large `render()` methods**: If a template exceeds ~50 lines or contains complex conditional logic, split it into smaller, descriptive private methods (e.g., `_renderHeader()`, `_renderFooter()`).
+- Use descriptive naming for sub-render methods.
+- Keep logic out of templates: prepare data in getters or helper methods before rendering.
+
 ## Mandatory Patterns & Rules
 
 ### File Naming & Organization
@@ -165,6 +170,15 @@ export class YtsButton extends LitElement {
     await new Promise(resolve => setTimeout(resolve, duration));
     this.isLoading = false;
   }
+
+  // Example of decomposed rendering for better maintainability
+  private _renderHeader() {
+    return html`<header><h1>${this.title}</h1></header>`;
+  }
+
+  private _renderFooter() {
+    return html`<footer><slot name="footer"></slot></footer>`;
+  }
 }
 
 declare global {
@@ -172,7 +186,6 @@ declare global {
     'yts-button': YtsButton;
   }
 }
-```
 
 ### State Management with Lit Signals
 

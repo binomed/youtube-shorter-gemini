@@ -4,7 +4,8 @@ import { customElement, query } from 'lit/decorators.js';
 import { Router } from '@vaadin/router';
 import { projectService } from '../../services/project.service.js';
 import { setProject } from '../../state/project.state.js';
-import '../layouts/main-layout.js';
+import '../layouts/yts-main-layout.element.js';
+
 import '../../pages/dashboard-page.js';
 import '../../pages/analysis-page.js';
 import '../../pages/editor-page.js';
@@ -83,12 +84,12 @@ export class YtsApp extends LitElement {
 
   render(): unknown {
     return html`
-      <main-layout>
-        <div id="outlet"
+      <yts-main-layout>
+        <div id="router-outlet"
              @create-project=${this.handleProjectCreated}
              @analysis-complete=${this.handleAnalysisComplete}
         ></div>
-      </main-layout>
+      </yts-main-layout>
     `;
   }
 }

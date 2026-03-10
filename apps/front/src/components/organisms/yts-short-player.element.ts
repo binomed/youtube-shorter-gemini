@@ -7,7 +7,7 @@ import { customElement, property, state, query } from 'lit/decorators.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import type { SubtitleResponse, SubtitleStyle, VideoSegment } from '@youtube-shorter/shared';
-import './molecules/yts-subtitle-overlay.element.js';
+import '../molecules/yts-subtitle-overlay.element.js';
 
 /**
  * Component for playing and editing short-form videos.
@@ -18,10 +18,10 @@ import './molecules/yts-subtitle-overlay.element.js';
  * - Play/Pause functionality
  * - Used in the Editor Page for final adjustments
  *
- * @element short-player
+ * @element yts-short-player
  */
-@customElement('short-player')
-export class ShortPlayer extends LitElement {
+@customElement('yts-short-player')
+export class YtsShortPlayer extends LitElement {
   @property({ type: String }) src = '';
   @property({ type: String }) caption = '';
   @property({ type: Array }) subtitles: SubtitleResponse[] = [];
@@ -90,12 +90,10 @@ export class ShortPlayer extends LitElement {
     if (this.videoElement) {
       this.videoElement.currentTime = startTime;
       this.videoElement.play()
-        .catch(e => console.error('[ShortPlayer] Play failed', e));
+        .catch(e => console.error('[YtsShortPlayer] Play failed', e));
       this.isPlaying = true;
     }
   }
-
-
 
   private handleLoadedMetadata(): void {
     this.duration = this.videoElement.duration;
@@ -185,6 +183,8 @@ export class ShortPlayer extends LitElement {
       color: #475569;
       font-size: 14px;
       cursor: pointer;
+      border: none;
+      padding: 0;
     }
 
     /* Top Overlay (Header) */
@@ -266,7 +266,7 @@ export class ShortPlayer extends LitElement {
       pointer-events: none;
     }
 
-    .play-btn, .nudge-group, .progress-bar, .text-bubble {
+    .play-btn, .nudge-group, .progress-bar-btn, .text-bubble {
         pointer-events: auto;
     }
 
@@ -283,11 +283,17 @@ export class ShortPlayer extends LitElement {
         transition: all 0.2s;
         border: 1px solid rgba(255,255,255,0.1);
         margin-bottom: 8px; /* Space between btn and bar */
+        padding: 0;
     }
 
     .play-btn:hover {
         background: rgba(255, 255, 255, 0.3);
         transform: scale(1.05);
+    }
+
+    .play-btn:focus-visible {
+        outline: 2px solid white;
+        outline-offset: 2px;
     }
 
     .progress-container {
@@ -305,13 +311,23 @@ export class ShortPlayer extends LitElement {
         text-align: center;
     }
 
-    .progress-bar {
+    .progress-bar-btn {
         flex: 1;
+        height: 12px;
+        background: transparent;
+        border: none;
+        padding: 4px 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+    }
+
+    .progress-bar-track {
+        width: 100%;
         height: 4px;
         background: rgba(255,255,255,0.2);
         border-radius: 2px;
         position: relative;
-        cursor: pointer;
     }
 
     .progress-fill {
@@ -403,15 +419,26 @@ export class ShortPlayer extends LitElement {
 
     return html`
       <div class="player-container">
+        ${this._renderTopOverlay(isSegment)}
+        ${this._renderVideoSurface()}
+        ${this._renderSubtitleOverlay()}
+        ${this._renderControlsOverlay(effectiveCurrentTime, effectiveDuration, progressPercent)}
+      </div>
+    `;
+  }
 
-        <!-- Top Info -->
+  private _renderTopOverlay(isSegment: boolean) {
+    return html`
         <div class="top-overlay">
            <span>${isSegment ? 'Viral Moment' : 'YouTube Short'}</span>
-           <sl-icon name="info-circle"></sl-icon>
+           <sl-icon name="info-circle" aria-label="Short info"></sl-icon>
         </div>
+      `;
+  }
 
-        <!-- Video Content -->
-        <div class="video-surface" @click="${this.togglePlay}">
+  private _renderVideoSurface() {
+    return html`
+        <button class="video-surface" aria-label="Toggle playback" @click="${this.togglePlay}">
           <video
             src="${this.src}"
             style="width: 100%; height: 100%; object-fit: cover;"
@@ -421,9 +448,12 @@ export class ShortPlayer extends LitElement {
             @loadedmetadata="${this.handleLoadedMetadata}"
             @ended="${this.handleEnded}"
           ></video>
-        </div>
+        </button>
+      `;
+  }
 
-        <!-- Dynamic Subtitles -->
+  private _renderSubtitleOverlay() {
+    return html`
         <yts-subtitle-overlay
             .currentTime=${this.currentTime}
             .subtitles=${this.subtitles}
@@ -441,7 +471,6 @@ export class ShortPlayer extends LitElement {
           positionX: e.detail.positionX,
           positionY: e.detail.positionY
         };
-        // Dispatch style-changed so editor-page saves the new position exactly like the style panel does
         this.dispatchEvent(new CustomEvent('style-changed', {
           detail: { subtitleStyle: newStyle },
           bubbles: true,
@@ -449,47 +478,66 @@ export class ShortPlayer extends LitElement {
         }));
       }}
         ></yts-subtitle-overlay>
+      `;
+  }
 
-        <!-- Controls -->
+  private _renderControlsOverlay(effectiveCurrentTime: number, effectiveDuration: number, progressPercent: number) {
+    return html`
         <div class="controls-overlay">
-          <div class="play-btn" @click="${(e: Event): void => { e.stopPropagation(); this.togglePlay(); }}">
-             <sl-icon name="${this.isPlaying ? 'pause-fill' : 'play-fill'}" style="color: white; font-size: 28px;"></sl-icon>
-          </div>
+          ${this._renderPlaybackButton()}
+          ${this._renderNudgeControls()}
+          ${this._renderProgressDisplay(effectiveCurrentTime, effectiveDuration, progressPercent)}
+        </div>
+      `;
+  }
 
-          <div class="capture-controls">
+  private _renderPlaybackButton() {
+    return html`
+        <button class="play-btn" aria-label="${this.isPlaying ? 'Pause' : 'Play'}" @click="${(e: Event): void => { e.stopPropagation(); this.togglePlay(); }}">
+             <sl-icon name="${this.isPlaying ? 'pause-fill' : 'play-fill'}" style="color: white; font-size: 28px;"></sl-icon>
+        </button>
+      `;
+  }
+
+  private _renderNudgeControls() {
+    return html`
+        <div class="capture-controls">
             <div class="nudge-group">
-              <span class="nudge-label">IN</span>
-              <button class="nudge-btn" @click=${() => this._markDelta('in', -1)} title="In -1s (U)">
+                <span class="nudge-label">IN</span>
+                <button class="nudge-btn" @click=${() => this._markDelta('in', -1)} title="In -1s (U)">
                 <sl-icon name="dash-circle"></sl-icon> U
-              </button>
-              <button class="nudge-btn" @click=${() => this._markDelta('in', 1)} title="In +1s (I)">
+                </button>
+                <button class="nudge-btn" @click=${() => this._markDelta('in', 1)} title="In +1s (I)">
                 <sl-icon name="plus-circle"></sl-icon> I
-              </button>
+                </button>
             </div>
             
             <div class="nudge-group">
-              <span class="nudge-label">OUT</span>
-              <button class="nudge-btn" @click=${() => this._markDelta('out', -1)} title="Out -1s (O)">
+                <span class="nudge-label">OUT</span>
+                <button class="nudge-btn" @click=${() => this._markDelta('out', -1)} title="Out -1s (O)">
                 <sl-icon name="dash-circle"></sl-icon> O
-              </button>
-              <button class="nudge-btn" @click=${() => this._markDelta('out', 1)} title="Out +1s (P)">
+                </button>
+                <button class="nudge-btn" @click=${() => this._markDelta('out', 1)} title="Out +1s (P)">
                 <sl-icon name="plus-circle"></sl-icon> P
-              </button>
+                </button>
             </div>
-          </div>
+        </div>
+      `;
+  }
 
-          <div class="progress-container">
+  private _renderProgressDisplay(effectiveCurrentTime: number, effectiveDuration: number, progressPercent: number) {
+    return html`
+        <div class="progress-container">
              <div class="time-display">
                 ${this.formatTime(effectiveCurrentTime)} / ${this.formatTime(effectiveDuration)}
              </div>
-             <div class="progress-bar" @click="${this.seek}">
-                <div class="progress-fill" style="width: ${Math.min(100, Math.max(0, progressPercent))}%"></div>
-             </div>
-          </div>
+             <button class="progress-bar-btn" aria-label="Seek" @click="${this.seek}">
+                <div class="progress-bar-track">
+                    <div class="progress-fill" style="width: ${Math.min(100, Math.max(0, progressPercent))}%"></div>
+                </div>
+             </button>
         </div>
-
-      </div>
-    `;
+      `;
   }
 
   private seek(e: MouseEvent): void {
@@ -497,7 +545,7 @@ export class ShortPlayer extends LitElement {
       return;
     }
 
-    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
     const percent = x / rect.width;
 
@@ -519,6 +567,6 @@ export class ShortPlayer extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'short-player': ShortPlayer;
+    'yts-short-player': YtsShortPlayer;
   }
 }

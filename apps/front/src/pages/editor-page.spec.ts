@@ -18,7 +18,7 @@ vi.mock('../services/project.service.js', () => ({
     },
 }));
 
-vi.mock('../components/short-player.js', () => ({}));
+vi.mock('../components/organisms/yts-short-player.element.js', () => ({}));
 vi.mock('@shoelace-style/shoelace/dist/components/button/button.js', () => ({}));
 vi.mock('@shoelace-style/shoelace/dist/components/icon-button/icon-button.js', () => ({}));
 vi.mock('@shoelace-style/shoelace/dist/components/tab-group/tab-group.js', () => ({}));

@@ -254,142 +254,166 @@ export class YtsProjectForm extends LitElement {
     render(): unknown {
         return html`
             <div class="form-container" @sl-theme-dark>
-                <!-- 1. Form Header: Title and description -->
-                <div class="form-header">
-                    <h1>New Project</h1>
-                    <p>Upload a video to start creating Shorts</p>
-                </div>
-
-                <!-- 2. Global Error Message Display -->
-                ${this.errorMessage
-                ? html`
-                          <div class="error-container">
-                              <sl-alert variant="danger" open>
-                                  <span slot="icon" class="material-symbols-outlined">error</span>
-                                  <strong>Error:</strong> ${this.errorMessage}
-                              </sl-alert>
-                          </div>
-                      `
-                : ''}
-
-                <!-- 3. Project Name Input -->
-                <div class="field">
-                    <label for="project-name">Project Name</label>
-                    <sl-input
-                        id="project-name"
-                        placeholder="My Awesome Short"
-                        maxlength="255"
-                        .value=${this.projectName}
-                        @sl-input=${this._onNameInput}
-                        ?disabled=${this.isUploading}
-                        required
-                    ></sl-input>
-                </div>
-
-                <!-- 4. Video File Upload Zone (Drag & Drop + Click) -->
-                <div class="field">
-                    <label>Video File</label>
-                    <div
-                        class="dropzone ${this.isDragOver ? 'drag-over' : ''} ${this.selectedFile ? 'has-file' : ''}"
-                        role="button"
-                        tabindex="0"
-                        aria-label="Drop a video file here or click to browse"
-                        @click=${this._onDropzoneClick}
-                        @keydown=${this._onDropzoneKeydown}
-                        @dragover=${this._onDragOver}
-                        @dragleave=${this._onDragLeave}
-                        @drop=${this._onDrop}
-                    >
-                        ${this.selectedFile
-                ? html`
-                                  <!-- State: File Selected -->
-                                  <div class="dropzone-icon">
-                                      <span class="material-symbols-outlined" style="font-size: 48px;">check_circle</span>
-                                  </div>
-                                  <div class="file-info">
-                                      <span class="file-name">${this.selectedFile.name}</span>
-                                      <span class="file-size">(${this._formatFileSize(this.selectedFile.size)})</span>
-                                  </div>
-                                  <div class="dropzone-hint">Click to change file</div>
-                              `
-                : html`
-                                  <!-- State: Empty / Prompt -->
-                                  <div class="dropzone-icon">
-                                      <span class="material-symbols-outlined" style="font-size: 48px;">cloud_upload</span>
-                                  </div>
-                                  <div class="dropzone-text">
-                                      <strong>Drop your video here</strong> or click to browse
-                                  </div>
-                                  <div class="dropzone-hint">
-                                      ${this.allowedExtensions.map(ext => ext.replace('.', '').toUpperCase()).join(', ')} — Max ${this.maxFileSizeMb < 1024 ? this.maxFileSizeMb + 'MB' : (this.maxFileSizeMb / 1024).toFixed(0) + 'GB'}
-                                  </div>
-                              `}
-                    </div>
-                    <input
-                        id="file-input"
-                        type="file"
-                        accept="${this.allowedExtensions.join(',')}"
-                        @change=${this._onFileSelected}
-                    />
-                </div>
-
-                <!-- 5. Privacy Information (FR-03: Deletion Policy) -->
-                <div class="privacy-notice" role="note" aria-label="Privacy notice">
-                    <span class="privacy-icon material-symbols-outlined">lock</span>
-                    <span>
-                        Your video stays on your machine. All processing is done locally.
-                        Project data can be deleted at any time from the application settings.
-                    </span>
-                </div>
-
-                <!-- 6. User Consent Checkboxes -->
-                <div class="checkbox-group">
-                    <!-- Mandatory Deletion Policy Acknowledgment -->
-                    <sl-checkbox
-                        ?checked=${this.deletionPolicyAcknowledged}
-                        @sl-change=${(e: CustomEvent): void => { this.deletionPolicyAcknowledged = (e.target as HTMLInputElement).checked; }}
-                    >
-                        I acknowledge that my video is processed locally and I can delete project data at any time.
-                    </sl-checkbox>
-
-                    <!-- Optional AI Learning Consent -->
-                    <sl-checkbox
-                        ?checked=${this.aiLearningConsent}
-                        @sl-change=${(e: CustomEvent): void => { this.aiLearningConsent = (e.target as HTMLInputElement).checked; }}
-                    >
-                        I agree to share anonymized data to help improve AI features (Optional).
-                    </sl-checkbox>
-                </div>
-
-                <!-- 7. Upload Progress Indicator -->
-                ${this.isUploading
-                ? html`
-                          <div class="progress-section">
-                              <div class="progress-label">
-                                  Uploading... ${this.uploadProgress}%
-                              </div>
-                              <sl-progress-bar
-                                  .value=${this.uploadProgress}
-                              ></sl-progress-bar>
-                          </div>
-                      `
-                : ''}
-
-                <!-- 8. Submit Action -->
-                <div class="submit-section">
-                    <sl-button
-                        variant="primary"
-                        size="large"
-                        ?disabled=${!this._isFormValid() || this.isUploading}
-                        ?loading=${this.isUploading}
-                        @click=${this._onSubmit}
-                    >
-                        ${this.isUploading ? 'Uploading...' : 'Create Project'}
-                    </sl-button>
-                </div>
+                ${this._renderHeader()}
+                ${this._renderError()}
+                ${this._renderNameInput()}
+                ${this._renderDropzone()}
+                ${this._renderPrivacyNotice()}
+                ${this._renderConsentCheckboxes()}
+                ${this._renderUploadProgress()}
+                ${this._renderSubmitAction()}
             </div>
         `;
     }
+
+    private _renderHeader() {
+        return html`
+            <div class="form-header">
+                <h1>New Project</h1>
+                <p>Upload a video to start creating Shorts</p>
+            </div>
+        `;
+    }
+
+    private _renderError() {
+        if (!this.errorMessage) return '';
+        return html`
+            <div class="error-container">
+                <sl-alert variant="danger" open>
+                    <span slot="icon" class="material-symbols-outlined">error</span>
+                    <strong>Error:</strong> ${this.errorMessage}
+                </sl-alert>
+            </div>
+        `;
+    }
+
+    private _renderNameInput() {
+        return html`
+            <div class="field">
+                <label for="project-name">Project Name</label>
+                <sl-input
+                    id="project-name"
+                    placeholder="My Awesome Short"
+                    maxlength="255"
+                    .value=${this.projectName}
+                    @sl-input=${this._onNameInput}
+                    ?disabled=${this.isUploading}
+                    required
+                ></sl-input>
+            </div>
+        `;
+    }
+
+    private _renderDropzone() {
+        return html`
+            <div class="field">
+                <label>Video File</label>
+                <div
+                    class="dropzone ${this.isDragOver ? 'drag-over' : ''} ${this.selectedFile ? 'has-file' : ''}"
+                    role="button"
+                    tabindex="0"
+                    aria-label="Drop a video file here or click to browse"
+                    @click=${this._onDropzoneClick}
+                    @keydown=${this._onDropzoneKeydown}
+                    @dragover=${this._onDragOver}
+                    @dragleave=${this._onDragLeave}
+                    @drop=${this._onDrop}
+                >
+                    ${this.selectedFile
+                ? html`
+                              <div class="dropzone-icon">
+                                  <span class="material-symbols-outlined" style="font-size: 48px;">check_circle</span>
+                              </div>
+                              <div class="file-info">
+                                  <span class="file-name">${this.selectedFile.name}</span>
+                                  <span class="file-size">(${this._formatFileSize(this.selectedFile.size)})</span>
+                              </div>
+                              <div class="dropzone-hint">Click to change file</div>
+                          `
+                : html`
+                              <div class="dropzone-icon">
+                                  <span class="material-symbols-outlined" style="font-size: 48px;">cloud_upload</span>
+                              </div>
+                              <div class="dropzone-text">
+                                  <strong>Drop your video here</strong> or click to browse
+                              </div>
+                              <div class="dropzone-hint">
+                                  ${this.allowedExtensions.map(ext => ext.replace('.', '').toUpperCase()).join(', ')} — Max ${this.maxFileSizeMb < 1024 ? this.maxFileSizeMb + 'MB' : (this.maxFileSizeMb / 1024).toFixed(0) + 'GB'}
+                              </div>
+                          `}
+                </div>
+                <input
+                    id="file-input"
+                    type="file"
+                    accept="${this.allowedExtensions.join(',')}"
+                    @change=${this._onFileSelected}
+                />
+            </div>
+        `;
+    }
+
+    private _renderPrivacyNotice() {
+        return html`
+            <div class="privacy-notice" role="note" aria-label="Privacy notice">
+                <span class="privacy-icon material-symbols-outlined">lock</span>
+                <span>
+                    Your video stays on your machine. All processing is done locally.
+                    Project data can be deleted at any time from the application settings.
+                </span>
+            </div>
+        `;
+    }
+
+    private _renderConsentCheckboxes() {
+        return html`
+            <div class="checkbox-group">
+                <sl-checkbox
+                    ?checked=${this.deletionPolicyAcknowledged}
+                    @sl-change=${(e: CustomEvent): void => { this.deletionPolicyAcknowledged = (e.target as HTMLInputElement).checked; }}
+                >
+                    I acknowledge that my video is processed locally and I can delete project data at any time.
+                </sl-checkbox>
+
+                <sl-checkbox
+                    ?checked=${this.aiLearningConsent}
+                    @sl-change=${(e: CustomEvent): void => { this.aiLearningConsent = (e.target as HTMLInputElement).checked; }}
+                >
+                    I agree to share anonymized data to help improve AI features (Optional).
+                </sl-checkbox>
+            </div>
+        `;
+    }
+
+    private _renderUploadProgress() {
+        if (!this.isUploading) return '';
+        return html`
+            <div class="progress-section">
+                <div class="progress-label">
+                    Uploading... ${this.uploadProgress}%
+                </div>
+                <sl-progress-bar
+                    .value=${this.uploadProgress}
+                ></sl-progress-bar>
+            </div>
+        `;
+    }
+
+    private _renderSubmitAction() {
+        return html`
+            <div class="submit-section">
+                <sl-button
+                    variant="primary"
+                    size="large"
+                    ?disabled=${!this._isFormValid() || this.isUploading}
+                    ?loading=${this.isUploading}
+                    @click=${this._onSubmit}
+                >
+                    ${this.isUploading ? 'Uploading...' : 'Create Project'}
+                </sl-button>
+            </div>
+        `;
+    }
+
 
     // ─── Event Handlers ──────────────────────────
 

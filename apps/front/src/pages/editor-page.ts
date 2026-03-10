@@ -13,7 +13,8 @@ import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/badge/badge.js';
 import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
 import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
-import '../components/short-player.js';
+import '../components/organisms/yts-short-player.element.js';
+
 import '../components/molecules/yts-subtitle-editor.element.js';
 import '../components/molecules/yts-subtitle-style-panel.element.js';
 import '../components/molecules/yts-precision-multi-timeline.element.js';
@@ -68,7 +69,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     // Restore persisted stems state from the API response
     this.stemAvailable = short.stemsAvailable ?? false;
 
-    const player = this.shadowRoot?.querySelector('short-player') as unknown as { playSegment: (s: number, e: number) => void };
+    const player = this.shadowRoot?.querySelector('yts-short-player') as unknown as { playSegment: (s: number, e: number) => void };
     if (player && player.playSegment) {
       player.playSegment(short.startTime, short.endTime);
     }
@@ -176,7 +177,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     await this.saveSegments([segment]);
 
     // Redémarrer la vidéo au nouveau point "In" pour vérification
-    const player = this.shadowRoot?.querySelector('short-player') as HTMLElement & { seekTo: (time: number) => void };
+    const player = this.shadowRoot?.querySelector('yts-short-player') as HTMLElement & { seekTo: (time: number) => void };
     if (player && player.seekTo) {
       player.seekTo(segment.startTime);
     }
@@ -187,7 +188,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     await this.saveSegments([segment]);
 
     // Redémarrer la vidéo au début du segment
-    const player = this.shadowRoot?.querySelector('short-player') as HTMLElement & { seekTo: (time: number) => void };
+    const player = this.shadowRoot?.querySelector('yts-short-player') as HTMLElement & { seekTo: (time: number) => void };
     if (player && player.seekTo) {
       player.seekTo(segment.startTime);
     }
@@ -675,12 +676,12 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     return html`
       <aside class="glass-panel sidebar-left">
         <div class="panel-header">
-          <sl-icon
+          <sl-icon-button
             name="house-door-fill"
             class="home-button-icon"
             @click="${(): void => { Router.go('/'); }}"
-            title="Back to Dashboard"
-          ></sl-icon>
+            label="Back to Dashboard"
+          ></sl-icon-button>
           <span>Source Segments</span>
         </div>
         <div class="segment-list">
@@ -689,7 +690,23 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         : this.shorts.length === 0
           ? html`<div style="color:#64748b; text-align:center; padding:20px;">No shorts detected yet.</div>`
           : this.shorts.map(s => html`
-            <div class="segment-card" @click="${(): void => this.playShort(s)}">
+            <button 
+                class="segment-card" 
+                @click="${(): void => this.playShort(s)}"
+                aria-label="Play segment ${s.title}"
+                style="
+                    display: flex;
+                    width: 100%;
+                    background: transparent;
+                    border: none;
+                    padding: 0;
+                    margin: 0;
+                    cursor: pointer;
+                    text-align: left;
+                    font-family: inherit;
+                    color: inherit;
+                "
+            >
               <div class="segment-thumb">
                 ${s.thumbnailUrl
               ? html`<img src="${s.thumbnailUrl}" alt="${s.title}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`
@@ -700,7 +717,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                 <div class="segment-title">${s.title}</div>
                 <div class="segment-meta">${this.formatTime(s.startTime)} - ${this.formatTime(s.endTime)}</div>
               </div>
-            </div>
+            </button>
           `)}
         </div>
       </aside>
@@ -716,7 +733,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         ? html`
             <div style="display: flex; flex-direction: column; gap: 16px; height: 100%; width: 100%; overflow: hidden; justify-content: space-between; align-items: center; padding: 0 12px;">
               <div style="flex: 1; min-height: 0; width: 100%; display: flex; justify-content: center; align-items: center;">
-                <short-player
+                <yts-short-player
                   style="max-height: 100%; max-width: 100%; width: auto; height: auto;"
                   src="/api/projects/${projectId}/video"
                   .subtitles=${this._getFilteredSubtitles()}
@@ -728,7 +745,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                   @style-changed=${this.handleStyleChange}
                   @mark-delta=${this.handleMarkDelta}
                   @segment-settled=${this.handleSegmentSettled}
-                  ></short-player>
+                  ></yts-short-player>
               </div>
 
               ${this.currentShort ? html`
@@ -817,11 +834,27 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
               ${!this.currentShort?.subtitles || this.currentShort.subtitles.length === 0
           ? html`<div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">No captions found. Move boundaries or wait for transcription.</div>`
           : this.currentShort.subtitles.map(sub => html`
-                    <div class="caption-item" @click=${() => this.handleEditSubtitle(new CustomEvent('edit-subtitle', { detail: { subtitle: sub } }))}>
+                    <button 
+                        class="caption-item" 
+                        @click=${() => this.handleEditSubtitle(new CustomEvent('edit-subtitle', { detail: { subtitle: sub } }))}
+                        aria-label="Edit caption: ${sub.text}"
+                        style="
+                            display: flex;
+                            width: 100%;
+                            background: transparent;
+                            border: none;
+                            padding: 10px;
+                            margin: 0;
+                            cursor: pointer;
+                            text-align: left;
+                            font-family: inherit;
+                            color: inherit;
+                        "
+                    >
                       <sl-icon name="chat-square-text" style="color:#818cf8; font-size: 14px;"></sl-icon>
                       <div class="caption-text">${sub.text}</div>
                       <div class="caption-time">${this.formatTime(sub.startTime)}</div>
-                    </div>
+                    </button>
                   `)
         }
             </div>
