@@ -25,7 +25,7 @@ setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.19.1/cdn/')
  */
 @customElement('yts-app')
 export class YtsApp extends LitElement {
-  @query('#outlet')
+  @query('#router-outlet')
   private outlet!: HTMLElement;
 
   static styles = css`
