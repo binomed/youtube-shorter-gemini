@@ -3,17 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import { Subject } from 'rxjs';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { JobService } from './job.service';
+import { JobProgressService } from './job-progress.service';
 import { ExportShortDto } from '@youtube-shorter/shared';
-import type {
-  ExportProgressEvent,
-  SubtitleStyle,
-  SubtitleResponse,
-} from '@youtube-shorter/shared';
+import type { SubtitleStyle, SubtitleResponse } from '@youtube-shorter/shared';
 
 @Injectable()
 export class ExportService {
@@ -26,6 +22,7 @@ export class ExportService {
     private readonly projectRepository: Repository<Project>,
     private readonly ffmpegService: FFmpegService,
     private readonly jobService: JobService,
+    private readonly jobProgressService: JobProgressService,
   ) {}
 
   /**
@@ -35,7 +32,7 @@ export class ExportService {
   async exportShort(
     projectId: string,
     dto: ExportShortDto,
-    progress$?: Subject<ExportProgressEvent>,
+    jobId: string,
   ): Promise<string> {
     const project = await this.projectRepository.findOneBy({ id: projectId });
     if (!project) {
@@ -49,12 +46,6 @@ export class ExportService {
     if (!short) {
       throw new NotFoundException(`Short ${dto.shortId} not found`);
     }
-
-    const job = await this.jobService.create({
-      type: 'export',
-      projectId,
-      shortId: dto.shortId,
-    });
 
     const tempDir = '/tmp/yts-processing';
     await fs.mkdir(tempDir, { recursive: true }).catch(() => {});
@@ -74,104 +65,92 @@ export class ExportService {
       .mkdir(path.dirname(outputPath), { recursive: true })
       .catch(() => {});
 
+    const tempSegmentsToClean: string[] = [];
+
     try {
-      await this.persistAndEmitProgress(job.id, progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'extracting',
         progress: 10,
-        message: 'Gathering short segments...',
+        message: 'Segmenting video...',
         shortId: short.id,
       });
 
-      // 1. Resolve segments to render
-      let segmentPaths: string[] = [];
-      const tempSegmentsToClean: string[] = [];
+      // 1. Resolve and Split segments
       const segmentsToProcess = (
         short.segments?.length
           ? short.segments
           : [{ startTime: short.startTime, endTime: short.endTime }]
       ) as Array<{ startTime: number; endTime: number }>;
 
-      await this.persistAndEmitProgress(job.id, progress$, {
-        phase: 'processing',
-        progress: 20,
-        message: 'Extracting jump cut segments...',
-        shortId: short.id,
-      });
-
-      segmentPaths = await this.ffmpegService.splitVideoIntoSegments(
+      const segmentPaths = await this.ffmpegService.splitVideoIntoSegments(
         project.videoPath,
         segmentsToProcess,
-        (p) => {
-          const pg = 20 + Math.floor(p * 0.3);
-          if (progress$)
-            progress$.next({
-              phase: 'processing',
-              progress: pg,
-              message: 'Extracting...',
-              shortId: short.id,
-            });
+        (p: number) => {
+          void this.jobProgressService.emit(jobId, {
+            phase: 'processing',
+            progress: 10 + Math.floor(p * 0.4), // 10% to 50%
+            message: `Extracting segments: ${p}%`,
+            shortId: short.id,
+          });
         },
       );
       tempSegmentsToClean.push(...segmentPaths);
 
-      // 2. Build `.ass` subtitles file if subtitles exist
-      await this.persistAndEmitProgress(job.id, progress$, {
-        phase: 'processing',
-        progress: 55,
-        message: 'Generating subtitle styling...',
+      // 2. Adjust Subtitle timestamps for concatenated segments
+      const adjustedSubs: SubtitleResponse[] = [];
+      let currentOffset = 0;
+
+      for (const seg of segmentsToProcess) {
+        const segDuration = seg.endTime - seg.startTime;
+        const subsInSeg = (short.subtitles || []).filter(
+          (s) => s.startTime < seg.endTime && s.endTime > seg.startTime,
+        );
+
+        for (const s of subsInSeg) {
+          const subStart = Math.max(s.startTime, seg.startTime);
+          const subEnd = Math.min(s.endTime, seg.endTime);
+          const newStart = currentOffset + (subStart - seg.startTime);
+          const newEnd = currentOffset + (subEnd - seg.startTime);
+          adjustedSubs.push({
+            ...s,
+            startTime: newStart,
+            endTime: newEnd,
+            shortId: s.shortId,
+          } as SubtitleResponse);
+        }
+        currentOffset += segDuration;
+      }
+
+      await this.jobProgressService.emit(jobId, {
+        phase: 'rendering',
+        progress: 60,
+        message: 'Preparing captions...',
         shortId: short.id,
       });
 
-      let subtitleAssPath: string | undefined = undefined;
-      if (short.subtitles && short.subtitles.length > 0) {
-        let currentOffset = 0;
-        const adjustedSubs: SubtitleResponse[] = [];
+      const assContent = this.generateAssFile(
+        adjustedSubs,
+        (dto.style || short.subtitleStyle) as SubtitleStyle,
+      );
+      await fs.writeFile(assPath, assContent);
 
-        for (const seg of segmentsToProcess) {
-          const segDuration = seg.endTime - seg.startTime;
-          const subsInSeg = short.subtitles.filter(
-            (s) => s.startTime < seg.endTime && s.endTime > seg.startTime,
-          );
+      const absoluteAssPath = await fs.realpath(assPath);
+      this.logger.log(`ASS generated (real path): ${absoluteAssPath}`);
+      this.logger.log(
+        `ASS Content Sample: ${assContent.split('Dialogue:')[1]?.substring(0, 100)}`,
+      );
+      tempSegmentsToClean.push(absoluteAssPath);
 
-          for (const s of subsInSeg) {
-            const subStart = Math.max(s.startTime, seg.startTime);
-            const subEnd = Math.min(s.endTime, seg.endTime);
-            const newStart = currentOffset + (subStart - seg.startTime);
-            const newEnd = currentOffset + (subEnd - seg.startTime);
-            adjustedSubs.push({ ...s, startTime: newStart, endTime: newEnd });
-          }
-          currentOffset += segDuration;
-        }
-
-        const assContent = this.generateAssFile(
-          adjustedSubs,
-          short.subtitleStyle,
-        );
-        await fs.writeFile(assPath, assContent);
-        const absoluteAssPath = await fs.realpath(assPath);
-        this.logger.log(`ASS generated (real path): ${absoluteAssPath}`);
-        this.logger.log(
-          `ASS Content Sample: ${assContent.split('Dialogue:')[1]?.substring(0, 100)}`,
-        );
-
-        subtitleAssPath = absoluteAssPath;
-        tempSegmentsToClean.push(absoluteAssPath);
-      } else {
-        this.logger.warn(
-          `No subtitles found or adjusted for short ${short.id}`,
-        );
-      }
-
-      // 3. Render vertical video with FFmpeg
-      await this.persistAndEmitProgress(job.id, progress$, {
-        phase: 'saving',
-        progress: 60,
-        message: 'Encoding final vertical video (this may take a while)...',
+      // 3. Concatenate and Render
+      await this.jobProgressService.emit(jobId, {
+        phase: 'rendering',
+        progress: 70,
+        message: 'Mixing and rendering vertical...',
         shortId: short.id,
       });
 
       const options = {
-        subtitleAssPath,
+        subtitleAssPath: absoluteAssPath,
         vocalsPath: dto.includeVocals
           ? (short.vocalsPath ?? undefined)
           : undefined,
@@ -179,14 +158,13 @@ export class ExportService {
           ? (short.accompanimentPath ?? undefined)
           : undefined,
         onProgress: (p: number, msg: string) => {
-          const pg = 60 + Math.floor(p * 0.35); // maps 0-100 to 60-95
-          if (progress$)
-            progress$.next({
-              phase: 'saving',
-              progress: pg,
-              message: msg,
-              shortId: short.id,
-            });
+          const pg = 70 + Math.floor(p * 0.25); // 70-95%
+          void this.jobProgressService.emit(jobId, {
+            phase: 'rendering',
+            progress: pg,
+            message: msg,
+            shortId: short.id,
+          });
         },
       };
 
@@ -196,38 +174,29 @@ export class ExportService {
         options,
       );
 
-      await this.persistAndEmitProgress(job.id, progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'complete',
         progress: 100,
-        message: 'Export completed successfully!',
+        message: 'Export ready!',
         shortId: short.id,
       });
 
-      await this.jobService.complete(job.id);
-
-      for (const p of tempSegmentsToClean) {
-        await fs
-          .unlink(p)
-          .catch((e: unknown) =>
-            this.logger.warn(
-              `Failed to cleanup ${p}: ${e instanceof Error ? e.message : String(e)}`,
-            ),
-          );
-      }
+      // Mark Job as COMPLETED in DB
+      await this.jobProgressService.complete(jobId);
 
       return `${exportId}.mp4`;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
-      await this.jobService.fail(job.id, errorMessage);
-      this.emitProgress(progress$, {
-        phase: 'error',
-        progress: 0,
-        message: `Export failed: ${errorMessage}`,
-        shortId: short.id,
-      });
+      this.logger.error(`Export failed: ${errorMessage}`);
+      await this.jobProgressService.fail(jobId, errorMessage);
       await fs.unlink(outputPath).catch(() => {});
       throw error;
+    } finally {
+      // Cleanup all temp files
+      for (const p of tempSegmentsToClean) {
+        await fs.unlink(p).catch(() => {});
+      }
     }
   }
 
@@ -368,23 +337,5 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     const s = Math.floor(seconds % 60);
     const ms = Math.floor((seconds % 1) * 100);
     return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
-  }
-
-  private async persistAndEmitProgress(
-    jobId: string,
-    progress$: Subject<ExportProgressEvent> | undefined,
-    event: ExportProgressEvent,
-  ): Promise<void> {
-    await this.jobService.updateProgress(jobId, event.progress, event.message);
-    this.emitProgress(progress$, event);
-  }
-
-  private emitProgress(
-    progress$: Subject<ExportProgressEvent> | undefined,
-    event: ExportProgressEvent,
-  ): void {
-    if (progress$) {
-      progress$.next(event);
-    }
   }
 }

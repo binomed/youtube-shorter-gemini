@@ -128,15 +128,11 @@ export class FFmpegService {
     videoPath: string,
     outputPath: string,
     timestamp: number,
+    width?: number,
   ): Promise<void> {
     try {
-      // ffmpeg -ss <timestamp> -i <videoPath> -vframes 1 -q:v 2 -y <outputPath>
-      // -ss: seek to position (fast seek before input)
-      // -vframes 1: output one frame
-      // -q:v 2: high quality jpeg (2-5 is good range)
-      // -y: overwrite output
-
-      const command = `ffmpeg -ss ${timestamp} -i "${videoPath}" -vframes 1 -q:v 2 -y "${outputPath}"`;
+      const vf = width ? `-vf scale=${width}:-1` : '';
+      const command = `ffmpeg -ss ${timestamp} -i "${videoPath}" ${vf} -vframes 1 -q:v 2 -y "${outputPath}"`;
 
       this.logger.debug(`Generating thumbnail: ${command}`);
 
@@ -207,7 +203,78 @@ export class FFmpegService {
     return outputPaths;
   }
 
-  private async extractSegment(
+  /**
+   * Extract multiple frames at regular intervals for AI analysis.
+   */
+  async extractFrames(
+    videoPath: string,
+    outputPathPattern: string,
+    interval: number,
+    totalFrames: number,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // ffmpeg -i <video> -vf "select='not(mod(n, <interval>))',scale=512:-1" -vframes <total> -q:v 5 -y <pattern>
+      const args = [
+        '-i',
+        videoPath,
+        '-vf',
+        `select='not(mod(n,${interval}))',scale=512:-1`,
+        '-vframes',
+        totalFrames.toString(),
+        '-q:v',
+        '5',
+        '-y',
+        outputPathPattern,
+      ];
+
+      const ffmpeg = spawn('ffmpeg', args);
+      ffmpeg.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`Frame extraction failed with code ${code}`));
+      });
+      ffmpeg.on('error', reject);
+    });
+  }
+
+  /**
+   * Extract audio segment specifically formatted for Demucs (WAV, 44.1kHz).
+   */
+  async extractAudioForStems(
+    videoPath: string,
+    outputPath: string,
+    startTime: number,
+    duration: number,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const args = [
+        '-ss',
+        startTime.toString(),
+        '-i',
+        videoPath,
+        '-t',
+        duration.toString(),
+        '-vn',
+        '-acodec',
+        'pcm_s16le',
+        '-ar',
+        '44100',
+        '-ac',
+        '2',
+        '-y',
+        outputPath,
+      ];
+
+      const ffmpeg = spawn('ffmpeg', args);
+      ffmpeg.on('close', (code) => {
+        if (code === 0) resolve();
+        else
+          reject(new Error(`Stem audio extraction failed with code ${code}`));
+      });
+      ffmpeg.on('error', reject);
+    });
+  }
+
+  public async extractSegment(
     inputPath: string,
     outputPath: string,
     startTime: number,

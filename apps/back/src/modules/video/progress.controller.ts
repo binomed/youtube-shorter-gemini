@@ -2,6 +2,7 @@
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 import { Controller, Sse, Param, MessageEvent } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { Observable, map } from 'rxjs';
 import { ProgressService } from './progress.service';
 
@@ -20,6 +21,7 @@ import { ProgressService } from './progress.service';
  *
  * @controller
  */
+@ApiTags('projects')
 @Controller('api/projects')
 export class ProgressController {
   constructor(private readonly progressService: ProgressService) {}
@@ -57,6 +59,12 @@ export class ProgressController {
    * data: {"type":"complete","progress":100,"message":"Project created successfully","projectId":"abc-123","timestamp":"2026-02-17T..."}
    */
   @Sse(':id/progress')
+  @ApiOperation({ summary: 'SSE stream for initial video processing progress' })
+  @ApiParam({ name: 'id', description: 'Project UUID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Observable stream of progress events',
+  })
   progress(@Param('id') projectId: string): Observable<MessageEvent> {
     // Stream real progress events from ProgressService
     return this.progressService.getProgressStream(projectId).pipe(

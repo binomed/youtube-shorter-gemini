@@ -5,12 +5,11 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { spawn } from 'child_process';
-import { Subject } from 'rxjs';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { JobService } from '../processing/job.service';
-import type { StemProgressEvent } from '@youtube-shorter/shared';
+import { JobProgressService } from '../processing/job-progress.service';
 
 import * as path from 'path';
 import * as fs from 'fs/promises';
@@ -43,6 +42,7 @@ export class StemService {
     private readonly projectRepository: Repository<Project>,
     private readonly ffmpegService: FFmpegService,
     private readonly jobService: JobService,
+    private readonly jobProgressService: JobProgressService,
   ) {}
 
   /**
@@ -53,13 +53,13 @@ export class StemService {
    *
    * @param projectId - UUID of the parent project
    * @param shortId - UUID of the short to process
-   * @param progress$ - Optional SSE subject for real-time progress
+   * @param jobId - Unified JobId for progress tracking
    * @returns Updated Short entity with stem paths
    */
   async separateStems(
     projectId: string,
     shortId: string,
-    progress$?: Subject<StemProgressEvent>,
+    jobId: string,
   ): Promise<Short> {
     // Validate project exists
     const project = await this.projectRepository.findOneBy({ id: projectId });
@@ -83,7 +83,7 @@ export class StemService {
       this.logger.log(
         `Stems already exist for short ${shortId}, skipping separation.`,
       );
-      this.emitProgress(progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'complete',
         progress: 100,
         message: 'Stems already available.',
@@ -92,19 +92,12 @@ export class StemService {
       return short;
     }
 
-    // Create a persistent Job record (SQL-Queue pattern)
-    const job = await this.jobService.create({
-      type: 'stem_separation',
-      projectId,
-      shortId,
-    });
-
     const stemsDir = path.join(process.cwd(), 'uploads', 'stems', shortId);
     await fs.mkdir(stemsDir, { recursive: true });
 
     try {
       // Phase 1: Extract audio segment from source video
-      await this.persistAndEmitProgress(job.id, progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'extracting',
         progress: 10,
         message: 'Extracting audio segment from video...',
@@ -112,14 +105,14 @@ export class StemService {
       });
 
       const segmentAudioPath = path.join(stemsDir, 'segment.wav');
-      await this.extractSegmentAudio(
+      await this.ffmpegService.extractAudioForStems(
         project.videoPath,
         segmentAudioPath,
         short.startTime,
-        short.endTime,
+        short.endTime - short.startTime,
       );
 
-      await this.persistAndEmitProgress(job.id, progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'extracting',
         progress: 30,
         message: 'Audio segment extracted.',
@@ -127,7 +120,7 @@ export class StemService {
       });
 
       // Phase 2: Run demucs for stem separation
-      await this.persistAndEmitProgress(job.id, progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'separating',
         progress: 40,
         message: 'Running AI stem separation (this may take a moment)...',
@@ -136,7 +129,7 @@ export class StemService {
 
       await this.runDemucs(segmentAudioPath, stemsDir);
 
-      await this.persistAndEmitProgress(job.id, progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'separating',
         progress: 80,
         message: 'Stem separation complete.',
@@ -144,7 +137,7 @@ export class StemService {
       });
 
       // Phase 3: Locate output stems and update entity
-      await this.persistAndEmitProgress(job.id, progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'saving',
         progress: 90,
         message: 'Saving stem references...',
@@ -161,24 +154,20 @@ export class StemService {
       // Cleanup the temporary segment audio (keep stems only)
       await fs.unlink(segmentAudioPath).catch(() => {});
 
-      await this.jobService.complete(job.id);
-      this.emitProgress(progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'complete',
         progress: 100,
         message: 'Stem separation finished successfully!',
         shortId,
       });
 
+      // Mark Job as COMPLETED in DB
+      await this.jobProgressService.complete(jobId);
+
       return saved;
     } catch (error) {
       const errorMessage = (error as Error).message;
-      await this.jobService.fail(job.id, errorMessage);
-      this.emitProgress(progress$, {
-        phase: 'error',
-        progress: 0,
-        message: `Stem separation failed: ${errorMessage}`,
-        shortId,
-      });
+      await this.jobProgressService.fail(jobId, errorMessage);
       throw error;
     }
   }
@@ -231,50 +220,6 @@ export class StemService {
    */
   async getJobStatus(shortId: string) {
     return this.jobService.findLatestByShort(shortId);
-  }
-
-  /**
-   * Extract a specific time range of audio from the source video using FFmpeg.
-   */
-  private async extractSegmentAudio(
-    videoPath: string,
-    outputPath: string,
-    startTime: number,
-    endTime: number,
-  ): Promise<void> {
-    const duration = endTime - startTime;
-
-    return new Promise<void>((resolve, reject) => {
-      const proc = spawn('ffmpeg', [
-        '-ss',
-        startTime.toString(),
-        '-i',
-        videoPath,
-        '-t',
-        duration.toString(),
-        '-vn', // no video
-        '-acodec',
-        'pcm_s16le', // WAV format for demucs compatibility
-        '-ar',
-        '44100', // 44.1kHz sample rate
-        '-ac',
-        '2', // stereo
-        '-y',
-        outputPath,
-      ]);
-
-      proc.on('close', (code) => {
-        if (code === 0) resolve();
-        else
-          reject(
-            new Error(`Audio segment extraction failed (exit code ${code})`),
-          );
-      });
-
-      proc.on('error', (err) =>
-        reject(new Error(`FFmpeg spawn error: ${err.message}`)),
-      );
-    });
   }
 
   /**
@@ -367,34 +312,5 @@ export class StemService {
     }
 
     return { vocalsPath, accompanimentPath };
-  }
-
-  /**
-   * Emit a progress event to the SSE subject AND persist to DB via JobService.
-   * Dual-channel: real-time SSE for connected clients + persistent SQL for reconnects.
-   */
-  private async persistAndEmitProgress(
-    jobId: string,
-    progress$: Subject<StemProgressEvent> | undefined,
-    event: StemProgressEvent,
-  ): Promise<void> {
-    await this.jobService.updateProgress(jobId, event.progress, event.message);
-    this.emitProgress(progress$, event);
-  }
-
-  /**
-   * Emit a progress event to the SSE subject (if provided).
-   */
-  private emitProgress(
-    progress$: Subject<StemProgressEvent> | undefined,
-    event: StemProgressEvent,
-  ): void {
-    const eventTyped = event;
-    this.logger.log(
-      `[${eventTyped.phase}] ${eventTyped.progress}% - ${eventTyped.message}`,
-    );
-    if (progress$) {
-      progress$.next(eventTyped);
-    }
   }
 }

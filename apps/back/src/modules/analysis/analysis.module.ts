@@ -9,7 +9,6 @@ import { Subtitle } from '../../entities/subtitle.entity';
 import { GeminiService } from '../ai/gemini.service';
 import { AnalysisService } from '../ai/analysis.service';
 import { AnalysisController } from '../ai/analysis.controller';
-import { FFmpegService } from '../../workers/ffmpeg.service';
 import { WhisperService } from '../ai/whisper.service';
 import { ProcessingModule } from '../processing/processing.module';
 
@@ -32,7 +31,7 @@ import { ProcessingModule } from '../processing/processing.module';
     ProcessingModule, // Provides StemService + FFmpegService + JobService
   ],
   controllers: [AnalysisController],
-  providers: [GeminiService, AnalysisService, FFmpegService, WhisperService],
+  providers: [GeminiService, AnalysisService, WhisperService],
   exports: [AnalysisService, GeminiService, WhisperService],
 })
 export class AnalysisModule {}

@@ -27,6 +27,13 @@ import { createReadStream, existsSync, statSync } from 'fs';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
+import {
   CreateProjectDto,
   ALLOWED_VIDEO_EXTENSIONS,
   ALLOWED_VIDEO_MIME_TYPES,
@@ -38,6 +45,7 @@ import { VideoService } from './video.service';
  *
  * @controller
  */
+@ApiTags('projects')
 @Controller('api/projects')
 export class VideoController {
   constructor(
@@ -51,6 +59,11 @@ export class VideoController {
    * @returns Configuration object
    */
   @Get('config')
+  @ApiOperation({ summary: 'Get video upload configuration' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns max size and allowed formats',
+  })
   getConfig() {
     return {
       success: true,
@@ -86,6 +99,24 @@ export class VideoController {
    * videoFile: <binary MP4 file>
    */
   @Post()
+  @ApiOperation({ summary: 'Upload video and create a new project' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        deletionPolicyAcknowledged: { type: 'boolean' },
+        aiLearningConsent: { type: 'boolean' },
+        videoFile: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Project created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid file or missing data' })
   @UsePipes(
     new ValidationPipe({
       whitelist: true,
@@ -143,6 +174,9 @@ export class VideoController {
    * @throws NotFoundException if project not found
    */
   @Get(':id')
+  @ApiOperation({ summary: 'Get project details by ID' })
+  @ApiResponse({ status: 200, description: 'Returns project metadata' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
   async getProject(@Param('id') id: string) {
     const project = await this.videoService.getProject(id);
     return {
@@ -163,6 +197,14 @@ export class VideoController {
    * @throws NotFoundException if project or video file not found
    */
   @Get(':id/video')
+  @ApiOperation({ summary: 'Stream video file for a project' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns a streamable video file',
+    content: { 'video/mp4': {} },
+  })
+  @ApiResponse({ status: 206, description: 'Partial content (range request)' })
+  @ApiResponse({ status: 404, description: 'Project or video file not found' })
   async streamVideo(
     @Param('id') id: string,
     @Res({ passthrough: true }) res: Response,
@@ -210,6 +252,11 @@ export class VideoController {
    * @returns List of all projects
    */
   @Get()
+  @ApiOperation({ summary: 'Get all projects' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns a list of all projects',
+  })
   async findAll() {
     const projects = await this.videoService.findAll();
     return {
@@ -225,6 +272,9 @@ export class VideoController {
    * @returns Success status
    */
   @Delete(':id')
+  @ApiOperation({ summary: 'Delete a project and its associated files' })
+  @ApiResponse({ status: 200, description: 'Project deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
   async deleteProject(@Param('id') id: string) {
     await this.videoService.deleteProject(id);
     return {

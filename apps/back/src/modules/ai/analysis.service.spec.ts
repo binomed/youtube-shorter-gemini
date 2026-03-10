@@ -12,6 +12,7 @@ import { GeminiService } from './gemini.service';
 import { WhisperService } from './whisper.service';
 import { StemService } from './stem.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
+import { JobProgressService } from '../processing/job-progress.service';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
 import { Subtitle } from '../../entities/subtitle.entity';
@@ -77,6 +78,12 @@ const mockSubtitleRepository = {
   save: jest.fn(),
 };
 
+const mockJobProgressService = {
+  emit: jest.fn().mockResolvedValue(undefined),
+  complete: jest.fn().mockResolvedValue(undefined),
+  fail: jest.fn().mockResolvedValue(undefined),
+};
+
 describe('AnalysisService', () => {
   let service: AnalysisService;
 
@@ -107,6 +114,7 @@ describe('AnalysisService', () => {
           provide: getRepositoryToken(Subtitle),
           useValue: mockSubtitleRepository,
         },
+        { provide: JobProgressService, useValue: mockJobProgressService },
       ],
     }).compile();
 
@@ -117,7 +125,7 @@ describe('AnalysisService', () => {
     it('should throw NotFoundException when project does not exist', async () => {
       mockProjectRepository.findOneBy.mockResolvedValue(null);
 
-      await expect(service.analyzeProject('nonexistent')).rejects.toThrow(
+      await expect(service.analyzeProject('nonexistent', 'job-1')).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -151,7 +159,7 @@ describe('AnalysisService', () => {
       mockFfmpegService.extractAudio.mockResolvedValue(undefined);
       mockWhisperService.generateSubtitles.mockResolvedValue(null);
 
-      const result = await service.analyzeProject('proj-1');
+      const result = await service.analyzeProject('proj-1', 'job-1');
 
       expect(mockGeminiService.detectShortsCandidates).toHaveBeenCalled();
       expect(mockShortRepository.save).toHaveBeenCalled();
@@ -171,13 +179,9 @@ describe('AnalysisService', () => {
       mockFfmpegService.extractAudio.mockResolvedValue(undefined);
       mockWhisperService.generateSubtitles.mockResolvedValue(null);
 
-      const progress$ = new Subject<AnalysisProgressEvent>();
-      const events: AnalysisProgressEvent[] = [];
-      progress$.subscribe((e) => events.push(e));
+      await service.analyzeProject('proj-1', 'job-1');
 
-      await service.analyzeProject('proj-1', progress$);
-
-      expect(events.length).toBeGreaterThan(0);
+      expect(mockJobProgressService.emit).toHaveBeenCalled();
     });
 
     it('should continue analysis even if transcription fails', async () => {
@@ -199,7 +203,7 @@ describe('AnalysisService', () => {
       );
 
       // Should NOT throw — transcription failure is non-fatal
-      await expect(service.analyzeProject('proj-1')).resolves.toBeDefined();
+      await expect(service.analyzeProject('proj-1', 'job-1')).resolves.toBeDefined();
     });
   });
 });

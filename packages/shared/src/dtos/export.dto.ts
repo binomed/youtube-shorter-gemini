@@ -14,4 +14,8 @@ export class ExportShortDto {
     /** Target short identifier to export */
     @IsString()
     shortId!: string;
+
+    /** Subtitle style overrides */
+    @IsOptional()
+    style?: any;
 }

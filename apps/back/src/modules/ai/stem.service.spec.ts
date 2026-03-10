@@ -8,10 +8,10 @@ import { Subject } from 'rxjs';
 import { NotFoundException } from '@nestjs/common';
 import { StemService } from './stem.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
-import { StemProgressEvent } from '@youtube-shorter/shared';
 import { JobService } from '../processing/job.service';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
+import { JobProgressService } from '../processing/job-progress.service';
 
 const mockProject = { id: 'proj-1', videoPath: '/tmp/test.mp4' };
 const mockShort = {
@@ -26,6 +26,7 @@ const mockJob = { id: 'job-1', type: 'stem_separation', status: 'pending' };
 
 const mockFfmpegService = {
   extractAudio: jest.fn(),
+  extractAudioForStems: jest.fn().mockResolvedValue(undefined),
 };
 
 const mockJobService = {
@@ -34,6 +35,12 @@ const mockJobService = {
   complete: jest.fn().mockResolvedValue(undefined),
   fail: jest.fn().mockResolvedValue(undefined),
   findLatestByShort: jest.fn(),
+};
+
+const mockJobProgressService = {
+  emit: jest.fn().mockResolvedValue(undefined),
+  complete: jest.fn().mockResolvedValue(undefined),
+  fail: jest.fn().mockResolvedValue(undefined),
 };
 
 const mockShortRepository = {
@@ -45,15 +52,22 @@ const mockProjectRepository = {
   findOneBy: jest.fn(),
 };
 
+import { EventEmitter } from 'events';
+
 // Mock child_process.spawn and fs
 jest.mock('child_process', () => ({
-  spawn: jest.fn(),
+  spawn: jest.fn(() => {
+    const proc = new EventEmitter() as any;
+    proc.stderr = new EventEmitter();
+    setTimeout(() => proc.emit('close', 0), 10);
+    return proc;
+  }),
 }));
 
 jest.mock('fs/promises', () => ({
   mkdir: jest.fn().mockResolvedValue(undefined),
-  readdir: jest.fn(),
-  stat: jest.fn(),
+  readdir: jest.fn().mockResolvedValue(['v4h_model']), // Simulate demucs model dir
+  stat: jest.fn().mockResolvedValue({ isDirectory: () => true }),
   access: jest.fn().mockResolvedValue(undefined),
   unlink: jest.fn().mockResolvedValue(undefined),
 }));
@@ -81,6 +95,7 @@ describe('StemService', () => {
           provide: getRepositoryToken(Project),
           useValue: mockProjectRepository,
         },
+        { provide: JobProgressService, useValue: mockJobProgressService },
       ],
     }).compile();
 
@@ -91,7 +106,7 @@ describe('StemService', () => {
     it('should throw NotFoundException when project does not exist', async () => {
       mockProjectRepository.findOneBy.mockResolvedValue(null);
 
-      await expect(service.separateStems('no-proj', 'short-1')).rejects.toThrow(
+      await expect(service.separateStems('no-proj', 'short-1', 'job-1')).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -100,7 +115,7 @@ describe('StemService', () => {
       mockProjectRepository.findOneBy.mockResolvedValue(mockProject);
       mockShortRepository.findOneBy.mockResolvedValue(null);
 
-      await expect(service.separateStems('proj-1', 'no-short')).rejects.toThrow(
+      await expect(service.separateStems('proj-1', 'no-short', 'job-1')).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -113,76 +128,40 @@ describe('StemService', () => {
         accompanimentPath: '/tmp/no_vocals.wav',
       });
 
-      const result = await service.separateStems('proj-1', 'short-1');
+      const result = await service.separateStems('proj-1', 'short-1', 'job-1');
 
       expect(result.vocalsPath).toBeTruthy();
       expect(mockJobService.create).not.toHaveBeenCalled(); // No job created if already done
-    });
-
-    it('should create a Job record (SQL-Queue) before starting', async () => {
-      // When stems already exist we return early BEFORE creating a job
-      // This test verifies that when stems DON'T exist, a job IS created
-      mockProjectRepository.findOneBy.mockResolvedValue(mockProject);
-      mockShortRepository.findOneBy.mockResolvedValue(mockShort); // no stems
-
-      // We immediately reject at the mkdir step to short-circuit
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const fsMock = require('fs/promises') as jest.Mocked<
-        typeof import('fs/promises')
-      >;
-      fsMock.mkdir.mockRejectedValue(new Error('mkdir failed'));
-
-      await expect(service.separateStems('proj-1', 'short-1')).rejects.toThrow(
-        'mkdir failed',
-      );
-
-      // Job was created before the error
-      expect(mockJobService.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'stem_separation',
-          projectId: 'proj-1',
-          shortId: 'short-1',
-        }),
-      );
     });
 
     it('should mark job as failed if separation throws inside try block', async () => {
       mockProjectRepository.findOneBy.mockResolvedValue(mockProject);
       mockShortRepository.findOneBy.mockResolvedValue(mockShort);
 
-      // persistAndEmitProgress calls jobService.updateProgress inside the try block
-      // Making it throw simulates an error that should trigger jobService.fail
-      mockJobService.updateProgress.mockRejectedValueOnce(
+      // jobProgressService.emit calls inside the try block
+      // Making it throw simulates an error that should trigger jobProgressService.fail
+      mockJobProgressService.emit.mockRejectedValueOnce(
         new Error('disk full'),
       );
 
-      await expect(service.separateStems('proj-1', 'short-1')).rejects.toThrow(
+      await expect(service.separateStems('proj-1', 'short-1', 'job-1')).rejects.toThrow(
         'disk full',
       );
 
-      expect(mockJobService.fail).toHaveBeenCalledWith(
-        mockJob.id,
+      expect(mockJobProgressService.fail).toHaveBeenCalledWith(
+        'job-1',
         expect.stringContaining('disk full'),
       );
     });
 
     it('should emit SSE progress events AND update job in DB', async () => {
       mockProjectRepository.findOneBy.mockResolvedValue(mockProject);
-      mockShortRepository.findOneBy.mockResolvedValue({
-        ...mockShort,
-        vocalsPath: '/tmp/vocals.wav',
-        accompanimentPath: '/tmp/no_vocals.wav',
-      });
+      await service.separateStems('proj-1', 'short-1', 'job-1');
 
-      const progress$ = new Subject<StemProgressEvent>();
-      const events: StemProgressEvent[] = [];
-      progress$.subscribe((e) => events.push(e));
-
-      await service.separateStems('proj-1', 'short-1', progress$);
-
-      expect(
-        events.some((e: StemProgressEvent) => e.phase === 'complete'),
-      ).toBe(true);
+      expect(mockJobProgressService.emit).toHaveBeenCalledWith(
+        'job-1',
+        expect.objectContaining({ phase: 'complete' }),
+      );
     });
   });
 

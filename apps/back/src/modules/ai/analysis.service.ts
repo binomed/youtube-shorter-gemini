@@ -4,8 +4,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsOrder } from 'typeorm';
-import { Subject } from 'rxjs';
-import { spawn } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
@@ -19,13 +17,24 @@ import {
 import { GeminiService } from './gemini.service';
 import { WhisperService } from './whisper.service';
 import { StemService } from './stem.service';
+import { JobProgressService } from '../processing/job-progress.service';
 import { parseSrt } from './utils/srt-parser.util';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import {
   AnalysisProgressEvent,
   DetectedSegment,
   UpdateShortSegmentsDto,
+  ShortResponse,
 } from '@youtube-shorter/shared';
+
+export type { AnalysisProgressEvent };
+
+export interface AnalysisResponse {
+  projectId: string;
+  count: number;
+  shorts: ShortResponse[];
+  jobId: string;
+}
 
 /**
  * Orchestrates the full analysis pipeline:
@@ -50,20 +59,18 @@ export class AnalysisService {
     private readonly ffmpegService: FFmpegService,
     private readonly whisperService: WhisperService,
     private readonly stemService: StemService,
+    private readonly jobProgressService: JobProgressService,
   ) {}
 
   /**
    * Run full analysis pipeline for a project.
-   * Emits progress events to the provided subject for SSE streaming.
+   * Emits progress events via JobProgressService for SSE streaming.
    *
    * @param projectId - UUID of the project to analyze
-   * @param progress$ - Subject to emit progress events to
+   * @param jobId - Unified JobId for progress tracking
    * @returns Array of created Short entities
    */
-  async analyzeProject(
-    projectId: string,
-    progress$?: Subject<AnalysisProgressEvent>,
-  ): Promise<Short[]> {
+  async analyzeProject(projectId: string, jobId: string): Promise<Short[]> {
     // 1. Validate project exists
     const project = await this.projectRepository.findOneBy({ id: projectId });
     if (!project) {
@@ -72,7 +79,7 @@ export class AnalysisService {
 
     try {
       // Phase 1: Extract frames
-      this.emitProgress(progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'extracting_frames',
         progress: 10,
         message: 'Extracting video frames...',
@@ -94,14 +101,14 @@ export class AnalysisService {
         `[Analysis] Extracted ${frames.length} frames. Duration: ${duration}s.`,
       );
 
-      this.emitProgress(progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'extracting_frames',
         progress: 30,
         message: `Extracted ${frames.length} frames for analysis`,
       });
 
-      // Phase 2: Audio Transcription (Parallel with frame processing ideally, but sequential for simplicity)
-      this.emitProgress(progress$, {
+      // Phase 2: Audio Transcription
+      await this.jobProgressService.emit(jobId, {
         phase: 'transcribing',
         progress: 40,
         message: 'Extracting audio and generating subtitles...',
@@ -130,7 +137,6 @@ export class AnalysisService {
         if (transcript) {
           project.transcript = transcript;
           await this.projectRepository.save(project);
-          await this.projectRepository.save(project);
           this.logger.log(
             `[Analysis] Transcript saved for project ${projectId} (${transcript.length} chars). Preview: ${transcript.substring(0, 50)}...`,
           );
@@ -144,7 +150,7 @@ export class AnalysisService {
       }
 
       // Phase 3: Gemini analysis (Viral Detection)
-      this.emitProgress(progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'analyzing',
         progress: 60,
         message: 'Analyzing video content (visuals + audio)...',
@@ -159,7 +165,7 @@ export class AnalysisService {
         );
       } catch (error: unknown) {
         if (error instanceof Error && error.name === 'GeminiParseError') {
-          this.emitProgress(progress$, {
+          await this.jobProgressService.emit(jobId, {
             phase: 'error',
             progress: 80,
             message: `AI error: failed to understand the video structure. Please try again.`,
@@ -171,14 +177,14 @@ export class AnalysisService {
       this.logger.log(
         `[Analysis] Gemini detected ${detected.length} potential Shorts.`,
       );
-      this.emitProgress(progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'analyzing',
         progress: 80,
         message: `Gemini detected ${detected.length} potential Shorts`,
       });
 
       // Phase 4: Save results
-      this.emitProgress(progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'saving',
         progress: 90,
         message: 'Saving Shorts to database...',
@@ -194,23 +200,21 @@ export class AnalysisService {
         detected,
       );
 
-      this.emitProgress(progress$, {
+      await this.jobProgressService.emit(jobId, {
         phase: 'complete',
         progress: 100,
         message: `Analysis complete! ${shorts.length} Shorts detected.`,
       });
+
+      // Mark Job as COMPLETED in DB
+      await this.jobProgressService.complete(jobId);
 
       return shorts;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`Viral detection failed: ${errorMessage}`);
-      const event: AnalysisProgressEvent = {
-        phase: 'error',
-        progress: 80,
-        message: `Viral detection failed: ${errorMessage}`,
-      };
-      this.emitProgress(progress$, event);
+      await this.jobProgressService.fail(jobId, errorMessage);
       throw error;
     }
   }
@@ -267,34 +271,12 @@ export class AnalysisService {
         const timestamp = i * interval;
         const outputPath = path.join(tmpDir, `frame-${i}.jpg`);
 
-        await new Promise<void>((resolve, reject) => {
-          const proc = spawn('ffmpeg', [
-            '-ss',
-            timestamp.toString(),
-            '-i',
-            videoPath,
-            '-vframes',
-            '1',
-            '-q:v',
-            '5', // Good quality, smaller size
-            '-vf',
-            'scale=512:-1', // Resize for API efficiency
-            '-y',
-            outputPath,
-          ]);
-
-          proc.on('close', (code) => {
-            if (code === 0) resolve();
-            else
-              reject(
-                new Error(
-                  `Frame extraction failed at ${timestamp}s (exit code ${code})`,
-                ),
-              );
-          });
-
-          proc.on('error', reject);
-        });
+        await this.ffmpegService.extractThumbnail(
+          videoPath,
+          outputPath,
+          timestamp,
+          512,
+        );
 
         const frameBuffer = await fs.readFile(outputPath);
         frames.push(frameBuffer.toString('base64'));
@@ -400,18 +382,6 @@ export class AnalysisService {
     return shorts;
   }
 
-  /**
-   * Emit a progress event to the SSE subject (if provided).
-   */
-  private emitProgress(
-    progress$: Subject<AnalysisProgressEvent> | undefined,
-    event: AnalysisProgressEvent,
-  ): void {
-    this.logger.log(`[${event.phase}] ${event.progress}% - ${event.message}`);
-    if (progress$) {
-      progress$.next(event);
-    }
-  }
   async updateSubtitleStyle(
     projectId: string,
     shortId: string,

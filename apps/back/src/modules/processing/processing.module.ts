@@ -9,6 +9,7 @@ import { Job } from '../../entities/job.entity';
 import { StemService } from '../ai/stem.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { JobService } from './job.service';
+import { JobProgressService } from './job-progress.service';
 import { ExportService } from './export.service';
 import { ExportController } from './export.controller';
 
@@ -29,7 +30,19 @@ import { ExportController } from './export.controller';
 @Module({
   imports: [TypeOrmModule.forFeature([Short, Project, Job])],
   controllers: [ExportController],
-  providers: [StemService, FFmpegService, JobService, ExportService],
-  exports: [StemService, FFmpegService, JobService, ExportService],
+  providers: [
+    StemService,
+    FFmpegService,
+    JobService,
+    JobProgressService,
+    ExportService,
+  ],
+  exports: [
+    StemService,
+    FFmpegService,
+    JobService,
+    JobProgressService,
+    ExportService,
+  ],
 })
 export class ProcessingModule {}
