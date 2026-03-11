@@ -16,6 +16,12 @@ interface GeminiApiError extends Error {
   statusCode?: number;
 }
 
+interface RawLayoutEvent {
+  startTime?: number;
+  layoutMode?: 'fill' | 'fullscreen';
+  centerX?: number;
+}
+
 /** Typed JSON parsed from segment response */
 interface RawSegment {
   startTime?: number;
@@ -24,7 +30,8 @@ interface RawSegment {
   reason?: string;
   subjectPosition?: string;
   smartCropData?: { centerX?: number; width?: number };
-  segments?: RawSegment[];
+  layoutMode?: 'fill' | 'fullscreen';
+  layoutTimeline?: RawLayoutEvent[];
 }
 
 /**
@@ -103,21 +110,31 @@ export class GeminiService {
                 description:
                   "Detailed description of where the main person is standing or moving in the video frames (e.g., 'Standing on the left', 'Perfectly centered', 'On the right'). You MUST look at the images.",
               },
-              smartCropData: {
-                type: SchemaType.OBJECT,
-                properties: {
-                  centerX: {
-                    type: SchemaType.NUMBER,
-                    description:
-                      'Center X coordinate of the main subject (0.0 to 1.0) derived mathematically from subjectPosition. E.g. 0.2 for far left, 0.8 for far right. DO NOT DEFAULT TO 0.5.',
+              layoutTimeline: {
+                type: SchemaType.ARRAY,
+                description:
+                  'Sequence of layout/framing changes WITHIN this segment. You MUST provide at least one event at the start of the segment. If the subject moves or the scene changes layout type, add more events.',
+                items: {
+                  type: SchemaType.OBJECT,
+                  properties: {
+                    startTime: {
+                      type: SchemaType.NUMBER,
+                      description:
+                        'Time in seconds (absolute from start of video) when this layout configuration starts.',
+                    },
+                    layoutMode: {
+                      type: SchemaType.STRING,
+                      description:
+                        "Display mode: 'fill' (standard vertical crop) or 'fullscreen' (scaled original with blurred background).",
+                    },
+                    centerX: {
+                      type: SchemaType.NUMBER,
+                      description:
+                        'Center X coordinate (0.0 to 1.0) of the main subject at this time. 0.5 is center.',
+                    },
                   },
-                  width: {
-                    type: SchemaType.NUMBER,
-                    description:
-                      'Width ratio for the vertical crop (usually 0.5625 for 9:16)',
-                  },
+                  required: ['startTime', 'layoutMode', 'centerX'],
                 },
-                required: ['centerX', 'width'],
               },
             },
             required: [
@@ -126,7 +143,6 @@ export class GeminiService {
               'confidence',
               'reason',
               'subjectPosition',
-              'smartCropData',
             ],
           },
         },
@@ -391,20 +407,51 @@ export class GeminiService {
           this.logger.error(
             `Gemini API unavailable (retryable) after retries. Error: ${errorMessage}`,
           );
-          throw new Error(
-            `Gemini API is currently unavailable (${errorMessage}). Please wait a few minutes and try again.`,
-          );
+          throw new Error(this.interpretGeminiError(error));
         }
 
         this.logger.error(
           `Gemini API error (non-retryable): ${errorMessage}`,
           error,
         );
-        throw error;
+        throw new Error(this.interpretGeminiError(error));
       }
     }
 
     return []; // Unreachable, but TypeScript needs it
+  }
+
+  /**
+   * Translates raw Gemini API errors into user-friendly messages.
+   * Prevents "wall of text" payloads from reaching the UI.
+   */
+  private interpretGeminiError(error: unknown): string {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const err = error as GeminiApiError;
+    const status = err.status ?? err.statusCode;
+
+    // 1. Quota / Rate Limit (429)
+    if (status === 429 || errorMessage.includes('429') || errorMessage.includes('Quota')) {
+      return "You've reached the Gemini API quota limit. please wait a few seconds and try again. If you are on the free tier, this is common during busy periods.";
+    }
+
+    // 2. Service Overload / Unavailable (503)
+    if (status === 503 || errorMessage.includes('503') || errorMessage.includes('Service Unavailable')) {
+      return "Gemini is currently overloaded or undergoing maintenance. We've tried multiple times, but it remains unresponsive. Please try again in a few minutes.";
+    }
+
+    // 3. Safety / Blocked Content (not 4xx/5xx but field in response)
+    if (errorMessage.includes('blocked') || errorMessage.includes('Safety')) {
+      return "The AI safety filters blocked the analysis of this video. Try a different video or adjust the content.";
+    }
+
+    // 4. Fallback for parsing errors
+    if (error instanceof GeminiParseError || errorMessage.includes('parse')) {
+      return "Gemini returned an invalid response format. We're retrying, but if this persists, the video content might be too complex for analysis.";
+    }
+
+    // 5. General Fallback
+    return "Gemini encountered an unexpected error. Please wait a moment and try again.";
   }
 
   /**
@@ -426,11 +473,14 @@ ${transcript ? `- Transcript/Subtitles: see below\n\n${transcript.slice(0, 10000
 **Your task:**
 1. Identify 3-5 high-retention viral moments. Focus on short, dynamic punchlines, interesting facts, or strong hooks. Avoid dragging concepts over 40 seconds.
 2. For each moment, distinctively suggest "smart crop" metadata to keep the main subject centered in a 9:16 vertical frame.
-   - The source is likely 16:9 landscape.
-   - Analyze the visual frames in the segment: Where is the main speaker? Are they on the left side, right side, or moving?
-   - Set \`centerX\` (0.0 to 1.0) to the exact actual position of the main speaker/subject (e.g., 0.25 if offset to the left, 0.75 if offset to the right). 
-   - CRITICAL: DO NOT default to 0.5 unless the subject is perfectly dead-center.
-   - \`width\` should typically be 0.5625 (9/16) of the original width to fill the height.
+    - The source is likely 16:9 landscape.
+    - Analyze the visual frames in the segment: Where is the main speaker? Are they on the left side, right side, or moving?
+    - Set \`centerX\` (0.0 to 1.0) to the exact actual position of the main speaker/subject (e.g., 0.25 if offset to the left, 0.75 if offset to the right). 
+    - CRITICAL: DO NOT default to 0.5 unless the subject is perfectly dead-center.
+    - \`width\` should typically be 0.5625 (9/16) of the original width to fill the height.
+3. Determine the \`layoutMode\`:
+   - Use 'fill' for talking heads or central subjects where a 9:16 crop works perfectly.
+   - Use 'fullscreen' if the scene contains critical information across the full width (e.g., broad landscape action, gameplay UI, or long horizontal text) that would look weird or be lost if cropped to vertical.
 
 **Output format (JSON array only):**
 [
@@ -439,8 +489,13 @@ ${transcript ? `- Transcript/Subtitles: see below\n\n${transcript.slice(0, 10000
     "endTime": 63.2,
     "confidence": 92,
     "reason": "Strong visual hook with a fast-paced punchline.",
-    "subjectPosition": "The speaker is standing on the left side of the screen.",
-    "smartCropData": { "centerX": 0.25, "width": 0.5625 }
+    "subjectPosition": "The speaker moves from left to center.",
+    "smartCropData": { "centerX": 0.25, "width": 0.5625 },
+    "layoutMode": "fill",
+    "layoutTimeline": [
+      { "startTime": 45.5, "layoutMode": "fill", "centerX": 0.25 },
+      { "startTime": 55.0, "layoutMode": "fill", "centerX": 0.5 }
+    ]
   }
 ]
 
@@ -503,28 +558,23 @@ IMPORTANT: Return a valid JSON array. If no segments are found, return [].`;
             typeof seg.endTime === 'number' &&
             (seg.endTime ?? 0) > (seg.startTime ?? 0),
         )
-        .map((seg) => {
-          let centerX = 0.5;
-          let width = 0.5625;
-
-          if (seg.smartCropData && typeof seg.smartCropData === 'object') {
-            const crop = seg.smartCropData;
-            if (typeof crop.centerX === 'number') centerX = crop.centerX;
-            if (typeof crop.width === 'number') width = crop.width;
-          }
-
-          return {
-            startTime: Number(seg.startTime),
-            endTime: Number(seg.endTime),
-            confidence: Number(seg.confidence) || 50,
-            reason: (seg.reason as string) || 'Interesting moment detected',
-            subjectPosition:
-              typeof seg.subjectPosition === 'string'
-                ? seg.subjectPosition
-                : undefined,
-            smartCropData: { centerX, width },
-          };
-        });
+        .map((seg) => ({
+          startTime: Number(seg.startTime),
+          endTime: Number(seg.endTime),
+          confidence: Number(seg.confidence) || 50,
+          reason: (seg.reason as string) || 'Interesting moment detected',
+          subjectPosition:
+            typeof seg.subjectPosition === 'string'
+              ? seg.subjectPosition
+              : undefined,
+          layoutTimeline: Array.isArray(seg.layoutTimeline)
+            ? seg.layoutTimeline.map((ev) => ({
+                timestamp: Number(ev.startTime),
+                layoutMode: (ev.layoutMode as 'fill' | 'fullscreen') || 'fill',
+                centerX: typeof ev.centerX === 'number' ? ev.centerX : 0.5,
+              }))
+            : undefined,
+        }));
     } catch (error) {
       throw new GeminiParseError((error as Error).message, response);
     }

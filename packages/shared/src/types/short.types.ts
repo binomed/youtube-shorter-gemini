@@ -2,11 +2,30 @@
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 /**
+ * Event defining a layout/framing change at a specific timestamp.
+ */
+export interface LayoutEvent {
+    /** Absolute timestamp in the original video */
+    timestamp: number;
+    /** Recommended display mode */
+    layoutMode: 'fill' | 'fullscreen';
+    /** Center X coordinate of the main subject (0.0 to 1.0) */
+    centerX: number;
+}
+
+/**
  * Individual video segment within a short
  */
 export interface VideoSegment {
     startTime: number;
     endTime: number;
+    /** 
+     * Timeline of layout changes within this segment.
+     * If empty, fallback to centerX and layoutMode properties.
+     */
+    layoutTimeline?: LayoutEvent[];
+    centerX?: number;
+    layoutMode?: 'fill' | 'fullscreen';
 }
 
 /**
@@ -103,6 +122,11 @@ export interface DetectedSegment {
     confidence: number;
     reason: string;
     subjectPosition?: string;
+    /** 
+     * Timeline of layout changes detected by AI.
+     */
+    layoutTimeline?: LayoutEvent[];
+    layoutMode?: 'fill' | 'fullscreen';
     smartCropData?: {
         centerX: number;
         width: number;
@@ -160,7 +184,6 @@ export interface SubtitleStyle {
     borderEnabled?: boolean;
     borderWidth?: number;
     borderColor?: string;
-    lineSpacing?: number;
     textShadow?: boolean;
     textOutline?: boolean;
 }

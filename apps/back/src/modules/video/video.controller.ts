@@ -155,15 +155,31 @@ export class VideoController {
     }
 
     // Create project
-    const project = await this.videoService.createProject(
-      createProjectDto,
-      file,
-    );
+    try {
+      const project = await this.videoService.createProject(
+        createProjectDto,
+        file,
+      );
 
-    return {
-      success: true, // Legacy format
-      data: project,
-    };
+      return {
+        success: true, // Legacy format
+        data: project,
+      };
+    } catch (error) {
+      // Cleanup orphan Multer upload on failure (Issue #11 extension)
+      if (file && file.path && existsSync(file.path)) {
+        try {
+          const fs = require('fs/promises');
+          await fs.unlink(file.path);
+          this.videoService['logger'].warn(
+            `Cleaned up orphan upload after failure: ${file.path}`,
+          );
+        } catch (unLinkError) {
+          // Ignore unlink errors
+        }
+      }
+      throw error;
+    }
   }
 
   /**

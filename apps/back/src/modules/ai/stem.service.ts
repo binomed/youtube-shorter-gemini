@@ -127,44 +127,47 @@ export class StemService {
         shortId,
       });
 
-      await this.runDemucs(segmentAudioPath, stemsDir);
+      try {
+        await this.runDemucs(segmentAudioPath, stemsDir);
 
-      await this.jobProgressService.emit(jobId, {
-        phase: 'separating',
-        progress: 80,
-        message: 'Stem separation complete.',
-        shortId,
-      });
+        await this.jobProgressService.emit(jobId, {
+          phase: 'separating',
+          progress: 80,
+          message: 'Stem separation complete.',
+          shortId,
+        });
 
-      // Phase 3: Locate output stems and update entity
-      await this.jobProgressService.emit(jobId, {
-        phase: 'saving',
-        progress: 90,
-        message: 'Saving stem references...',
-        shortId,
-      });
+        // Phase 3: Locate output stems and update entity
+        await this.jobProgressService.emit(jobId, {
+          phase: 'saving',
+          progress: 90,
+          message: 'Saving stem references...',
+          shortId,
+        });
 
-      const { vocalsPath, accompanimentPath } =
-        await this.locateDemucsOutputs(stemsDir);
+        const { vocalsPath, accompanimentPath } =
+          await this.locateDemucsOutputs(stemsDir);
 
-      short.vocalsPath = vocalsPath;
-      short.accompanimentPath = accompanimentPath;
-      const saved = await this.shortRepository.save(short);
+        short.vocalsPath = vocalsPath;
+        short.accompanimentPath = accompanimentPath;
+        const saved = await this.shortRepository.save(short);
 
-      // Cleanup the temporary segment audio (keep stems only)
-      await fs.unlink(segmentAudioPath).catch(() => {});
+        await this.jobProgressService.emit(jobId, {
+          phase: 'complete',
+          progress: 100,
+          message: 'Stem separation finished successfully!',
+          shortId,
+        });
 
-      await this.jobProgressService.emit(jobId, {
-        phase: 'complete',
-        progress: 100,
-        message: 'Stem separation finished successfully!',
-        shortId,
-      });
+        // Mark Job as COMPLETED in DB
+        await this.jobProgressService.complete(jobId);
 
-      // Mark Job as COMPLETED in DB
-      await this.jobProgressService.complete(jobId);
-
-      return saved;
+        return saved;
+      } finally {
+        // Cleanup the temporary segment audio (keep stems only)
+        // This is now in finally to ensure cleanup even on demucs failure
+        await fs.unlink(segmentAudioPath).catch(() => {});
+      }
     } catch (error) {
       const errorMessage = (error as Error).message;
       await this.jobProgressService.fail(jobId, errorMessage);

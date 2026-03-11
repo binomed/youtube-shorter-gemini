@@ -127,38 +127,47 @@ export class YtsSubtitleOverlay extends LitElement {
         :host {
             position: absolute;
             inset: 0;
-            pointer-events: none; /* Let clicks pass through except on the text */
+            pointer-events: none;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end; /* Default bottom alignment */
+            justify-content: flex-end;
             padding-bottom: 20%;
             z-index: 2;
+            
+            /* Enable container queries on the player frame */
+            container-type: size;
         }
 
         .subtitle-container {
-            pointer-events: auto; /* Allow interaction with the subtitle text */
+            pointer-events: auto;
             cursor: grab;
             user-select: none;
             text-align: center;
-            padding: var(--yts-spacing-sm) var(--yts-spacing-md);
-            border-radius: var(--yts-radius-md);
+            
+            /* Responsive Padding: Match the backend 'Outline' of 20px (per 1000px height) */
+            /* 20px / 562.5px design width = 3.55cqw. We use 3.5cqw for parity. */
+            padding: 1.5cqh 3.5cqw;
+            
+            border-radius: 0.8cqw;
+            
+            /* Match backend MarginL/R of 5.4% (5% gap on each side) */
+            /* In backend we set 54px for 1080px width, which is 5%. */
+            /* So max-width is 100% - 10% = 90%. */
             max-width: 90%;
+            
             word-wrap: break-word;
-            touch-action: none; /* Prevent scrolling on mobile while dragging */
+            touch-action: none;
 
-            /* Default styles overridden by subtitleStyle prop */
             background-color: rgba(0, 0, 0, 0.6);
             color: #ffffff;
-            font-size: 24px;
             font-weight: bold;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
         }
 
         .subtitle-container:hover {
-            transform: scale(1.05);
-            outline: 2px solid var(--yts-accent);
-            outline-offset: 2px;
+            transform: scale(1.02);
+            outline: 0.5cqw solid var(--yts-accent);
+            outline-offset: 0.5cqw;
         }
     `;
 
@@ -170,31 +179,36 @@ export class YtsSubtitleOverlay extends LitElement {
         const posX = 0; // X is always locked to center
         const posY = this._isDragging ? this._currentPosY : (this.subtitleStyle?.positionY || 0);
 
+        // Convert UI design pixels to responsive container units (cqw/cqh)
+        // Reference Width for 9:16 inside a 1000px height is 562.5px
+        const fsValue = this.subtitleStyle?.fontSize || 40;
+        const responsiveFontSize = `${(fsValue / 562.5) * 100}cqw`;
+        
         const styles: Record<string, string | number> = {
             fontFamily: this.subtitleStyle?.font || 'inherit',
-            fontSize: this.subtitleStyle?.fontSize ? `${this.subtitleStyle.fontSize}px` : '24px',
+            fontSize: responsiveFontSize,
             color: this.subtitleStyle?.color || '#ffffff',
             backgroundColor: this.subtitleStyle?.backgroundColor || 'rgba(0, 0, 0, 0.6)',
             textAlign: this.subtitleStyle?.textAlign || 'center',
-            lineHeight: this.subtitleStyle?.lineSpacing || '1.2',
             transform: `translate(${posX}px, ${posY}px)`,
             cursor: this._isDragging ? 'grabbing' : 'grab'
         };
 
         if (this.subtitleStyle?.borderEnabled) {
-            styles.border = `${this.subtitleStyle.borderWidth || 3}px solid ${this.subtitleStyle.borderColor || '#000000'}`;
+            const bw = this.subtitleStyle.borderWidth || 3;
+            styles.border = `calc(${(bw / 562.5) * 100}cqw) solid ${this.subtitleStyle.borderColor || '#000000'}`;
         } else {
             styles.border = 'none';
         }
 
         if (this.subtitleStyle?.textShadow) {
-            styles.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+            styles.textShadow = '0.4cqw 0.4cqw 0.8cqw rgba(0,0,0,0.5)';
         } else {
             styles.textShadow = 'none';
         }
 
         if (this.subtitleStyle?.textOutline) {
-            styles.webkitTextStroke = `1px ${this.subtitleStyle.color === '#ffffff' ? '#000000' : '#ffffff'}`;
+            styles.webkitTextStroke = `0.2cqw ${this.subtitleStyle.color === '#ffffff' ? '#000000' : '#ffffff'}`;
         } else {
             styles.webkitTextStroke = '0';
         }

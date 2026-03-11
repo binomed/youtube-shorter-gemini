@@ -46,6 +46,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   @state() private exportIncludeMusic = true;
 
   @state() private currentTime = 0;
+  @state() private isPlaying = false;
 
   async onBeforeEnter(location: RouterLocation): Promise<void> {
     const projectId = location.params.projectId as string;
@@ -169,7 +170,15 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
   private async handleMarkDelta(e: CustomEvent): Promise<void> {
     const { boundary, delta } = e.detail;
-    if (!this.currentShort || !this.currentShort.segments || this.currentShort.segments.length === 0) return;
+    if (!this.currentShort) return;
+    
+    if (!this.currentShort.segments || this.currentShort.segments.length === 0) {
+      this.currentShort.segments = [{
+        startTime: this.currentShort.startTime,
+        endTime: this.currentShort.endTime,
+        layoutTimeline: []
+      }];
+    }
 
     const segment = { ...this.currentShort.segments[0] };
     if (boundary === 'in') {
@@ -230,6 +239,154 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       }
     } catch (err) {
       console.error('Failed to save segments:', err);
+    }
+  }
+
+  async handleLayoutChange(e: CustomEvent): Promise<void> {
+    const { layoutMode, timestamp } = e.detail;
+    console.log('[EditorPage] handleLayoutChange', { layoutMode, timestamp });
+
+    if (!this.currentShort) return;
+
+    if (!this.currentShort.segments || this.currentShort.segments.length === 0) {
+      this.currentShort.segments = [{
+        startTime: this.currentShort.startTime,
+        endTime: this.currentShort.endTime,
+        layoutTimeline: []
+      }];
+    }
+
+    const segments = JSON.parse(JSON.stringify(this.currentShort.segments));
+    const seg = segments[0];
+    if (!seg.layoutTimeline) seg.layoutTimeline = [];
+
+    // Find if a keyframe exists exactly at this timestamp
+    const existingIndex = seg.layoutTimeline.findIndex((ev: any) => Math.abs(ev.timestamp - timestamp) < 0.1);
+
+    if (existingIndex > -1) {
+      console.log('[EditorPage] Updating existing keyframe layoutMode');
+      seg.layoutTimeline[existingIndex].layoutMode = layoutMode;
+    } else {
+      console.log('[EditorPage] Adding new keyframe via layout toggle');
+      const player = this.shadowRoot?.querySelector('yts-short-player') as any;
+      const currentLayout = player?.getCurrentLayout() || { centerX: 0.5 };
+      
+      seg.layoutTimeline.push({
+        timestamp,
+        layoutMode,
+        centerX: currentLayout.centerX
+      });
+      seg.layoutTimeline.sort((a: any, b: any) => a.timestamp - b.timestamp);
+    }
+
+    await this.saveSegments(segments);
+  }
+
+  async handlePanChange(e: CustomEvent): Promise<void> {
+    const { centerX, timestamp } = e.detail;
+    console.log('[EditorPage] handlePanChange', { centerX, timestamp });
+    
+    if (!this.currentShort) return;
+    
+    if (!this.currentShort.segments || this.currentShort.segments.length === 0) {
+      this.currentShort.segments = [{
+        startTime: this.currentShort.startTime,
+        endTime: this.currentShort.endTime,
+        layoutTimeline: []
+      }];
+    }
+
+    const segments = JSON.parse(JSON.stringify(this.currentShort.segments));
+    const seg = segments[0];
+    if (!seg.layoutTimeline) seg.layoutTimeline = [];
+
+    // Find if a keyframe exists exactly at this timestamp
+    const existingIndex = seg.layoutTimeline.findIndex((ev: any) => Math.abs(ev.timestamp - timestamp) < 0.1);
+
+    if (existingIndex > -1) {
+      console.log('[EditorPage] Updating existing keyframe centerX');
+      seg.layoutTimeline[existingIndex].centerX = centerX;
+    } else {
+      console.log('[EditorPage] Adding new keyframe via pan change');
+      const player = this.shadowRoot?.querySelector('yts-short-player') as any;
+      const currentLayout = player?.getCurrentLayout() || { layoutMode: 'fill' };
+
+      seg.layoutTimeline.push({
+        timestamp,
+        layoutMode: currentLayout.layoutMode,
+        centerX
+      });
+      seg.layoutTimeline.sort((a: any, b: any) => a.timestamp - b.timestamp);
+    }
+    
+    await this.saveSegments(segments);
+  }
+
+  async handleToggleKeyframe(e: CustomEvent): Promise<void> {
+    const { timestamp } = e.detail;
+    console.log('[EditorPage] handleToggleKeyframe', { timestamp });
+    if (!this.currentShort) return;
+
+    if (!this.currentShort.segments || this.currentShort.segments.length === 0) {
+      console.log('[EditorPage] Initializing default segment for keyframe toggle');
+      this.currentShort.segments = [{
+        startTime: this.currentShort.startTime,
+        endTime: this.currentShort.endTime,
+        layoutTimeline: []
+      }];
+    }
+
+    const segments = JSON.parse(JSON.stringify(this.currentShort.segments));
+    const seg = segments[0];
+    if (!seg.layoutTimeline) seg.layoutTimeline = [];
+
+    const existingIndex = seg.layoutTimeline.findIndex((ev: any) => Math.abs(ev.timestamp - timestamp) < 0.1);
+    const intent = e.detail.intent || (existingIndex > -1 ? 'remove' : 'add');
+
+    console.log('[EditorPage] Processed intent:', intent);
+
+    if (intent === 'remove') {
+      let indexToRemove = existingIndex;
+      if (indexToRemove === -1) {
+        // If no exact match but we want to remove, remove the active one (preceding or at timestamp)
+        indexToRemove = -1;
+        for (let i = seg.layoutTimeline.length - 1; i >= 0; i--) {
+          if (seg.layoutTimeline[i].timestamp <= timestamp) {
+            indexToRemove = i;
+            break;
+          }
+        }
+      }
+
+      if (indexToRemove > -1) {
+        console.log('[EditorPage] Removing keyframe at index', indexToRemove);
+        seg.layoutTimeline.splice(indexToRemove, 1);
+      }
+    } else {
+      // Intent: Add (only if doesn't exist)
+      if (existingIndex === -1) {
+        const player = this.shadowRoot?.querySelector('yts-short-player') as any;
+        const layout = player?.getCurrentLayout() || { layoutMode: 'fill', centerX: 0.5 };
+
+        console.log('[EditorPage] Adding new keyframe', { timestamp, layout });
+        seg.layoutTimeline.push({
+          timestamp,
+          layoutMode: layout.layoutMode,
+          centerX: layout.centerX
+        });
+
+        // Sort timeline
+        seg.layoutTimeline.sort((a: any, b: any) => a.timestamp - b.timestamp);
+      }
+    }
+
+    await this.saveSegments(segments);
+  }
+
+  private handleTogglePlay(): void {
+    const player = this.shadowRoot?.querySelector('yts-short-player') as any;
+    if (player && typeof player.togglePlay === 'function') {
+      player.togglePlay();
     }
   }
 
@@ -898,7 +1055,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
             <div style="display: flex; flex-direction: column; gap: 16px; height: 100%; width: 100%; overflow: hidden; justify-content: space-between; align-items: center; padding: 0 12px;">
               <div style="flex: 1; min-height: 0; width: 100%; display: flex; justify-content: center; align-items: center;">
                 <yts-short-player
-                  style="max-height: 100%; max-width: 100%; width: auto; height: auto;"
+                  style="width: 100%; height: 100%;"
                   src="/api/projects/${projectId}/video"
                   .subtitles=${this._getFilteredSubtitles()}
                   .subtitleStyle=${this.currentShort?.subtitleStyle}
@@ -908,8 +1065,12 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                   @edit-subtitle=${this.handleEditSubtitle}
                   @style-changed=${this.handleStyleChange}
                   @mark-delta=${this.handleMarkDelta}
-                  @segment-settled=${this.handleSegmentSettled}
-                  @time-update=${(e: CustomEvent) => this.currentTime = e.detail.currentTime}
+                   @segment-settled=${this.handleSegmentSettled}
+                   @layout-changed=${(e: CustomEvent): void => { console.log('[Editor] Layout change', e.detail); void this.handleLayoutChange(e); }}
+                   @pan-changed=${(e: CustomEvent): void => { console.log('[Editor] pan', e.detail); void this.handlePanChange(e); }}
+                   @toggle-keyframe=${(e: CustomEvent): void => { console.log('[Editor] keyframe', e.detail); void this.handleToggleKeyframe(e); }}
+                   @time-update=${(e: CustomEvent) => (this.currentTime = e.detail.currentTime)}
+                   @playback-status-changed=${(e: CustomEvent) => (this.isPlaying = e.detail.isPlaying)}
                   ></yts-short-player>
               </div>
 
@@ -918,12 +1079,14 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                       style="flex-shrink: 0; width: 100%; max-width: 800px; padding-bottom: 24px;"
                       .duration=${projectSignal.get()?.duration || 0}
                       .currentTime=${this.currentTime}
+                      .isPlaying=${this.isPlaying}
                       .segment=${this.currentShort.segments?.[0] || { startTime: this.currentShort.startTime, endTime: this.currentShort.endTime }}
                       @segment-settled=${this.handleSegmentSettled}
                       @timeline-seek=${(e: CustomEvent) => {
               const player = this.shadowRoot?.querySelector('yts-short-player') as YtsShortPlayer;
               if (player) player.seekTo(e.detail.time);
             }}
+                      @toggle-play=${() => this.handleTogglePlay()}
                   ></yts-precision-multi-timeline>
               ` : ''}
             </div>`

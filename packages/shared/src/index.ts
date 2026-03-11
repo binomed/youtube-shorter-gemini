@@ -15,6 +15,6 @@ export { ExportShortDto } from './dtos/export.dto';
 
 // Types
 export { ProjectResponse } from './types/project.types';
-export { ShortResponse, AnalysisResponse, AnalysisProgressEvent, DetectedSegment, StemProgressEvent, ExportProgressEvent, SubtitleResponse, VideoSegment, SubtitleStyle } from './types/short.types';
+export { ShortResponse, AnalysisResponse, AnalysisProgressEvent, DetectedSegment, StemProgressEvent, ExportProgressEvent, SubtitleResponse, VideoSegment, SubtitleStyle, LayoutEvent } from './types/short.types';
 export { SubtitlePreset, CreateSubtitlePresetDto } from './types/subtitle-preset.types';
 export { ErrorResponse, ValidationErrorResponse, ValidationError } from './types/error.types';

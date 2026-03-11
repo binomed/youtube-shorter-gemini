@@ -133,11 +133,6 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         this.emitStyleChange({ borderColor: picker.value });
     }
 
-    private handleLineSpacingChange(e: Event) {
-        const input = e.target as HTMLInputElement;
-        this.emitStyleChange({ lineSpacing: parseFloat(input.value) });
-    }
-
     private handleShadowToggle(e: Event) {
         const sw = e.target as HTMLInputElement;
         this.emitStyleChange({ textShadow: sw.checked });
@@ -160,7 +155,6 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             borderEnabled: false,
             borderWidth: 3,
             borderColor: '#000000',
-            lineSpacing: 1.2,
             textShadow: true,
             textOutline: false
         });
@@ -699,7 +693,6 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         const borderEnabled = this.subtitleStyle?.borderEnabled || false;
         const borderWidth = this.subtitleStyle?.borderWidth || 3;
         const borderColor = this.subtitleStyle?.borderColor || '#000000';
-        const lineSpacing = this.subtitleStyle?.lineSpacing || 1.2;
         const textShadow = this.subtitleStyle?.textShadow ?? true;
         const textOutline = this.subtitleStyle?.textOutline || false;
 
@@ -708,9 +701,9 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             ${this.isSavePresetDialogOpen ? this._renderSavePresetForm() : ''}
             ${this._renderFontSection(currentFont)}
             ${this._renderSizeSection(currentSize)}
-            ${this._renderColorsPreviewSection(currentFont, currentColor, currentBgColor, textColorToggle, bgColorToggle, textAlign, borderEnabled, borderWidth, borderColor, lineSpacing, textShadow, textOutline)}
+            ${this._renderColorsPreviewSection(currentFont, currentColor, currentBgColor, textColorToggle, bgColorToggle, textAlign, borderEnabled, borderWidth, borderColor, textShadow, textOutline)}
             ${this._renderAlignmentSection(textAlign)}
-            ${this._renderEffectsSection(borderEnabled, borderWidth, borderColor, lineSpacing, textShadow, textOutline)}
+            ${this._renderEffectsSection(borderEnabled, borderWidth, borderColor, textShadow, textOutline)}
             ${this._renderPositionSection(currentPosY)}
             ${this._renderFooterActions()}
         `;
@@ -814,7 +807,6 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         borderEnabled: boolean,
         borderWidth: number,
         borderColor: string,
-        lineSpacing: number,
         textShadow: boolean,
         textOutline: boolean
     ) {
@@ -824,7 +816,6 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             color: ${currentColor};
             background-color: ${currentBgColor};
             text-align: ${textAlign === 'justify' ? 'justify' : textAlign};
-            line-height: ${lineSpacing};
             padding: 8px 12px;
             border-radius: 4px;
         `;
@@ -937,7 +928,6 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         borderEnabled: boolean,
         borderWidth: number,
         borderColor: string,
-        lineSpacing: number,
         textShadow: boolean,
         textOutline: boolean
     ) {
@@ -960,16 +950,6 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                         ></sl-color-picker>
                     </sl-dropdown>
                     <sl-icon name="pencil" style="font-size: 14px; color: var(--yts-text-3);"></sl-icon>
-                </div>
-            </div>
-
-            <div class="effect-row">
-                <div class="effect-label">
-                    <span>Line Spacing</span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 12px; flex: 2;">
-                    <input type="range" class="custom-slider" min="0.5" max="3" step="0.1" .value=${lineSpacing} @input=${this.handleLineSpacingChange}>
-                    <sl-icon name="distribute-vertical" style="font-size: 16px;"></sl-icon>
                 </div>
             </div>
 

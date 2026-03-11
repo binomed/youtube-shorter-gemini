@@ -34,7 +34,11 @@ const validSegmentsResponse = JSON.stringify({
       startTime: 15,
       endTime: 45,
       confidence: 0.92,
-      reasoning: 'High viewer engagement',
+      subjectPosition: 'Center',
+      layoutTimeline: [
+        { startTime: 15, layoutMode: 'fullscreen', centerX: 0.5 },
+        { startTime: 30, layoutMode: 'fill', centerX: 0.8 }
+      ]
     },
   ],
 });
@@ -50,6 +54,13 @@ describe('GeminiService', () => {
     }),
   };
 
+  const mockLogger = {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -57,6 +68,7 @@ describe('GeminiService', () => {
       providers: [
         GeminiService,
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: 'WINSTON_MODULE_PROVIDER', useValue: mockLogger },
       ],
     }).compile();
 
@@ -78,6 +90,11 @@ describe('GeminiService', () => {
       expect(result[0].reason).toBe('Highlight Moment');
       expect(result[0].startTime).toBe(15);
       expect(result[0].confidence).toBe(0.92);
+      expect(result[0].layoutTimeline).toHaveLength(2);
+      expect(result[0].layoutTimeline?.[0].layoutMode).toBe('fullscreen');
+      expect(result[0].layoutTimeline?.[0].centerX).toBe(0.5);
+      expect(result[0].layoutTimeline).toHaveLength(2);
+      expect(result[0].layoutTimeline?.[1].centerX).toBe(0.8);
     });
 
     it('should handle JSON wrapped in markdown code blocks', async () => {
@@ -103,7 +120,7 @@ describe('GeminiService', () => {
     });
 
     it('should retry on 429/503 quota errors with exponential backoff', async () => {
-      const quotaError = { status: 429, message: 'Quota exceeded' };
+      const quotaError = { status: 429, message: 'Quota exceeded' } as any;
       mockGenerateContent
         .mockRejectedValueOnce(quotaError)
         .mockResolvedValueOnce({
@@ -124,7 +141,6 @@ describe('GeminiService', () => {
     it('should return empty string when audio is empty', async () => {
       const emptyBuffer = Buffer.alloc(0);
       const result = await service.generateSubtitles(emptyBuffer);
-      // Service returns '' (empty string) on error/empty audio — not null
       expect(typeof result).toBe('string');
     });
 
@@ -139,7 +155,6 @@ describe('GeminiService', () => {
       const audioBuffer = Buffer.from('fake-audio-data');
       const result = await service.generateSubtitles(audioBuffer);
 
-      // Service returns the SRT string extracted from the JSON response
       expect(typeof result).toBe('string');
       expect(mockGenerateContent).toHaveBeenCalled();
     });

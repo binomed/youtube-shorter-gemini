@@ -546,6 +546,14 @@ The Advanced SubStation Alpha (.ass) format **does not natively support `border-
 - Creating a true rounded rectangle requires injecting manual ASS vector drawing commands (e.g., `{\p1}m 0 0 l 100 0...{\p0}`). However, since vector shapes in ASS have fixed pixel dimensions, they do not dynamically expand or wrap around generated dynamic text lengths natively.
 - **Conclusion**: For dynamic FFmpeg subtitles, the background box (`BorderStyle 4`) will invariably feature sharp, 90-degree corners.
 
+### Line Spacing Limitations
+The ASS format **does not natively support CSS-style `line-height`** or line spacing adjustments.
+- **The Problem**: While the `Spacing` parameter exists, it only adjusts horizontal *letter* spacing, not vertical line spacing. `libass` (FFmpeg's rendering engine) derives the vertical gap between lines strictly from the embedded font's internal height metrics (Ascender/Descender).
+- **The "Hack"**: A common workaround to artificially increase line spacing across hard breaks (`\N`) is injecting an invisible, scaled zero-width text segment (e.g., `\N{\fsX}.\N\r`). However, this hack **fails completely** on `libass`'s native automatic soft-wrapping. 
+- **Soft-Wrap Breakage**: When text is too long and `libass` automatically wraps it based on `MarginL/R`, it forces the font's native native height metric between the wrapped lines. This causes a major visual desync: a web preview using CSS `line-height` will take up a larger vertical footprint than the ASS export for the exact same wrapped text. This desync causes the bounding box (which dynamically hugs the text) to seemingly "not follow" the web preview accurately.
+- **Conclusion**: To ensure perfect box and layout fidelity between web previews and FFmpeg exports, **custom line spacing (`line-height`) should be avoided entirely**. The UI should rely solely on the browser's default native line height (`normal` or `1.15`), aligning the web preview harmoniously with `libass`'s fixed internal font rendering.
+
+
 ## FFmpeg Cheat Sheet
 
 | Task | Command Pattern |

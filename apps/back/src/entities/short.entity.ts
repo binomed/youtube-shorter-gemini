@@ -145,22 +145,42 @@ export class Short {
 
   /**
    * List of segments (jump cuts) that compose this short.
-   * JSON structure: Array<{ startTime: number, endTime: number }>
+   * JSON structure: Array<{ startTime: number, endTime: number, centerX?: number, layoutMode?: 'fill' | 'fullscreen' }>
    */
   @Column({
     type: 'text',
     nullable: true,
     transformer: {
       to: (
-        value: Array<{ startTime: number; endTime: number }> | null | undefined,
+        value: Array<{ 
+          startTime: number; 
+          endTime: number; 
+          centerX?: number; 
+          layoutMode?: 'fill' | 'fullscreen' 
+        }> | null | undefined,
       ) => JSON.stringify(value),
       from: (value: string) =>
         value
-          ? (JSON.parse(value) as Array<{ startTime: number; endTime: number }>)
+          ? (JSON.parse(value) as Array<{ 
+              startTime: number; 
+              endTime: number; 
+              centerX?: number; 
+              layoutMode?: 'fill' | 'fullscreen' 
+            }>)
           : null,
     },
   })
-  segments?: Array<{ startTime: number; endTime: number }>;
+  segments?: Array<{ 
+    startTime: number; 
+    endTime: number; 
+    centerX?: number; 
+    layoutMode?: 'fill' | 'fullscreen';
+    layoutTimeline?: Array<{
+      timestamp: number;
+      layoutMode: 'fill' | 'fullscreen';
+      centerX: number;
+    }>;
+  }>;
 
   /**
    * Timestamp when the short was created/detected

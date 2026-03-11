@@ -118,32 +118,34 @@ export class AnalysisService {
       let transcript = '';
 
       try {
-        // Extract audio
-        await this.ffmpegService.extractAudio(project.videoPath, audioPath);
+        try {
+          // Extract audio
+          await this.ffmpegService.extractAudio(project.videoPath, audioPath);
 
-        const useGeminiForSubtitles =
-          process.env.USE_GEMINI_SUBTITLES === 'true';
+          const useGeminiForSubtitles =
+            process.env.USE_GEMINI_SUBTITLES === 'true';
 
-        if (useGeminiForSubtitles) {
-          // Read audio buffer
-          const audioBuffer = await fs.readFile(audioPath);
-          transcript = await this.geminiService.generateSubtitles(audioBuffer);
-        } else {
-          // Generate subtitles using local WhisperX instead of Gemini
-          transcript = await this.whisperService.generateSubtitles(audioPath);
+          if (useGeminiForSubtitles) {
+            // Read audio buffer
+            const audioBuffer = await fs.readFile(audioPath);
+            transcript = await this.geminiService.generateSubtitles(audioBuffer);
+          } else {
+            // Generate subtitles using local WhisperX instead of Gemini
+            transcript = await this.whisperService.generateSubtitles(audioPath);
+          }
+
+          // Save transcript to project
+          if (transcript) {
+            project.transcript = transcript;
+            await this.projectRepository.save(project);
+            this.logger.log(
+              `[Analysis] Transcript saved for project ${projectId} (${transcript.length} chars). Preview: ${transcript.substring(0, 50)}...`,
+            );
+          }
+        } finally {
+          // Cleanup audio file immediately after transcription attempt
+          await fs.unlink(audioPath).catch(() => {});
         }
-
-        // Save transcript to project
-        if (transcript) {
-          project.transcript = transcript;
-          await this.projectRepository.save(project);
-          this.logger.log(
-            `[Analysis] Transcript saved for project ${projectId} (${transcript.length} chars). Preview: ${transcript.substring(0, 50)}...`,
-          );
-        }
-
-        // Cleanup audio file
-        await fs.unlink(audioPath).catch(() => {});
       } catch (error) {
         this.logger.warn(`Transcription failed: ${(error as Error).message}`);
         // Continue without transcript

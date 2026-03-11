@@ -71,6 +71,7 @@ FR12: Epic 1 & 2 - Support
 FR13: Epic 1 - Privacy
 FR14: Epic 4 - Editor
 FR15: Epic 5 - Export
+FR16: Epic 7 - Advanced Layout (New)
 
 ### Epic 1: Workspace & Technical Induction
 Establish the project foundation and enable video ingestion.
@@ -245,3 +246,37 @@ So that I can fine-tune the performance and quality of the analysis to my specif
 **When** I navigate to the "Settings" or "Configuration" section
 **Then** I see options to modify key parameters (e.g., "Frame Extraction Interval (seconds)", "Gemini Model").
 **And** changes I make are saved persistently and applied to all future video analyses.
+
+---
+
+## Epic 7: Advanced Video Layout & Framing
+
+### Story 7.1: Gemini Layout & Centering Detection
+As a creator,
+I want the AI to accurately detect the subject's X-position AND identify scenes that span the full width (landscape aspect),
+So that my vertical shorts are well-framed natively or properly presented in a fullscreen multi-layer view.
+
+**Acceptance Criteria:**
+- Gemini returns `layoutTimeline` (sequence of `layoutMode` and `centerX`) per segment to handle movement and scene changes within one clip.
+- Values are persisted in the `segments` JSON of the `Short` entity.
+
+### Story 7.2: Interactive Player Reframing (Frontend)
+As a creator,
+I want to manually adjust the X-position of the video within the 9:16 frame and toggle between Fill and Fullscreen modes,
+So that I compose the visual exactly as I want.
+
+**Acceptance Criteria:**
+- Sliders for `centerX` and toggle for `layoutMode` appear in the editor.
+- Video preview updates in real-time (pan effect or blurred background).
+- Changes are saved to the active segment.
+
+### Story 7.3: FFmpeg Layout Engine update (Backend)
+As a creator,
+I want my exported video to perfectly match the framing and layout mode chosen in the editor,
+So that my final render is ready for social media.
+
+**Acceptance Criteria:**
+- FFmpeg applies specific filters per segment.
+- "Fill" mode uses dynamic crop based on `centerX`.
+- "Fullscreen" mode uses blurred background + scaled foreground.
+- Final MP4 reflects all layout choices.

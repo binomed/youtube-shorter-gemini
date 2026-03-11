@@ -22,6 +22,7 @@ export class YtsPrecisionMultiTimeline extends LitElement {
     @property({ type: Number }) duration = 0;
     @property({ type: Object }) segment?: VideoSegment;
     @property({ type: Number }) currentTime = 0;
+    @property({ type: Boolean }) isPlaying = false;
 
     @state() private draggingEdge: 'start' | 'end' | null = null;
 
@@ -51,9 +52,32 @@ export class YtsPrecisionMultiTimeline extends LitElement {
             height: 60px;
             background: rgba(30, 41, 59, 0.5);
             border-radius: 12px;
-            padding: 0 40px;
+            padding: 0 40px 0 16px; /* Less padding on left to fit button */
             display: flex;
             align-items: center;
+            gap: 16px;
+        }
+
+        .play-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .play-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .play-btn sl-icon {
+            font-size: 24px;
         }
 
         .timeline-track {
@@ -237,6 +261,38 @@ export class YtsPrecisionMultiTimeline extends LitElement {
             color: white;
             margin-left: 4px;
         }
+
+        .keyframe-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 14px; /* Hit area */
+            margin-left: -7px; /* Center it */
+            z-index: 15;
+            cursor: pointer;
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+        }
+
+        .keyframe-line {
+            width: 2px;
+            height: 100%;
+            background: #ef4444;
+            box-shadow: 0 0 5px rgba(239, 68, 68, 0.4);
+        }
+
+        .keyframe-marker::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%) rotate(45deg);
+            width: 10px;
+            height: 10px;
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+        }
     `;
 
     render() {
@@ -251,6 +307,12 @@ export class YtsPrecisionMultiTimeline extends LitElement {
             <div class="header">Timeline Editing Zone</div>
             
             <div class="timeline-container">
+                <sl-tooltip content="Play / Pause (Space)">
+                    <button class="play-btn" @click=${this._togglePlay} aria-label="${this.isPlaying ? 'Pause' : 'Play'}">
+                        <sl-icon name="${this.isPlaying ? 'pause-fill' : 'play-fill'}"></sl-icon>
+                    </button>
+                </sl-tooltip>
+
                 <div class="timeline-track" @mousedown=${this._onTrackClick}>
                     <div class="waveform-bg">
                         ${Array.from({ length: 40 }).map(() => html`
@@ -269,6 +331,17 @@ export class YtsPrecisionMultiTimeline extends LitElement {
                     </div>
 
                     <div class="segment-block" style="left: ${startPct}%; width: ${widthPct}%"></div>
+
+                    ${(this.segment.layoutTimeline || []).map(ev => html`
+                        <div 
+                            class="keyframe-marker" 
+                            style="left: ${this._timeToPercent(ev.timestamp)}%"
+                            title="Keyframe at ${ev.timestamp.toFixed(2)}s"
+                            @mousedown=${(e: MouseEvent) => { e.stopPropagation(); this._emitSeek(ev.timestamp); }}
+                        >
+                            <div class="keyframe-line"></div>
+                        </div>
+                    `)}
 
                     <div
                         class="handle handle-start"
@@ -408,6 +481,13 @@ export class YtsPrecisionMultiTimeline extends LitElement {
     private _emitSeek(time: number) {
         this.dispatchEvent(new CustomEvent('timeline-seek', {
             detail: { time },
+            bubbles: true,
+            composed: true
+        }));
+    }
+
+    private _togglePlay() {
+        this.dispatchEvent(new CustomEvent('toggle-play', {
             bubbles: true,
             composed: true
         }));

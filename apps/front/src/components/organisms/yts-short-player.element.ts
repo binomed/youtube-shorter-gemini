@@ -30,20 +30,71 @@ export class YtsShortPlayer extends LitElement {
   @property({ type: Number }) endTime = 0;
   @property({ type: Array }) segments: VideoSegment[] = [];
 
-  @query('video') videoElement!: HTMLVideoElement;
+  @query('#main-video') videoElement!: HTMLVideoElement;
+  @query('.video-background') bgVideoElement!: HTMLVideoElement;
   @state() private isPlaying = false;
   @state() private currentTime = 0;
   @state() private duration = 0;
 
-  private togglePlay(): void {
+  private get _activeSegment(): VideoSegment | null {
+    if (this.segments && this.segments.length > 0) {
+      return this.segments[0];
+    }
+    return null;
+  }
+
+  public getCurrentLayout(): { layoutMode: 'fill' | 'fullscreen', centerX: number } {
+    const seg = this._activeSegment;
+    if (!seg) return { layoutMode: 'fill', centerX: 0.5 };
+
+    // Default values from segment root
+    let mode: 'fill' | 'fullscreen' = seg.layoutMode || 'fill';
+    let center = seg.centerX ?? 0.5;
+
+    // Search in timeline
+    if (seg.layoutTimeline && seg.layoutTimeline.length > 0) {
+      // Find the last event that started at or before the current time
+      const sortedEvents = [...seg.layoutTimeline].sort((a, b) => a.timestamp - b.timestamp);
+      const activeEvent = [...sortedEvents].reverse().find(ev => ev.timestamp <= this.currentTime);
+
+      if (activeEvent) {
+        mode = activeEvent.layoutMode;
+        center = activeEvent.centerX;
+      }
+      // If no activeEvent (before first keyframe), it naturally falls back to root mode/center set above
+    }
+
+    return { layoutMode: mode, centerX: center };
+  }
+
+  private get _currentLayoutMode(): 'fill' | 'fullscreen' {
+    return this.getCurrentLayout().layoutMode;
+  }
+
+  private get _currentCenterX(): number {
+    return this.getCurrentLayout().centerX;
+  }
+
+  public togglePlay(): void {
     if (!this.videoElement) return;
     if (this.videoElement.paused) {
       void this.videoElement.play();
+      if (this.bgVideoElement) void this.bgVideoElement.play().catch(() => { });
       this.isPlaying = true;
     } else {
       this.videoElement.pause();
+      if (this.bgVideoElement) this.bgVideoElement.pause();
       this.isPlaying = false;
     }
+    this._dispatchPlaybackStatus();
+  }
+
+  private _dispatchPlaybackStatus() {
+    this.dispatchEvent(new CustomEvent('playback-status-changed', {
+      detail: { isPlaying: this.isPlaying },
+      bubbles: true,
+      composed: true
+    }));
   }
 
   private handleTimeUpdate = (): void => {
@@ -60,8 +111,10 @@ export class YtsShortPlayer extends LitElement {
       const seg = this.segments[0];
       if (this.currentTime < seg.startTime) {
         this.videoElement.currentTime = seg.startTime;
+        if (this.bgVideoElement) this.bgVideoElement.currentTime = seg.startTime;
       } else if (this.currentTime >= seg.endTime) {
         this.videoElement.currentTime = seg.startTime;
+        if (this.bgVideoElement) this.bgVideoElement.currentTime = seg.startTime;
       }
       return;
     }
@@ -69,11 +122,14 @@ export class YtsShortPlayer extends LitElement {
     // Legacy single segment logic
     if (this.endTime > 0 && this.currentTime >= this.endTime) {
       this.videoElement.currentTime = this.startTime;
+      if (this.bgVideoElement) this.bgVideoElement.currentTime = this.startTime;
       void this.videoElement.play();
+      if (this.bgVideoElement) void this.bgVideoElement.play().catch(() => { });
     }
 
     if (this.startTime > 0 && this.currentTime < this.startTime) {
       this.videoElement.currentTime = this.startTime;
+      if (this.bgVideoElement) this.bgVideoElement.currentTime = this.startTime;
     }
   }
 
@@ -83,6 +139,9 @@ export class YtsShortPlayer extends LitElement {
   public seekTo(time: number): void {
     if (this.videoElement) {
       this.videoElement.currentTime = time;
+    }
+    if (this.bgVideoElement) {
+      this.bgVideoElement.currentTime = time;
     }
   }
 
@@ -95,9 +154,14 @@ export class YtsShortPlayer extends LitElement {
 
     if (this.videoElement) {
       this.videoElement.currentTime = startTime;
+      if (this.bgVideoElement) this.bgVideoElement.currentTime = startTime;
+
       this.videoElement.play()
         .catch(e => console.error('[YtsShortPlayer] Play failed', e));
+      if (this.bgVideoElement) this.bgVideoElement.play().catch(() => { });
+
       this.isPlaying = true;
+      this._dispatchPlaybackStatus();
     }
   }
 
@@ -107,6 +171,7 @@ export class YtsShortPlayer extends LitElement {
 
   private handleEnded(): void {
     this.isPlaying = false;
+    this._dispatchPlaybackStatus();
   }
 
   connectedCallback() {
@@ -120,8 +185,15 @@ export class YtsShortPlayer extends LitElement {
   }
 
   private _handleKeydown = (e: KeyboardEvent) => {
-    // Only handle if not typing in an input
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    // Only handle if not typing in an input (native or custom)
+    const activeElement = e.composedPath()[0] as HTMLElement;
+    const isInput =
+      activeElement instanceof HTMLInputElement ||
+      activeElement instanceof HTMLTextAreaElement ||
+      activeElement.tagName?.startsWith('SL-') ||
+      activeElement.isContentEditable;
+
+    if (isInput) return;
 
     if (e.key.toLowerCase() === 'u') {
       this._markDelta('in', -1);
@@ -154,43 +226,99 @@ export class YtsShortPlayer extends LitElement {
   static styles = css`
     :host {
       display: block;
-      width: 100%;
       height: 100%;
-      max-width: 100%;
-      max-height: 100%;
-      aspect-ratio: 9/16;
-      position: relative;
-      margin: 0 auto;
-      min-height: 0;
+      width: 100%;
+      --yts-player-border-radius: 24px;
+      --yts-sidebar-width: 140px;
+    }
+
+    .player-wrapper {
       display: flex;
+      flex-direction: row;
+      gap: 20px;
+      height: 100%;
+      width: 100%;
       justify-content: center;
       align-items: center;
     }
 
-    .player-container {
-      width: 100%;
-      height: 100%;
-      background: #000;
-      border-radius: 24px;
+    .reel-frame {
+      aspect-ratio: 9/16;
+      height: 95%; /* Leave some breathing room */
+      background: #0f172a;
+      border-radius: var(--yts-player-border-radius);
       overflow: hidden;
       position: relative;
-      border: 4px solid rgba(50, 50, 50, 0.5); /* Device bezel look */
-      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      border: 4px solid rgba(148, 163, 184, 0.4);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+      flex-shrink: 0;
+      transition: all 0.3s ease;
     }
 
-    /* Video Placeholder */
-    .video-surface {
+    .video-area {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
-      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #475569;
-      font-size: 14px;
-      cursor: pointer;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .video-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: blur(30px) brightness(0.8);
+      transform: scale(1.1);
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .video-background.visible {
+      opacity: 1;
+    }
+
+    .video-surface {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
       border: none;
       padding: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+
+    video {
+      position: relative;
+      z-index: 2; /* Sit above background */
+      width: 100%;
+      height: 100%;
+      background: #000; /* Default Fallback */
+      transition: object-position 0.2s ease-out, transform 0.3s ease;
+    }
+
+    video.fill {
+      object-fit: cover;
+    }
+
+    video.fullscreen {
+      object-fit: contain;
+      background: transparent; /* Allow background video to show through */
     }
 
     /* Top Overlay (Header) */
@@ -388,9 +516,135 @@ export class YtsShortPlayer extends LitElement {
     .nudge-btn sl-icon {
         font-size: 13px;
     }
+
+    /* Sidebar Controls */
+    .editor-sidebar {
+      width: var(--yts-sidebar-width);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      padding: 24px 20px;
+      background: #1e293b;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      height: fit-content;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      flex-shrink: 0;
+    }
+
+    .sidebar-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sidebar-title {
+      font-size: 10px;
+      font-weight: 800;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .layout-toggle {
+      display: flex;
+      width: 100%;
+    }
+
+    .layout-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      background: #0f172a;
+      color: #94a3b8;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .layout-btn:hover {
+      background: #334155;
+      color: white;
+    }
+
+    .layout-btn.active {
+      background: #818cf8;
+      color: white;
+    }
+
+    .key-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      background: #0f172a;
+      color: #94a3b8;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .key-btn:hover {
+      background: #334155;
+      color: white;
+    }
+
+    .key-btn.active {
+      background: #ef4444;
+      color: white;
+    }
+
+    .pan-sidebar-control {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .pan-slider {
+      width: 100%;
+      accent-color: #818cf8;
+      cursor: pointer;
+    }
+
+    .pan-value {
+      font-family: monospace;
+      font-size: 11px;
+      color: #818cf8;
+      text-align: right;
+    }
+
+    .pan-sidebar-control.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .pan-sidebar-control.disabled .pan-slider {
+      cursor: not-allowed;
+    }
   `;
 
   render(): unknown {
+    console.log('[YtsShortPlayer] render()', {
+      src: this.src,
+      currentTime: this.currentTime,
+      isPlaying: this.isPlaying,
+      segments: (this.segments || []).length,
+      layout: this.getCurrentLayout()
+    });
     const isSegment = this.endTime > 0 && this.endTime > this.startTime;
     const effectiveDuration = isSegment ? (this.endTime - this.startTime) : this.duration;
 
@@ -413,11 +667,41 @@ export class YtsShortPlayer extends LitElement {
     }
 
     return html`
-      <div class="player-container">
-        ${this._renderTopOverlay(isSegment)}
-        ${this._renderVideoSurface()}
-        ${this._renderSubtitleOverlay()}
-        ${this._renderControlsOverlay(effectiveCurrentTime, effectiveDuration, progressPercent)}
+      <div class="player-wrapper">
+        <div class="reel-frame">
+          <div class="video-area">
+            ${this._renderTopOverlay(isSegment)}
+            ${this._renderVideoSurface()}
+            ${this._renderSubtitleOverlay()}
+            ${this._renderControlsOverlay(effectiveCurrentTime, effectiveDuration, progressPercent)}
+          </div>
+        </div>
+        
+        <div class="editor-sidebar">
+          <div class="sidebar-section">
+            <div class="sidebar-title">
+              <sl-icon name="aspect-ratio"></sl-icon>
+              Layout
+            </div>
+            ${this._renderLayoutControls()}
+          </div>
+          
+          <div class="sidebar-section">
+            <div class="sidebar-title">
+              <sl-icon name="key"></sl-icon>
+              Keyframes
+            </div>
+            ${this._renderKeyframeIndicator()}
+          </div>
+        
+          <div class="sidebar-section">
+            <div class="sidebar-title">
+              <sl-icon name="arrows-move"></sl-icon>
+              Camera Pan
+            </div>
+            ${this._renderPanControl()}
+          </div>
+        </div>
       </div>
     `;
   }
@@ -432,19 +716,149 @@ export class YtsShortPlayer extends LitElement {
   }
 
   private _renderVideoSurface() {
+    const layoutMode = this._currentLayoutMode;
+    const centerX = this._currentCenterX;
+    // centerX is 0-1, object-position works best with percentage
+    const objectPosition = `${centerX * 100}% center`;
+    console.log('[YtsShortPlayer] _renderVideoSurface', { layoutMode, centerX, objectPosition });
+
     return html`
         <button class="video-surface" aria-label="Toggle playback" @click="${this.togglePlay}">
           <video
+            class="video-background ${layoutMode === 'fullscreen' ? 'visible' : ''}"
             src="${this.src}"
-            style="width: 100%; height: 100%; object-fit: cover;"
+            style="object-position: 50% center;"
+            muted
+            loop
+            playsinline
+          ></video>
+          <video
+            id="main-video"
+            class="${layoutMode}"
+            src="${this.src}"
+            style="object-position: ${objectPosition};"
             loop
             playsinline
             @timeupdate="${this.handleTimeUpdate}"
             @loadedmetadata="${this.handleLoadedMetadata}"
             @ended="${this.handleEnded}"
+            @error="${(e: Event) => console.error('[YtsShortPlayer] Video Error', (e.target as HTMLVideoElement).error)}"
           ></video>
         </button>
       `;
+  }
+
+  private _renderLayoutControls() {
+    const mode = this._currentLayoutMode;
+    const isFill = mode === 'fill';
+    const nextMode = isFill ? 'fullscreen' : 'fill';
+
+    return html`
+        <div class="layout-toggle">
+          <button 
+            class="layout-btn ${mode === 'fullscreen' ? 'active' : ''}" 
+            @click=${() => this._updateLayout(nextMode)}
+            title="Toggle Layout (Fill / Fullscreen)"
+          >
+            <sl-icon name="${isFill ? 'aspect-ratio-fill' : 'fullscreen'}"></sl-icon>
+            ${isFill ? 'Layout: Fill' : 'Layout: Fullscreen'}
+          </button>
+        </div>
+    `;
+  }
+
+  private _renderKeyframeIndicator() {
+    const layoutMode = this._currentLayoutMode;
+    const isFullscreen = layoutMode === 'fullscreen';
+    const seg = this._activeSegment;
+    const hasKeyframe = seg?.layoutTimeline?.some(ev => Math.abs(ev.timestamp - this.currentTime) < 0.1);
+
+    // If fullscreen, the user says "le bouton remove key est actif"
+    const showRemove = isFullscreen || hasKeyframe;
+    const icon = showRemove ? 'dash-circle' : 'plus-circle';
+    const label = showRemove ? 'Remove Key' : 'Add Keyframe';
+
+    return html`
+        <button 
+          class="key-btn ${showRemove ? 'active' : ''}"
+          @click=${() => this._toggleKeyframe()}
+          aria-label="${label}"
+        >
+          <sl-icon name="${icon}"></sl-icon>
+          ${label}
+        </button>
+    `;
+  }
+
+  private _renderPanControl() {
+    const layoutMode = this._currentLayoutMode;
+    const isFullscreen = layoutMode === 'fullscreen';
+    const effectiveCenterX = isFullscreen ? 0.5 : this._currentCenterX;
+
+    return html`
+      <div class="pan-sidebar-control ${isFullscreen ? 'disabled' : ''}">
+        <div class="pan-value">Center: ${Math.round(effectiveCenterX * 100)}%</div>
+        <input 
+          type="range" 
+          class="pan-slider"
+          min="0" 
+          max="1" 
+          step="0.01" 
+          .value=${String(effectiveCenterX)}
+          ?disabled=${isFullscreen}
+          @input=${(e: Event) => {
+        // High frequency update for UI preview only
+        const val = Number((e.target as HTMLInputElement).value);
+        this._updateLocalPanPreview(val);
+      }}
+          @change=${(e: Event) => {
+        // Low frequency update for persistence
+        const val = Number((e.target as HTMLInputElement).value);
+        this._updatePan(val);
+      }}
+        >
+      </div>
+    `;
+  }
+
+  private _updateLocalPanPreview(_centerX: number) {
+    // This allows real-time preview without overwhelming the backend
+    this.requestUpdate();
+  }
+
+  private _updateLayout(mode: 'fill' | 'fullscreen') {
+    console.log('[YtsShortPlayer] _updateLayout dispatching layout-changed', { mode, time: this.currentTime });
+    this.dispatchEvent(new CustomEvent('layout-changed', {
+      detail: { layoutMode: mode, timestamp: this.currentTime },
+      bubbles: true,
+      composed: true
+    }));
+  }
+
+  private _updatePan(centerX: number) {
+    console.log('[YtsShortPlayer] _updatePan dispatching pan-changed', { centerX, time: this.currentTime });
+    this.dispatchEvent(new CustomEvent('pan-changed', {
+      detail: { centerX, timestamp: this.currentTime },
+      bubbles: true,
+      composed: true
+    }));
+  }
+
+  private _toggleKeyframe() {
+    const layoutMode = this._currentLayoutMode;
+    const isFullscreen = layoutMode === 'fullscreen';
+    const seg = this._activeSegment;
+    const hasKeyframe = seg?.layoutTimeline?.some(ev => Math.abs(ev.timestamp - this.currentTime) < 0.1);
+    
+    // Explicitly determine intent based on UI state (matches user rules)
+    const intent = (isFullscreen || hasKeyframe) ? 'remove' : 'add';
+
+    console.log('[YtsShortPlayer] _toggleKeyframe dispatching toggle-keyframe', { time: this.currentTime, intent });
+    this.dispatchEvent(new CustomEvent('toggle-keyframe', {
+      detail: { timestamp: this.currentTime, intent },
+      bubbles: true,
+      composed: true
+    }));
   }
 
   private _renderSubtitleOverlay() {
@@ -479,18 +893,9 @@ export class YtsShortPlayer extends LitElement {
   private _renderControlsOverlay(effectiveCurrentTime: number, effectiveDuration: number, progressPercent: number) {
     return html`
         <div class="controls-overlay">
-          ${this._renderPlaybackButton()}
           ${this._renderNudgeControls()}
           ${this._renderProgressDisplay(effectiveCurrentTime, effectiveDuration, progressPercent)}
         </div>
-      `;
-  }
-
-  private _renderPlaybackButton() {
-    return html`
-        <button class="play-btn" aria-label="${this.isPlaying ? 'Pause' : 'Play'}" @click="${(e: Event): void => { e.stopPropagation(); this.togglePlay(); }}">
-             <sl-icon name="${this.isPlaying ? 'pause-fill' : 'play-fill'}" style="color: white; font-size: 28px;"></sl-icon>
-        </button>
       `;
   }
 

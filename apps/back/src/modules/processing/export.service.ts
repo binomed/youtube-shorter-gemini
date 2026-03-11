@@ -9,7 +9,7 @@ import { FFmpegService } from '../../workers/ffmpeg.service';
 import { JobService } from './job.service';
 import { JobProgressService } from './job-progress.service';
 import { ExportShortDto } from '@youtube-shorter/shared';
-import type { SubtitleStyle, SubtitleResponse } from '@youtube-shorter/shared';
+import type { SubtitleResponse, SubtitleStyle, VideoSegment } from '@youtube-shorter/shared';
 
 @Injectable()
 export class ExportService {
@@ -75,26 +75,84 @@ export class ExportService {
         shortId: short.id,
       });
 
-      // 1. Resolve and Split segments
-      const segmentsToProcess = (
-        short.segments?.length
-          ? short.segments
-          : [{ startTime: short.startTime, endTime: short.endTime }]
-      ) as Array<{ startTime: number; endTime: number }>;
+      // 1. Resolve and Flatten segments into atomic blocks
+      const segmentsToProcess: Array<{ startTime: number; endTime: number }> = [];
+      const layoutData: Array<{ layoutMode: 'fill' | 'fullscreen'; centerX: number }> = [];
 
-      const segmentPaths = await this.ffmpegService.splitVideoIntoSegments(
-        project.videoPath,
-        segmentsToProcess,
-        (p: number) => {
-          void this.jobProgressService.emit(jobId, {
-            phase: 'processing',
-            progress: 10 + Math.floor(p * 0.4), // 10% to 50%
-            message: `Extracting segments: ${p}%`,
-            shortId: short.id,
-          });
-        },
+      const rawSegments: VideoSegment[] = (short.segments?.length
+        ? short.segments
+        : [{ startTime: short.startTime, endTime: short.endTime, layoutMode: 'fill', centerX: 0.5 } as VideoSegment]
       );
-      tempSegmentsToClean.push(...segmentPaths);
+
+      for (const seg of rawSegments) {
+        if (!seg.layoutTimeline || seg.layoutTimeline.length === 0) {
+          segmentsToProcess.push({ startTime: seg.startTime, endTime: seg.endTime });
+          layoutData.push({
+            layoutMode: seg.layoutMode || 'fill',
+            centerX: seg.centerX ?? 0.5,
+          });
+        } else {
+          // Sort events by timestamp ascending
+          const events = [...seg.layoutTimeline].sort((a, b) => a.timestamp - b.timestamp);
+          
+          let lastTime = seg.startTime;
+          let activeMode: 'fill' | 'fullscreen' = seg.layoutMode || 'fill';
+          let activeCenter = seg.centerX ?? 0.5;
+
+          for (const ev of events) {
+            // Check if the current event is actually inside the segment bounds
+            if (ev.timestamp > lastTime && ev.timestamp <= seg.endTime) {
+              // Create a block from the previous time up to this new keyframe's time, 
+              // using the PREVIOUSLY active layout properties
+              segmentsToProcess.push({ startTime: lastTime, endTime: ev.timestamp });
+              layoutData.push({ layoutMode: activeMode, centerX: activeCenter });
+              lastTime = ev.timestamp;
+            }
+            
+            // NOW, update the active properties for the *next* block
+            // However, ignore events that happen before the segment starts
+            if (ev.timestamp >= seg.startTime) {
+              activeMode = ev.layoutMode;
+              activeCenter = ev.centerX;
+            } else {
+               // If an event occurs before the startTime, it becomes the baseline for the first block
+               activeMode = ev.layoutMode;
+               activeCenter = ev.centerX;
+            }
+          }
+
+          // Final block from last event (or segment start) to segment end
+          if (lastTime < seg.endTime) {
+            segmentsToProcess.push({ startTime: lastTime, endTime: seg.endTime });
+            layoutData.push({ layoutMode: activeMode, centerX: activeCenter });
+          }
+        }
+      }
+
+      const segmentPaths: string[] = [];
+      for (let i = 0; i < segmentsToProcess.length; i++) {
+        const seg = segmentsToProcess[i];
+        const segPath = path.join(
+          tempDir,
+          `export-seg-${exportId}-${i}.mp4`,
+        );
+        await this.ffmpegService.extractSegment(
+          project.videoPath,
+          segPath,
+          seg.startTime,
+          seg.endTime,
+        );
+        segmentPaths.push(segPath);
+        tempSegmentsToClean.push(segPath);
+
+        const p = Math.round(((i + 1) / segmentsToProcess.length) * 100);
+        await this.jobProgressService.emit(jobId, {
+          phase: 'processing',
+          progress: 10 + Math.floor(p * 0.4), // 10% to 50%
+          message: `Extracting segments: ${p}%`,
+          shortId: short.id,
+        });
+      }
 
       // 2. Adjust Subtitle timestamps for concatenated segments
       const adjustedSubs: SubtitleResponse[] = [];
@@ -157,6 +215,7 @@ export class ExportService {
         musicPath: dto.includeMusic
           ? (short.accompanimentPath ?? undefined)
           : undefined,
+        layoutData: layoutData,
         onProgress: (p: number, msg: string) => {
           const pg = 70 + Math.floor(p * 0.25); // 70-95%
           void this.jobProgressService.emit(jobId, {
@@ -213,9 +272,14 @@ export class ExportService {
     else if (rawFontName.includes('Impact')) fontName = 'Impact';
     else if (rawFontName.includes('Roboto')) fontName = 'Roboto';
 
-    const fontSize = style?.fontSize || 80;
+    // 2. Resolution Scaling: Scale font size from UI Design Pixels (Reference Height 1000px) to Export (1920px)
+    // If user sets 40px in UI, that's 4% of 1000px height. In 1920p, 4% is ~77px.
+    const uiReferenceHeight = 1000;
+    const exportHeight = 1920;
+    const scaleFactor = exportHeight / uiReferenceHeight;
+    const fontSize = Math.round((style?.fontSize || 40) * scaleFactor);
 
-    // 2. Color Conversion Helper: Handles #RGB, #RRGGBB, #RRGGBBAA, and rgba()
+    // 3. Color Conversion Helper: Handles #RGB, #RRGGBB, #RRGGBBAA, and rgba()
     const toAssColor = (
       cssColor: string | undefined,
       defaultAss: string,
@@ -279,38 +343,35 @@ export class ExportService {
     const bgColor = toAssColor(style?.backgroundColor, '&H80000000&');
     const borderColor = toAssColor(style?.borderColor, '&H00000000&');
 
-    // Alignment mapping: ASS Alignment (v4+)
-    // 1=Left, 2=Centered, 3=Right
+    // 4. Alignment mapping: ASS Alignment (v4+)
     let alignment = 2; // Default centered
     if (style?.textAlign === 'left') alignment = 1;
     else if (style?.textAlign === 'right') alignment = 3;
 
-    // Border (Outline) mapping
+    // 5. Border (Outline) mapping
     const borderEnabled = style?.borderEnabled ?? false;
-    const borderWidth = borderEnabled ? style?.borderWidth || 3 : 0;
+    const borderWidth = borderEnabled ? Math.round((style?.borderWidth || 3) * scaleFactor) : 0;
     const assOutlineColor = borderEnabled ? borderColor : '&HFFFFFFFF&';
 
-    // Shadow mapping
+    // 6. Shadow mapping
     const shadowEnabled = style?.textShadow ?? true;
-    const shadowDepth = shadowEnabled ? 3 : 0;
+    const shadowDepth = shadowEnabled ? Math.round(3 * scaleFactor) : 0;
     const shadowColor = '&H33000000&'; // &H33 mapping to roughly 0.8 opacity
 
-    // Frontend transparent is 'transparent', causing bgColor to be &HFFFFFFFF&
-    const isTransparentBox =
-      bgColor.startsWith('&HFF') || bgColor === '&H00000000&';
-
-    // Use BorderStyle 4 (Uniform Background Box) to match the CSS frontend's rectangular shape.
-    // BorderStyle 4 natively treats the entire text block as a single unified bounding box, solving
-    // the transparent overlapping artifacts between multiline text that occurs in BorderStyle=3.
-    const marginLR = isTransparentBox ? 10 : 25;
-
-    // 3. Correct MarginV: Frontend uses 20% padding-bottom + translateY offset
-    // In 1920 height, 20% is 384. Subtract positionY pixel offset.
+    // 7. Margin Parity: Match the frontend's 90% max-width (5% gap on each side)
+    // 5% of 1080 horizontal res = 54px.
+    const marginLR = 54;
+    
+    // Correct MarginV: Frontend uses 20% padding-bottom + translateY offset
+    // 20% of 1920 height = 384px.
     const baseMarginBottom = 384;
-    const offsetY = style?.positionY || 0;
+    const offsetY = Math.round((style?.positionY || 0) * scaleFactor);
     const marginV = Math.max(10, baseMarginBottom - offsetY);
 
     const transparentColor = '&HFFFFFFFF&';
+
+    const textOutline = style?.textOutline || false;
+    const isTransparentBox = (style?.backgroundColor === 'transparent' || style?.backgroundColor === 'rgba(0,0,0,0)' || style?.backgroundColor === '#00000000');
 
     let ass = `[Script Info]
 ScriptType: v4.00+
@@ -321,8 +382,8 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: BgLayer,${fontName},${fontSize},${transparentColor},${transparentColor},${transparentColor},${bgColor},-1,0,0,0,100,100,0,0,4,20,0,${alignment},${marginLR},${marginLR},${marginV.toFixed(0)},1
-Style: TextLayer,${fontName},${fontSize},${colorPrimary},&H000000FF&,${assOutlineColor},${shadowColor},-1,0,0,0,100,100,0,0,1,${borderWidth},${shadowDepth},${alignment},10,10,${marginV.toFixed(0)},1
+Style: BgLayer,${fontName},${fontSize},${transparentColor},${transparentColor},${transparentColor},${bgColor},-1,0,0,0,100,100,0,0,4,${Math.round(20 * scaleFactor)},0,${alignment},${marginLR},${marginLR},${marginV.toFixed(0)},1
+Style: TextLayer,${fontName},${fontSize},${colorPrimary},&H000000FF&,${assOutlineColor},${shadowColor},-1,0,0,0,100,100,0,0,1,${borderWidth},${shadowDepth},${alignment},${marginLR},${marginLR},${marginV.toFixed(0)},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -331,6 +392,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     for (const sub of subtitles) {
       const start = this.formatAssTime(sub.startTime);
       const end = this.formatAssTime(sub.endTime);
+
       const text = sub.text.replace(/\n/g, '\\N');
 
       if (!isTransparentBox) {

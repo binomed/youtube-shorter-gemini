@@ -284,16 +284,22 @@ export class FFmpegService {
       const duration = endTime - startTime;
 
       const args = [
-        '-ss',
-        startTime.toString(),
         '-i',
         inputPath,
+        '-ss',
+        startTime.toString(),
         '-t',
         duration.toString(),
-        '-c',
-        'copy',
-        '-avoid_negative_ts',
-        'make_zero',
+        '-c:v',
+        'libx264',
+        '-crf',
+        '18', // High quality for intermediate segments
+        '-preset',
+        'ultrafast', // Speed up intermediate step
+        '-c:a',
+        'aac',
+        '-b:a',
+        '192k',
         '-y',
         outputPath,
       ];
@@ -338,43 +344,33 @@ export class FFmpegService {
       subtitleAssPath?: string;
       vocalsPath?: string;
       musicPath?: string;
+      layoutData?: Array<{ layoutMode: 'fill' | 'fullscreen'; centerX: number }>;
       onProgress?: (percentage: number, message: string) => void;
     },
   ): Promise<void> {
-    const TEMP_DIR = '/tmp/yts-processing'; // Shared temp directory mapped by OS
-    await fs.mkdir(TEMP_DIR, { recursive: true }).catch(() => {});
-
-    // Create concat file list
-    const concatListPath = path.join(TEMP_DIR, `concat-${Date.now()}.txt`);
-    // Format required for ffmpeg concat demuxer
-    const concatContent = segmentPaths.map((p) => `file '${p}'`).join('\n');
-
-    await fs.writeFile(concatListPath, concatContent);
-
-    try {
-      await this.renderVerticalVideo(concatListPath, outputPath, options);
-    } finally {
-      // Cleanup concat file
-      await fs.unlink(concatListPath).catch(() => {});
-    }
+    await this.renderVerticalVideo(segmentPaths, outputPath, options);
   }
 
   private async renderVerticalVideo(
-    concatListPath: string,
+    segmentPaths: string[],
     outputPath: string,
     options?: {
       subtitleAssPath?: string;
       vocalsPath?: string;
       musicPath?: string;
+      layoutData?: Array<{ layoutMode: 'fill' | 'fullscreen'; centerX: number }>;
       onProgress?: (percentage: number, message: string) => void;
     },
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const args = ['-v', 'error', '-y'];
 
-      // 1. Inputs
-      args.push('-f', 'concat', '-safe', '0', '-i', concatListPath);
+      // 1. Inputs: All segments + Optional Stems
+      for (const p of segmentPaths) {
+        args.push('-i', p);
+      }
 
+      const stemStartIndex = segmentPaths.length;
       if (options?.vocalsPath) {
         args.push('-i', options.vocalsPath);
       }
@@ -382,19 +378,42 @@ export class FFmpegService {
         args.push('-i', options.musicPath);
       }
 
-      // 2. Complex Filtergraph for video and audio
-      // Video scale and pad
-      const videoFilters = [
-        'scale=1080:1920:force_original_aspect_ratio=increase',
-        'crop=1080:1920',
-      ];
+      // 2. Complex Filtergraph
+      let filterComplex = '';
+      const processedVideoLabels: string[] = [];
 
+      // Process each video segment input
+      for (let i = 0; i < segmentPaths.length; i++) {
+        const layout = options?.layoutData?.[i] || {
+          layoutMode: 'fill',
+          centerX: 0.5,
+        };
+        const inputLabel = `${i}:v`;
+        const outputLabel = `v${i}`;
+
+        if (layout.layoutMode === 'fullscreen') {
+          // Fullscreen: Blurred background + Scaled foreground
+          filterComplex += `[${inputLabel}]split[bg${i}][fg${i}];`;
+          filterComplex += `[bg${i}]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,boxblur=15:5,colorchannelmixer=rr=0.8:gg=0.8:bb=0.8[bgout${i}];`;
+          filterComplex += `[fg${i}]scale=1080:1920:force_original_aspect_ratio=decrease[fgout${i}];`;
+          filterComplex += `[bgout${i}][fgout${i}]overlay=(W-w)/2:(H-h)/2[${outputLabel}];`;
+        } else {
+          // Fill: Smart crop based on centerX
+          // x calculation: (total_width - cropped_width) * centerX
+          // Since we scale to height first, total_width is in_w * (1920 / in_h)
+          // But it's easier to scale to fill and then crop.
+          filterComplex += `[${inputLabel}]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920:'(in_w-1080)*${layout.centerX}':0[${outputLabel}];`;
+        }
+        processedVideoLabels.push(`[${outputLabel}]`);
+      }
+
+      // Concatenate processed segments
+      filterComplex += `${processedVideoLabels.join('')}concat=n=${segmentPaths.length}:v=1:a=0[v_concat];`;
+
+      // Video Post-processing (Subtitles)
+      let finalVideoLabel = '[v_concat]';
       if (options?.subtitleAssPath) {
-        // On Mac, /tmp is a symlink to /private/tmp. Some FFmpeg builds prefer the real path.
-        // Also, we use a single level of escaping for the filename.
         const filterPath = options.subtitleAssPath.replace(/'/g, "'\\\\''");
-        // Embed the custom fonts directory (where we downloaded Montserrat) to ensure identical rendering
-        // Fix duplicate apps/back path due to CWD scoping
         const cwd = process.cwd();
         const appBackPath = cwd.endsWith('apps/back')
           ? cwd
@@ -403,39 +422,31 @@ export class FFmpegService {
           .join(appBackPath, 'assets', 'fonts')
           .replace(/'/g, "'\\\\''");
 
-        videoFilters.push(
-          `subtitles=filename='${filterPath}':fontsdir='${fontsDir}'`,
-        );
+        filterComplex += `[v_concat]subtitles=filename='${filterPath}':fontsdir='${fontsDir}'[v_final];`;
+        finalVideoLabel = '[v_final]';
       }
 
-      // Video mapped out as 'v'
-      let filterComplex = `[0:v]${videoFilters.join(',')}[v]`;
-
-      this.logger.log(
-        `FFmpeg Command Args: ffmpeg ${args.join(' ')} -filter_complex "${filterComplex}" -map "[v]" ...`,
-      );
-
+      // Audio mixing
+      let finalAudioLabel = '0:a?'; // Default to first segment audio if no stems
       const audioStreamsToMix: string[] = [];
-      if (options?.vocalsPath) {
-        audioStreamsToMix.push('[1:a]');
-      }
-      if (options?.musicPath) {
-        audioStreamsToMix.push(options?.vocalsPath ? '[2:a]' : '[1:a]');
-      }
-
-      if (audioStreamsToMix.length > 0) {
-        // Mix all audio inputs equally
-        filterComplex += `; ${audioStreamsToMix.join('')}amix=inputs=${audioStreamsToMix.length}:duration=longest[a]`;
+      
+      if (options?.vocalsPath || options?.musicPath) {
+          if (options.vocalsPath) audioStreamsToMix.push(`[${stemStartIndex}:a]`);
+          const musicIndex = options.vocalsPath ? stemStartIndex + 1 : stemStartIndex;
+          if (options.musicPath) audioStreamsToMix.push(`[${musicIndex}:a]`);
+          
+          filterComplex += `${audioStreamsToMix.join('')}amix=inputs=${audioStreamsToMix.length}:duration=longest[a_final]`;
+          finalAudioLabel = '[a_final]';
+      } else {
+          // If no stems, we need to concatenate audio from segments too
+          const audioInputs = segmentPaths.map((_, i) => `[${i}:a]`).join('');
+          filterComplex += `${audioInputs}concat=n=${segmentPaths.length}:v=0:a=1[a_concat]`;
+          finalAudioLabel = '[a_concat]';
       }
 
       args.push('-filter_complex', filterComplex);
-      args.push('-map', '[v]');
-      if (audioStreamsToMix.length > 0) {
-        args.push('-map', '[a]');
-      } else {
-        // map original audio if no stems are used
-        args.push('-map', '0:a?');
-      }
+      args.push('-map', finalVideoLabel);
+      args.push('-map', finalAudioLabel);
 
       // 3. Output formats
       args.push(
