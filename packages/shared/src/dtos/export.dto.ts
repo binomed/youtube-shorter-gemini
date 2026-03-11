@@ -1,11 +1,12 @@
 import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { SubtitleStyle } from '../types/short.types';
 
 export class ExportShortDto {
     /** Include original audio track (or vocals if stems are used) */
     @IsBoolean()
     @IsOptional()
     includeVocals?: boolean;
-
+    
     /** Include accompaniment track if stems are used */
     @IsBoolean()
     @IsOptional()
@@ -17,5 +18,5 @@ export class ExportShortDto {
 
     /** Subtitle style overrides */
     @IsOptional()
-    style?: any;
+    style?: SubtitleStyle;
 }

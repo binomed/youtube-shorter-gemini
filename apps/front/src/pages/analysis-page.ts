@@ -5,11 +5,12 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
-import { Router, type BeforeEnterObserver, type RouterLocation } from '@vaadin/router';
+import { type BeforeEnterObserver, type RouterLocation } from '@vaadin/router';
 import type { AnalysisProgressEvent } from '@youtube-shorter/shared';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import { projectService } from '../services/project.service.js';
 import { projectSignal, setProject } from '../state/project.state.js';
+import '../components/molecules/yts-header.element.ts';
 
 /**
  * Analysis loading page — transitional screen between Dashboard and Editor.
@@ -42,12 +43,20 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
   static styles = css`
     :host {
       display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-direction: column;
       min-height: 100vh;
       background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #0a0a1a 100%);
       color: white;
       font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      overflow: hidden;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
     }
 
     .analysis-container {
@@ -185,28 +194,6 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
       border-radius: 8px;
     }
 
-    .home-button {
-      position: absolute;
-      top: 24px;
-      left: 24px;
-      background: rgba(255, 255, 255, 0.1);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      transition: all 0.2s;
-      text-decoration: none;
-    }
-
-    .home-button:hover {
-      background: rgba(255, 255, 255, 0.2);
-      transform: translateY(-2px);
-    }
 
     .retry-button {
       margin-top: 24px;
@@ -352,44 +339,44 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     const project = projectSignal.get();
 
     return html`
-      <button class="home-button" @click="${(): void => { Router.go('/'); }}" aria-label="Back to Dashboard">
-        <sl-icon name="house-door-fill"></sl-icon> Home
-      </button>
-      <div class="analysis-container">
-        <div class="brand-icon">🧠</div>
-        <h1>Analyzing Your Video</h1>
-        <p class="subtitle">${project?.name || 'Untitled Project'}</p>
+      <yts-header></yts-header>
+      <main>
+        <div class="analysis-container">
+          <div class="brand-icon">🧠</div>
+          <h1>Analyzing Your Video</h1>
+          <p class="subtitle">${project?.name || 'Untitled Project'}</p>
 
-        <div class="progress-track">
-          <div class="progress-fill" style="width: ${this.progress}%"></div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: ${this.progress}%"></div>
+          </div>
+
+          <div class="phases">
+            ${this.phases.map((phase) => {
+        const isActive = phase.key === this.currentPhase;
+        return html`
+                <div class="phase ${isActive ? 'active' : ''} ${phase.done ? 'done' : ''}">
+                  <span class="phase-icon">${phase.icon}</span>
+                  <span class="phase-label">${phase.label}</span>
+                  ${phase.done
+            ? html`<span class="phase-check">✓</span>`
+            : isActive
+              ? html`<div class="spinner"></div>`
+              : html``
+          }
+                </div>
+              `;
+      })}
+          </div>
+
+          <p class="status-message">${this.message}</p>
+          ${this.error ? html`
+            <div class="error-message">${this.error}</div>
+            <button class="retry-button" @click="${this.startAnalysis}">
+              Retry Analysis
+            </button>
+          ` : ''}
         </div>
-
-        <div class="phases">
-          ${this.phases.map((phase) => {
-      const isActive = phase.key === this.currentPhase;
-      return html`
-              <div class="phase ${isActive ? 'active' : ''} ${phase.done ? 'done' : ''}">
-                <span class="phase-icon">${phase.icon}</span>
-                <span class="phase-label">${phase.label}</span>
-                ${phase.done
-          ? html`<span class="phase-check">✓</span>`
-          : isActive
-            ? html`<div class="spinner"></div>`
-            : html``
-        }
-              </div>
-            `;
-    })}
-        </div>
-
-        <p class="status-message">${this.message}</p>
-        ${this.error ? html`
-          <div class="error-message">${this.error}</div>
-          <button class="retry-button" @click="${this.startAnalysis}">
-            Retry Analysis
-          </button>
-        ` : ''}
-      </div>
+      </main>
     `;
   }
 }

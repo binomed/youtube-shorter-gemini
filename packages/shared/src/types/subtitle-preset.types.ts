@@ -1,3 +1,5 @@
+import { SubtitleStyle } from './short.types';
+
 export interface SubtitlePreset {
     id: string;
     name: string;
@@ -9,13 +11,4 @@ export interface SubtitlePreset {
 export interface CreateSubtitlePresetDto {
     name: string;
     style: SubtitleStyle;
-}
-
-export interface SubtitleStyle {
-    font?: string;
-    fontSize?: number;
-    color?: string;
-    backgroundColor?: string;
-    positionX?: number;
-    positionY?: number;
 }

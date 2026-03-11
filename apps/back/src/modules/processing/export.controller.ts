@@ -25,7 +25,7 @@ export class ExportController {
   constructor(
     private readonly exportService: ExportService,
     private readonly jobProgressService: JobProgressService,
-  ) { }
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Request high-quality export for a short' })

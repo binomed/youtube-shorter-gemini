@@ -277,14 +277,27 @@ export class ExportService {
 
     const colorPrimary = toAssColor(style?.color, '&H00FFFFFF&');
     const bgColor = toAssColor(style?.backgroundColor, '&H80000000&');
+    const borderColor = toAssColor(style?.borderColor, '&H00000000&');
+
+    // Alignment mapping: ASS Alignment (v4+)
+    // 1=Left, 2=Centered, 3=Right
+    let alignment = 2; // Default centered
+    if (style?.textAlign === 'left') alignment = 1;
+    else if (style?.textAlign === 'right') alignment = 3;
+
+    // Border (Outline) mapping
+    const borderEnabled = style?.borderEnabled ?? false;
+    const borderWidth = borderEnabled ? style?.borderWidth || 3 : 0;
+    const assOutlineColor = borderEnabled ? borderColor : '&HFFFFFFFF&';
+
+    // Shadow mapping
+    const shadowEnabled = style?.textShadow ?? true;
+    const shadowDepth = shadowEnabled ? 3 : 0;
+    const shadowColor = '&H33000000&'; // &H33 mapping to roughly 0.8 opacity
 
     // Frontend transparent is 'transparent', causing bgColor to be &HFFFFFFFF&
     const isTransparentBox =
       bgColor.startsWith('&HFF') || bgColor === '&H00000000&';
-
-    // CSS text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-    const shadowDepth = 3;
-    const shadowColor = '&H33000000&'; // &H33 mapping to roughly 0.8 opacity
 
     // Use BorderStyle 4 (Uniform Background Box) to match the CSS frontend's rectangular shape.
     // BorderStyle 4 natively treats the entire text block as a single unified bounding box, solving
@@ -308,8 +321,8 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: BgLayer,${fontName},${fontSize},${transparentColor},${transparentColor},${transparentColor},${bgColor},-1,0,0,0,100,100,0,0,4,20,0,2,${marginLR},${marginLR},${marginV.toFixed(0)},1
-Style: TextLayer,${fontName},${fontSize},${colorPrimary},&H000000FF&,${transparentColor},${shadowColor},-1,0,0,0,100,100,0,0,1,0,${shadowDepth},2,10,10,${marginV.toFixed(0)},1
+Style: BgLayer,${fontName},${fontSize},${transparentColor},${transparentColor},${transparentColor},${bgColor},-1,0,0,0,100,100,0,0,4,20,0,${alignment},${marginLR},${marginLR},${marginV.toFixed(0)},1
+Style: TextLayer,${fontName},${fontSize},${colorPrimary},&H000000FF&,${assOutlineColor},${shadowColor},-1,0,0,0,100,100,0,0,1,${borderWidth},${shadowDepth},${alignment},10,10,${marginV.toFixed(0)},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

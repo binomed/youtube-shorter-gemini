@@ -106,18 +106,18 @@ describe('StemService', () => {
     it('should throw NotFoundException when project does not exist', async () => {
       mockProjectRepository.findOneBy.mockResolvedValue(null);
 
-      await expect(service.separateStems('no-proj', 'short-1', 'job-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.separateStems('no-proj', 'short-1', 'job-1'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw NotFoundException when short does not belong to project', async () => {
       mockProjectRepository.findOneBy.mockResolvedValue(mockProject);
       mockShortRepository.findOneBy.mockResolvedValue(null);
 
-      await expect(service.separateStems('proj-1', 'no-short', 'job-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.separateStems('proj-1', 'no-short', 'job-1'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should skip separation if stems already exist', async () => {
@@ -140,13 +140,11 @@ describe('StemService', () => {
 
       // jobProgressService.emit calls inside the try block
       // Making it throw simulates an error that should trigger jobProgressService.fail
-      mockJobProgressService.emit.mockRejectedValueOnce(
-        new Error('disk full'),
-      );
+      mockJobProgressService.emit.mockRejectedValueOnce(new Error('disk full'));
 
-      await expect(service.separateStems('proj-1', 'short-1', 'job-1')).rejects.toThrow(
-        'disk full',
-      );
+      await expect(
+        service.separateStems('proj-1', 'short-1', 'job-1'),
+      ).rejects.toThrow('disk full');
 
       expect(mockJobProgressService.fail).toHaveBeenCalledWith(
         'job-1',

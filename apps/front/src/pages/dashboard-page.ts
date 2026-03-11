@@ -11,16 +11,16 @@ import type SlDialog from '@shoelace-style/shoelace/dist/components/dialog/dialo
 import { projectService } from '../services/project.service.js';
 import type { ProjectResponse } from '@youtube-shorter/shared';
 import { classMap } from 'lit/directives/class-map.js';
+import '../components/molecules/yts-header.element.ts';
 
 @customElement('dashboard-page')
 export class DashboardPage extends LitElement {
   static styles = css`
     :host {
-      display: block;
-      height: 100vh;
       display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
       /* Theme Variables - Issue #12: Extract magic colors */
       --yts-glass-bg: rgba(30, 41, 59, 0.7);
       --yts-border: rgba(99, 102, 241, 0.6);
@@ -32,6 +32,46 @@ export class DashboardPage extends LitElement {
 
       background: radial-gradient(circle at 50% 50%, #232334 0%, #111116 100%);
       font-family: 'Inter', sans-serif;
+      overflow: hidden;
+    }
+
+    .main-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100vh;
+      gap: 32px;
+    }
+
+    .branding-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      animation: fadeInDown 0.8s ease-out;
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo-img {
+      height: 80px;
+      width: auto;
+      filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.3));
+    }
+
+    .app-title {
+      font-size: 36px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.03em;
     }
 
     .glass-card {
@@ -516,23 +556,29 @@ export class DashboardPage extends LitElement {
 
   render(): unknown {
     return html`
-      <div class="glass-card">
-        <sl-tab-group>
-            <sl-tab slot="nav" panel="create">Create</sl-tab>
-            <sl-tab slot="nav" panel="projects" @click=${(): void => { void this.loadProjects(); }}>Projects</sl-tab>
+      <div class="main-container">
+        <div class="branding-logo">
+          <img src="/logo-transparent.png" alt="Logo" class="logo-img">
+          <h1 class="app-title">Youtube Shorter</h1>
+        </div>
+        <div class="glass-card">
+          <sl-tab-group>
+              <sl-tab slot="nav" panel="create">Create</sl-tab>
+              <sl-tab slot="nav" panel="projects" @click=${(): void => { void this.loadProjects(); }}>Projects</sl-tab>
 
-            <sl-tab-panel name="create">
-                ${this.renderCreateTab()}
-            </sl-tab-panel>
+              <sl-tab-panel name="create">
+                  ${this.renderCreateTab()}
+              </sl-tab-panel>
 
-            <sl-tab-panel name="projects">
-                ${this.renderProjectsTab()}
-            </sl-tab-panel>
-        </sl-tab-group>
-      </div>
+              <sl-tab-panel name="projects">
+                  ${this.renderProjectsTab()}
+              </sl-tab-panel>
+          </sl-tab-group>
+        </div>
 
-      <div class="star-deco">
-        ✦
+        <div class="star-deco">
+          ✦
+        </div>
       </div>
 
       <sl-dialog label="Delete Project" class="delete-dialog">

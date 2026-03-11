@@ -170,14 +170,34 @@ export class YtsSubtitleOverlay extends LitElement {
         const posX = 0; // X is always locked to center
         const posY = this._isDragging ? this._currentPosY : (this.subtitleStyle?.positionY || 0);
 
-        const styles = {
+        const styles: Record<string, string | number> = {
             fontFamily: this.subtitleStyle?.font || 'inherit',
             fontSize: this.subtitleStyle?.fontSize ? `${this.subtitleStyle.fontSize}px` : '24px',
             color: this.subtitleStyle?.color || '#ffffff',
             backgroundColor: this.subtitleStyle?.backgroundColor || 'rgba(0, 0, 0, 0.6)',
+            textAlign: this.subtitleStyle?.textAlign || 'center',
+            lineHeight: this.subtitleStyle?.lineSpacing || '1.2',
             transform: `translate(${posX}px, ${posY}px)`,
             cursor: this._isDragging ? 'grabbing' : 'grab'
         };
+
+        if (this.subtitleStyle?.borderEnabled) {
+            styles.border = `${this.subtitleStyle.borderWidth || 3}px solid ${this.subtitleStyle.borderColor || '#000000'}`;
+        } else {
+            styles.border = 'none';
+        }
+
+        if (this.subtitleStyle?.textShadow) {
+            styles.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+        } else {
+            styles.textShadow = 'none';
+        }
+
+        if (this.subtitleStyle?.textOutline) {
+            styles.webkitTextStroke = `1px ${this.subtitleStyle.color === '#ffffff' ? '#000000' : '#ffffff'}`;
+        } else {
+            styles.webkitTextStroke = '0';
+        }
 
         return html`
             ${this.activeSubtitle ? html`

@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
-import { Router, type BeforeEnterObserver, type RouterLocation } from '@vaadin/router';
+import { type BeforeEnterObserver, type RouterLocation } from '@vaadin/router';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/icon-button/icon-button.js';
 import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
@@ -13,11 +13,13 @@ import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/badge/badge.js';
 import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
 import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
+import type { YtsShortPlayer } from '../components/organisms/yts-short-player.element.js';
 import '../components/organisms/yts-short-player.element.js';
 
 import '../components/molecules/yts-subtitle-editor.element.js';
 import '../components/molecules/yts-subtitle-style-panel.element.js';
 import '../components/molecules/yts-precision-multi-timeline.element.js';
+import '../components/molecules/yts-header.element.js';
 import { projectService } from '../services/project.service.js';
 import { projectSignal, setProject } from '../state/project.state.js';
 import type { ShortResponse, StemProgressEvent, SubtitleResponse, VideoSegment } from '@youtube-shorter/shared';
@@ -42,6 +44,8 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   @state() private exportMessage = '';
   @state() private exportIncludeVocals = true;
   @state() private exportIncludeMusic = true;
+
+  @state() private currentTime = 0;
 
   async onBeforeEnter(location: RouterLocation): Promise<void> {
     const projectId = location.params.projectId as string;
@@ -407,7 +411,8 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   }
   static styles = css`
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
       height: 100vh;
       width: 100vw;
       background: radial-gradient(circle at 50% 50%, #232334 0%, #111116 100%);
@@ -416,24 +421,16 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       overflow: hidden;
     }
 
-    .home-button-icon {
-      color: #94a3b8;
-      font-size: 20px;
-      cursor: pointer;
-      transition: color 0.2s;
-    }
-
-    .home-button-icon:hover {
-      color: #f8fafc;
-    }
 
     .layout {
       display: grid;
       grid-template-columns: 280px 1fr 340px;
-      height: 100%;
+      flex: 1;
+      height: calc(100vh - 64px);
       gap: 24px;
-      padding: 24px;
+      padding: 0 24px 24px 24px;
       box-sizing: border-box;
+      overflow: hidden;
     }
 
     /* Glass Panel Utilities */
@@ -462,24 +459,121 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
     /* Left Sidebar: Source Segments */
     .sidebar-left {
-      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 20px;
+    }
+
+    .segment-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .segment-list::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .segment-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+
+    .segment-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.15);
     }
 
     .segment-list {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
+      overflow-y: auto;
+      flex: 1;
+      padding-right: 4px; /* Space for scrollbar */
     }
 
-    .sidebar-right {
-      background: #1e202a;
-      border: 1px solid rgba(255,255,255,0.05);
-      box-shadow: none;
-      padding: 16px;
+    .segment-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+      cursor: pointer;
+      text-align: left;
+      font-family: inherit;
+      color: inherit;
+      transition: all 0.2s ease;
+      position: relative;
       display: flex;
       flex-direction: column;
-      height: 100%;
-      min-height: 0; /* Allow content to shrink */
+      width: 100%;
+    }
+
+    .segment-card:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .segment-card.selected {
+      background: rgba(14, 165, 233, 0.1);
+      border-color: #0ea5e9;
+      box-shadow: 0 0 15px rgba(14, 165, 233, 0.2);
+    }
+
+    .segment-thumb {
+      width: 100%;
+      aspect-ratio: 16/9;
+      position: relative;
+      background: #000;
+    }
+
+    .thumb-overlay {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+
+    .overlay-pill {
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .segment-footer {
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .segment-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f1f5f9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .selected-check {
+      color: #0ea5e9;
+      font-size: 16px;
+      display: none;
+    }
+
+    .segment-card.selected .selected-check {
+      display: block;
     }
 
     .tools-header {
@@ -500,25 +594,30 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     }
 
     .captions-list {
-      flex: 1; /* Allow captions list to take available space */
-      overflow-y: auto; /* Enable scrolling for captions */
-      padding-right: 4px; /* Space for scrollbar */
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+      padding-right: 4px;
       display: flex;
       flex-direction: column;
       gap: 12px;
     }
 
     .captions-list::-webkit-scrollbar {
-      width: 4px;
+      width: 6px;
     }
 
     .captions-list::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.02);
     }
 
     .captions-list::-webkit-scrollbar-thumb {
       background: rgba(255, 255, 255, 0.1);
-      border-radius: 2px;
+      border-radius: 10px;
+    }
+
+    .captions-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.15);
     }
 
     .caption-item {
@@ -528,15 +627,39 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       padding: 10px;
       cursor: pointer;
       display: flex;
+      width: 100%;
       gap: 10px;
       align-items: flex-start;
       transition: all 0.2s ease;
+      text-align: left;
+      font-family: inherit;
+      color: inherit;
     }
 
     .caption-item:hover {
         background: rgba(255, 255, 255, 0.08);
         border-color: rgba(255, 255, 255, 0.1);
         transform: translateX(2px);
+    }
+
+    .tools-content {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .tools-content::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .tools-content::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .tools-content::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
     }
 
     .caption-text {
@@ -572,6 +695,18 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     }
 
     /* Override Shoelace Tab styling to hide native tabs since we're using custom header */
+    .sidebar-right {
+      background: #1e202a;
+      border: 1px solid rgba(255,255,255,0.05);
+      box-shadow: none;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+
     sl-tab-group {
       --track-width: 0;
       --indicator-color: transparent;
@@ -611,10 +746,49 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     .dialog-overview::part(overlay) {
       backdrop-filter: blur(8px);
     }
+
+    .export-btn {
+      background: linear-gradient(90deg, #0ea5e9 0%, #a855f7 100%);
+      border: none;
+      color: white;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
+      text-decoration: none;
+      outline: none;
+    }
+
+    .export-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4);
+      filter: brightness(1.1);
+    }
+
+    .export-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .export-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      filter: grayscale(0.5);
+    }
   `;
 
   render(): unknown {
     return html`
+      <yts-header>
+        <button slot="actions" class="export-btn" ?disabled=${!this.currentShort} @click=${this.openExportDialog}>
+          <sl-icon name="download"></sl-icon> Export
+        </button>
+      </yts-header>
       <div class="layout">
         ${this.renderSegmentsSidebar()}
         ${this.renderReelCenter()}
@@ -676,12 +850,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     return html`
       <aside class="glass-panel sidebar-left">
         <div class="panel-header">
-          <sl-icon-button
-            name="house-door-fill"
-            class="home-button-icon"
-            @click="${(): void => { Router.go('/'); }}"
-            label="Back to Dashboard"
-          ></sl-icon-button>
+          <sl-icon name="collection-play-fill" style="color: #94a3b8; font-size: 18px;"></sl-icon>
           <span>Source Segments</span>
         </div>
         <div class="segment-list">
@@ -689,36 +858,31 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         ? html`<div style="color:#64748b; text-align:center; padding:20px;">Loading shorts...</div>`
         : this.shorts.length === 0
           ? html`<div style="color:#64748b; text-align:center; padding:20px;">No shorts detected yet.</div>`
-          : this.shorts.map(s => html`
-            <button 
-                class="segment-card" 
-                @click="${(): void => this.playShort(s)}"
-                aria-label="Play segment ${s.title}"
-                style="
-                    display: flex;
-                    width: 100%;
-                    background: transparent;
-                    border: none;
-                    padding: 0;
-                    margin: 0;
-                    cursor: pointer;
-                    text-align: left;
-                    font-family: inherit;
-                    color: inherit;
-                "
-            >
-              <div class="segment-thumb">
-                ${s.thumbnailUrl
-              ? html`<img src="${s.thumbnailUrl}" alt="${s.title}" style="width:100%; height:100%; object-fit:cover; border-radius:6px;">`
-              : ''
-            }
-              </div>
-              <div class="segment-info">
-                <div class="segment-title">${s.title}</div>
-                <div class="segment-meta">${this.formatTime(s.startTime)} - ${this.formatTime(s.endTime)}</div>
-              </div>
-            </button>
-          `)}
+          : this.shorts.map(s => {
+            const isSelected = this.currentShort?.id === s.id;
+            return html`
+                <button 
+                    class="segment-card ${isSelected ? 'selected' : ''}" 
+                    @click="${(): void => this.playShort(s)}"
+                    aria-label="Play segment ${s.title}"
+                >
+                  <div class="segment-thumb">
+                    ${s.thumbnailUrl
+                ? html`<img src="${s.thumbnailUrl}" alt="${s.title}" style="width:100%; height:100%; object-fit:cover;">`
+                : ''
+              }
+                    <div class="thumb-overlay">
+                      <div class="overlay-pill">16:9</div>
+                      <div class="overlay-pill">${this.formatTime(s.endTime - s.startTime)}</div>
+                    </div>
+                  </div>
+                  <div class="segment-footer">
+                    <span class="segment-title">${s.title}</span>
+                    <sl-icon name="check-circle-fill" class="selected-check"></sl-icon>
+                  </div>
+                </button>
+              `;
+          })}
         </div>
       </aside>
     `;
@@ -745,6 +909,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                   @style-changed=${this.handleStyleChange}
                   @mark-delta=${this.handleMarkDelta}
                   @segment-settled=${this.handleSegmentSettled}
+                  @time-update=${(e: CustomEvent) => this.currentTime = e.detail.currentTime}
                   ></yts-short-player>
               </div>
 
@@ -752,8 +917,13 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                   <yts-precision-multi-timeline
                       style="flex-shrink: 0; width: 100%; max-width: 800px; padding-bottom: 24px;"
                       .duration=${projectSignal.get()?.duration || 0}
+                      .currentTime=${this.currentTime}
                       .segment=${this.currentShort.segments?.[0] || { startTime: this.currentShort.startTime, endTime: this.currentShort.endTime }}
                       @segment-settled=${this.handleSegmentSettled}
+                      @timeline-seek=${(e: CustomEvent) => {
+              const player = this.shadowRoot?.querySelector('yts-short-player') as YtsShortPlayer;
+              if (player) player.seekTo(e.detail.time);
+            }}
                   ></yts-precision-multi-timeline>
               ` : ''}
             </div>`
@@ -794,14 +964,9 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     return html`
       <aside class="glass-panel sidebar-right">
         <div class="tools-header">
-          <div class="header-title-group" style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-               <sl-icon name="person-fill" style="color: #94a3b8; font-size: 18px;"></sl-icon>
-               <span>Captions & Audio</span>
-            </div>
-            <sl-button variant="primary" size="small" ?disabled=${!this.currentShort} @click=${this.openExportDialog}>
-              <sl-icon slot="prefix" name="download"></sl-icon> Export
-            </sl-button>
+          <div class="header-title-group">
+            <sl-icon name="chat-square-text-fill" style="color: #94a3b8; font-size: 18px;"></sl-icon>
+            <span>Captions & Audio</span>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="active-pill-btn ${this.activeTab === 'captions' ? 'selected' : 'unselected'}" @click=${() => this.activeTab = 'captions'}>Captions</button>
@@ -811,51 +976,42 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         </div>
 
         ${this.activeTab === 'style' ? html`
-            ${this.currentShort ? html`
-              <yts-subtitle-style-panel
-                .shortId=${this.currentShort.id}
-                .subtitleStyle=${this.currentShort.subtitleStyle || {}}
-                @style-changed=${this.handleStyleChange}
-                @apply-all-styles=${this.handleApplyAllStyles}
-              ></yts-subtitle-style-panel>
-            ` : html`
-              <div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">
-                Select a short to edit styles
-              </div>
-            `}
-        ` : ''}
+          ${this.currentShort ? html`
+            <yts-subtitle-style-panel 
+              class="tools-content"
+              .shortId=${this.currentShort.id}
+              .subtitleStyle=${this.currentShort.subtitleStyle || {}}
+              @style-changed=${this.handleStyleChange}
+              @apply-all-styles=${this.handleApplyAllStyles}
+            ></yts-subtitle-style-panel>
+          ` : html`
+            <div class="tools-content" style="color:#64748b; font-size:13px; text-align:center; padding:20px;">
+              Select a short to edit styles
+            </div>
+          `}
+      ` : ''}
 
-        ${this.activeTab === 'audio' ? html`
+      ${this.activeTab === 'audio' ? html`
+          <div class="tools-content">
             ${this.renderAudioPanel()}
-        ` : ''}
+          </div>
+      ` : ''}
 
         ${this.activeTab === 'captions' ? html`
-            <div class="captions-list">
+            <div class="captions-list tools-content">
               ${!this.currentShort?.subtitles || this.currentShort.subtitles.length === 0
           ? html`<div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">No captions found. Move boundaries or wait for transcription.</div>`
           : this.currentShort.subtitles.map(sub => html`
-                    <button 
-                        class="caption-item" 
-                        @click=${() => this.handleEditSubtitle(new CustomEvent('edit-subtitle', { detail: { subtitle: sub } }))}
-                        aria-label="Edit caption: ${sub.text}"
-                        style="
-                            display: flex;
-                            width: 100%;
-                            background: transparent;
-                            border: none;
-                            padding: 10px;
-                            margin: 0;
-                            cursor: pointer;
-                            text-align: left;
-                            font-family: inherit;
-                            color: inherit;
-                        "
-                    >
-                      <sl-icon name="chat-square-text" style="color:#818cf8; font-size: 14px;"></sl-icon>
-                      <div class="caption-text">${sub.text}</div>
-                      <div class="caption-time">${this.formatTime(sub.startTime)}</div>
-                    </button>
-                  `)
+                  <button 
+                      class="caption-item" 
+                      @click=${() => this.handleEditSubtitle(new CustomEvent('edit-subtitle', { detail: { subtitle: sub } }))}
+                      aria-label="Edit caption: ${sub.text}"
+                  >
+                    <sl-icon name="chat-square-text" style="color:#818cf8; font-size: 14px;"></sl-icon>
+                    <div class="caption-text">${sub.text}</div>
+                    <div class="caption-time">${this.formatTime(sub.startTime)}</div>
+                  </button>
+                `)
         }
             </div>
         ` : ''}

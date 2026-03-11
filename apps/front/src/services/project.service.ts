@@ -3,7 +3,7 @@
  * Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
  */
 import axios, { type AxiosRequestConfig } from 'axios';
-import { CreateProjectDto, type ProjectResponse, type ShortResponse, type AnalysisResponse } from '@youtube-shorter/shared';
+import { type CreateProjectDto, type ProjectResponse, type ShortResponse, type AnalysisResponse } from '@youtube-shorter/shared';
 
 /**
  * API response wrapper from backend

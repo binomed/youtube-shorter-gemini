@@ -49,6 +49,12 @@ export class YtsShortPlayer extends LitElement {
   private handleTimeUpdate = (): void => {
     this.currentTime = this.videoElement.currentTime;
 
+    this.dispatchEvent(new CustomEvent('time-update', {
+      detail: { currentTime: this.currentTime },
+      bubbles: true,
+      composed: true
+    }));
+
     // Handle segment jump cuts (now single segment to match user request)
     if (this.segments && this.segments.length > 0) {
       const seg = this.segments[0];
@@ -309,17 +315,6 @@ export class YtsShortPlayer extends LitElement {
         color: rgba(255, 255, 255, 0.8);
         min-width: 80px;
         text-align: center;
-    }
-
-    .progress-bar-btn {
-        flex: 1;
-        height: 12px;
-        background: transparent;
-        border: none;
-        padding: 4px 0;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
     }
 
     .progress-bar-track {

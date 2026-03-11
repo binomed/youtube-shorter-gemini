@@ -9,6 +9,7 @@ import type { SubtitleStyle, SubtitlePreset } from '@youtube-shorter/shared';
 import '@shoelace-style/shoelace/dist/components/select/select.js';
 import '@shoelace-style/shoelace/dist/components/option/option.js';
 import '@shoelace-style/shoelace/dist/components/range/range.js';
+import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
 import '@shoelace-style/shoelace/dist/components/switch/switch.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
@@ -113,14 +114,55 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         });
     }
 
+    private handleAlignmentChange(alignment: 'left' | 'center' | 'right' | 'justify') {
+        this.emitStyleChange({ textAlign: alignment });
+    }
+
+    private handleBorderToggle(e: Event) {
+        const sw = e.target as HTMLInputElement;
+        this.emitStyleChange({ borderEnabled: sw.checked });
+    }
+
+    private handleBorderWidthChange(e: Event) {
+        const input = e.target as HTMLInputElement;
+        this.emitStyleChange({ borderWidth: parseInt(input.value, 10) });
+    }
+
+    private handleBorderColorChange(e: Event) {
+        const picker = e.target as HTMLInputElement;
+        this.emitStyleChange({ borderColor: picker.value });
+    }
+
+    private handleLineSpacingChange(e: Event) {
+        const input = e.target as HTMLInputElement;
+        this.emitStyleChange({ lineSpacing: parseFloat(input.value) });
+    }
+
+    private handleShadowToggle(e: Event) {
+        const sw = e.target as HTMLInputElement;
+        this.emitStyleChange({ textShadow: sw.checked });
+    }
+
+    private handleOutlineToggle(e: Event) {
+        const sw = e.target as HTMLInputElement;
+        this.emitStyleChange({ textOutline: sw.checked });
+    }
+
     private handleReset() {
         this.emitStyleChange({
             font: 'inherit',
-            fontSize: 24,
+            fontSize: 40,
             color: '#ffffff',
             backgroundColor: 'rgba(0,0,0,0.6)',
             positionX: 0,
-            positionY: 0
+            positionY: 0,
+            textAlign: 'center',
+            borderEnabled: false,
+            borderWidth: 3,
+            borderColor: '#000000',
+            lineSpacing: 1.2,
+            textShadow: true,
+            textOutline: false
         });
     }
 
@@ -149,6 +191,24 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         .label {
             color: var(--yts-text-3, #94a3b8);
             font-weight: 500;
+        }
+
+        sl-checkbox::part(control) {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            width: 18px;
+            height: 18px;
+        }
+
+        sl-checkbox::part(checked-icon) {
+            width: 12px;
+            height: 12px;
+        }
+
+        sl-checkbox::part(control--checked) {
+            background: #0ea5e9;
+            border-color: #0ea5e9;
         }
 
         /* Font & Size */
@@ -313,15 +373,19 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         }
 
         .rainbow-picker {
-            background: conic-gradient(#ff0097 0%, #ff0097 100%); /* Fallback SDR gradient */
-            background: conic-gradient(in oklch longer hue, oklch(70% .3 0) 0%, oklch(70% .3 0) 100%);
+            background: conic-gradient(from 180deg at 50% 50%, #ff0000 0%, #ff00ff 17%, #0000ff 33%, #00ffff 50%, #00ff00 67%, #ffff00 83%, #ff0000 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #000000;
+            color: #fff;
+            text-shadow: 0 0 2px rgba(0,0,0,0.5);
             font-size: 14px;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        sl-color-picker::part(trigger) {
+            display: none;
         }
 
         sl-color-picker {
@@ -429,39 +493,138 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         }
 
         /* Footer Action Buttons */
-        .footer-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: auto;
+        /* Alignment & Effects */
+        .section-title {
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            color: var(--yts-text-3, #94a3b8);
+            margin-bottom: 12px;
+            margin-top: 24px;
         }
 
-        .footer-btn {
-            flex: 1;
+        .align-group {
+            display: flex;
+            gap: 8px;
             background: var(--yts-glass-bg, #2a2d3d);
-            color: var(--yts-text-1, #f8fafc);
-            border: 1px solid transparent;
-            padding: 10px 0;
-            border-radius: var(--yts-radius, 20px);
-            font-size: 12px;
-            font-weight: 500;
+            padding: 4px;
+            border-radius: var(--yts-radius, 8px);
+            width: fit-content;
+        }
+
+        .align-btn {
+            background: transparent;
+            border: none;
+            color: var(--yts-text-3, #94a3b8);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
+            border-radius: 4px;
             transition: all 0.2s;
         }
 
-        .footer-btn:hover {
+        .align-btn:hover {
+            background: rgba(255,255,255,0.05);
+            color: var(--yts-text-1, #f8fafc);
+        }
+
+        .align-btn.active {
             background: var(--yts-surface-3, #334155);
+            color: var(--yts-text-1, #f8fafc);
         }
 
-        .footer-btn:focus-visible {
-            outline: 2px solid var(--yts-primary, #0ea5e9);
-            outline-offset: 2px;
+        .effect-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
         }
 
-        .footer-btn-reset {
+        .effect-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            font-size: 13px;
+        }
+
+        sl-switch::part(control) {
+           --sl-input-height-small: 18px;
+           --sl-input-width-small: 32px;
+        }
+
+        .border-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 2;
+        }
+
+        .color-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.2);
+            cursor: pointer;
+        }
+
+        .gradient-btn {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .gradient-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .gradient-btn:disabled {
+            background: #475569;
+            box-shadow: none;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.7;
+        }
+
+        .apply-btn {
+            composes: gradient-btn; /* Note: Lit doesn't support 'composes', so I'll just use the class */
+        }
+
+        .footer-btn {
+            background: var(--yts-glass-bg, #2a2d3d);
+            border: 1px solid var(--yts-border, rgba(255,255,255,0.1));
+            color: var(--yts-text-1, #f8fafc);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .footer-btn:hover {
+            background: var(--yts-surface-3, #334155);
+            border-color: rgba(255,255,255,0.2);
         }
 
         .sr-only {
@@ -532,12 +695,22 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         const presets = presetState.presets.value;
         const isLoading = presetState.isLoading.value;
 
+        const textAlign = this.subtitleStyle?.textAlign || 'center';
+        const borderEnabled = this.subtitleStyle?.borderEnabled || false;
+        const borderWidth = this.subtitleStyle?.borderWidth || 3;
+        const borderColor = this.subtitleStyle?.borderColor || '#000000';
+        const lineSpacing = this.subtitleStyle?.lineSpacing || 1.2;
+        const textShadow = this.subtitleStyle?.textShadow ?? true;
+        const textOutline = this.subtitleStyle?.textOutline || false;
+
         return html`
             ${this._renderPresetsHeader(presets, isLoading)}
             ${this.isSavePresetDialogOpen ? this._renderSavePresetForm() : ''}
             ${this._renderFontSection(currentFont)}
             ${this._renderSizeSection(currentSize)}
-            ${this._renderColorsPreviewSection(currentFont, currentColor, currentBgColor, textColorToggle, bgColorToggle)}
+            ${this._renderColorsPreviewSection(currentFont, currentColor, currentBgColor, textColorToggle, bgColorToggle, textAlign, borderEnabled, borderWidth, borderColor, lineSpacing, textShadow, textOutline)}
+            ${this._renderAlignmentSection(textAlign)}
+            ${this._renderEffectsSection(borderEnabled, borderWidth, borderColor, lineSpacing, textShadow, textOutline)}
             ${this._renderPositionSection(currentPosY)}
             ${this._renderFooterActions()}
         `;
@@ -561,16 +734,16 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                 `}
 
                 ${presetState.activePresetId.value ? html`
-                    <sl-tooltip content="Update the currently selected preset">
-                        <button class="footer-btn" style="width: auto; padding: 6px 12px; border-radius: 6px; flex: none; margin-right: 8px;" @click=${this.handleUpdatePreset}>
+                    <sl-tooltip content="Update the currently selected preset" placement="bottom">
+                        <button class="gradient-btn" style="width: auto; padding: 6px 12px; flex: none; margin-right: 8px;" @click=${this.handleUpdatePreset}>
                             <sl-icon slot="prefix" name="pencil"></sl-icon> Update
                         </button>
                     </sl-tooltip>
                 ` : ''}
 
-                <sl-tooltip content="Save current styles as a new preset">
-                    <button class="footer-btn" style="width: auto; padding: 6px 12px; border-radius: 6px; flex: none;" @click=${() => this.isSavePresetDialogOpen = !this.isSavePresetDialogOpen}>
-                        <sl-icon slot="prefix" name="save"></sl-icon> ${presetState.activePresetId.value ? 'Save as New' : 'Save'}
+                <sl-tooltip content="Save current styles as a new preset" placement="bottom">
+                    <button class="gradient-btn" style="width: auto; padding: 6px 12px; flex: none;" @click=${() => this.isSavePresetDialogOpen = !this.isSavePresetDialogOpen}>
+                        <sl-icon slot="prefix" name="box-arrow-in-down"></sl-icon> ${presetState.activePresetId.value ? 'Save as New' : 'Save'}
                     </button>
                 </sl-tooltip>
             </div>
@@ -588,7 +761,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                     @input=${(e: Event) => this.presetNameInput = (e.target as HTMLInputElement).value}
                     @keyup=${(e: KeyboardEvent) => { if (e.key === 'Enter') this.handleSavePreset() }}
                 />
-                <button class="footer-btn" style="flex: none; padding: 8px 16px;" @click=${this.handleSavePreset} ?disabled=${!this.presetNameInput.trim()}>
+                <button class="gradient-btn" style="flex: none; padding: 8px 16px;" @click=${this.handleSavePreset} ?disabled=${!this.presetNameInput.trim()}>
                     Save
                 </button>
             </div>
@@ -600,7 +773,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             <div class="panel-row">
                 <label class="label" id="font-label">Font</label>
                 <div class="select-wrapper">
-                    <sl-tooltip content="Select subtitle font family">
+                    <sl-tooltip content="Select subtitle font family" placement="bottom">
                         <select class="custom-select" aria-labelledby="font-label" .value="${currentFont}" @change=${this.handleFontChange}>
                             <option value="inherit">System Sans-Serif</option>
                             <option value="'Roboto', sans-serif">Roboto</option>
@@ -618,28 +791,64 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         return html`
             <div class="size-slider-group">
                 <label class="label" id="size-label" style="width: 70px;">Size: ${currentSize}px</label>
-                <sl-tooltip content="Adjust subtitle font size">
+                <sl-tooltip content="Adjust subtitle font size" placement="bottom">
                     <input type="range" class="custom-slider" aria-labelledby="size-label" min="12" max="150" value="${currentSize}" @input=${this.handleFontSizeChange}>
                 </sl-tooltip>
-                <sl-tooltip content="Decrease font size">
+                <sl-tooltip content="Decrease font size" placement="bottom">
                     <button type="button" class="size-btn" aria-label="Decrease font size" @click=${() => this.emitStyleChange({ fontSize: Math.max(12, currentSize - 2) })}>-</button>
                 </sl-tooltip>
-                <sl-tooltip content="Increase font size">
+                <sl-tooltip content="Increase font size" placement="bottom">
                     <button type="button" class="size-btn" aria-label="Increase font size" @click=${() => this.emitStyleChange({ fontSize: Math.min(150, currentSize + 2) })}>+</button>
                 </sl-tooltip>
             </div>
         `;
     }
 
-    private _renderColorsPreviewSection(currentFont: string, currentColor: string, currentBgColor: string, textColorToggle: string, bgColorToggle: string) {
+    private _renderColorsPreviewSection(
+        currentFont: string,
+        currentColor: string,
+        currentBgColor: string,
+        textColorToggle: string,
+        bgColorToggle: string,
+        textAlign: string,
+        borderEnabled: boolean,
+        borderWidth: number,
+        borderColor: string,
+        lineSpacing: number,
+        textShadow: boolean,
+        textOutline: boolean
+    ) {
+        // Build CSS for preview
+        let previewStyle = `
+            font-family: ${currentFont};
+            color: ${currentColor};
+            background-color: ${currentBgColor};
+            text-align: ${textAlign === 'justify' ? 'justify' : textAlign};
+            line-height: ${lineSpacing};
+            padding: 8px 12px;
+            border-radius: 4px;
+        `;
+
+        if (borderEnabled) {
+            previewStyle += `border: ${borderWidth}px solid ${borderColor};`;
+        }
+
+        if (textShadow) {
+            previewStyle += `text-shadow: 2px 2px 4px rgba(0,0,0,0.5);`;
+        }
+
+        if (textOutline) {
+            previewStyle += `-webkit-text-stroke: 1px ${currentColor === '#ffffff' ? '#000000' : '#ffffff'};`;
+        }
+
         return html`
             <div class="colors-preview-container">
                 <div class="colors-col">
                     <div>
-                        <div class="color-group-title" id="text-color-label">Colors</div>
+                        <div class="color-group-title" id="text-color-label">TEXT COLOR</div>
                         <div class="color-bubbles" role="group" aria-labelledby="text-color-label">
                             <sl-dropdown distance="5">
-                                <sl-tooltip slot="trigger" content="Pick a custom text color">
+                                <sl-tooltip slot="trigger" content="Pick a custom text color" placement="bottom">
                                     <button type="button" class="color-bubble rainbow-picker ${textColorToggle === 'custom' ? 'active' : ''}" aria-label="Custom text color">
                                         <sl-icon name="eyedropper"></sl-icon>
                                     </button>
@@ -656,20 +865,20 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                                 ></sl-color-picker>
                             </sl-dropdown>
 
-                            <sl-tooltip content="Set text color to Black">
+                            <sl-tooltip content="Set text color to Black" placement="bottom">
                                 <button type="button" class="color-bubble ${textColorToggle === 'black' ? 'active' : ''}" style="background: #000;" aria-label="Set text color to Black" @click=${() => this.setTextColor('black')}></button>
                             </sl-tooltip>
-                            <sl-tooltip content="Set text color to White">
+                            <sl-tooltip content="Set text color to White" placement="bottom">
                                 <button type="button" class="color-bubble ${textColorToggle === 'white' ? 'active' : ''}" style="background: #fff;" aria-label="Set text color to White" @click=${() => this.setTextColor('white')}></button>
                             </sl-tooltip>
                         </div>
                     </div>
 
                     <div style="margin-top: 8px;">
-                        <div class="color-group-title" id="bg-color-label">Background Color</div>
+                        <div class="color-group-title" id="bg-color-label">BACKGROUND COLOR</div>
                         <div class="color-bubbles" role="group" aria-labelledby="bg-color-label">
                             <sl-dropdown distance="5">
-                                <sl-tooltip slot="trigger" content="Pick a custom background color">
+                                <sl-tooltip slot="trigger" content="Pick a custom background color" placement="bottom">
                                     <button type="button" class="color-bubble rainbow-picker ${bgColorToggle === 'custom' ? 'active' : ''}" aria-label="Custom background color">
                                         <sl-icon name="eyedropper"></sl-icon>
                                     </button>
@@ -686,10 +895,10 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                                 ></sl-color-picker>
                             </sl-dropdown>
 
-                            <sl-tooltip content="Set background color to Yellow">
+                            <sl-tooltip content="Set background color to Yellow" placement="bottom">
                                 <button type="button" class="color-bubble ${bgColorToggle === 'yellow' ? 'active' : ''}" style="background: #facc15;" aria-label="Set background color to Yellow" @click=${() => this.setBgColor('yellow')}></button>
                             </sl-tooltip>
-                            <sl-tooltip content="Set background color to Semi-transparent Black">
+                            <sl-tooltip content="Set background color to Semi-transparent Black" placement="bottom">
                                 <button type="button" class="color-bubble ${bgColorToggle === 'black' ? 'active' : ''}" style="background: rgba(0,0,0,0.6);" aria-label="Set background color to Semi-transparent Black" @click=${() => this.setBgColor('black')}></button>
                             </sl-tooltip>
                         </div>
@@ -698,24 +907,94 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
 
                 <div class="generic-preview" aria-hidden="true">
                     <div class="preview-blur-bg"></div>
-                    <div class="preview-text" style="
-                        font-family: ${currentFont};
-                        color: ${this.subtitleStyle?.color || '#ffffff'};
-                        background-color: ${this.subtitleStyle?.backgroundColor || 'transparent'};
-                        padding: 4px 8px;
-                        border-radius: 4px;
-                    ">Hey Listen!</div>
+                    <div class="preview-text" style="${previewStyle}">Sample subtitle text for preview</div>
                 </div>
+            </div>
+        `;
+    }
+
+    private _renderAlignmentSection(textAlign: string) {
+        return html`
+            <div class="section-title">Text Alignment</div>
+            <div class="align-group">
+                <button class="align-btn ${textAlign === 'left' ? 'active' : ''}" @click=${() => this.handleAlignmentChange('left')}>
+                    <sl-icon name="text-left"></sl-icon>
+                </button>
+                <button class="align-btn ${textAlign === 'center' ? 'active' : ''}" @click=${() => this.handleAlignmentChange('center')}>
+                    <sl-icon name="text-center"></sl-icon>
+                </button>
+                <button class="align-btn ${textAlign === 'right' ? 'active' : ''}" @click=${() => this.handleAlignmentChange('right')}>
+                    <sl-icon name="text-right"></sl-icon>
+                </button>
+                <button class="align-btn ${textAlign === 'justify' ? 'active' : ''}" @click=${() => this.handleAlignmentChange('justify')}>
+                    <sl-icon name="justify"></sl-icon>
+                </button>
+            </div>
+        `;
+    }
+
+    private _renderEffectsSection(
+        borderEnabled: boolean,
+        borderWidth: number,
+        borderColor: string,
+        lineSpacing: number,
+        textShadow: boolean,
+        textOutline: boolean
+    ) {
+        return html`
+            <div class="section-title">Text Effects</div>
+
+            <div class="effect-row">
+                <div class="effect-label">
+                    <sl-checkbox ?checked=${borderEnabled} @sl-change=${this.handleBorderToggle}>Border</sl-checkbox>
+                </div>
+                <div class="border-controls">
+                    <input type="range" class="custom-slider" min="1" max="10" .value=${borderWidth} @input=${this.handleBorderWidthChange} ?disabled=${!borderEnabled}>
+                    <sl-dropdown distance="5">
+                        <div slot="trigger" class="color-dot" style="background: ${borderColor}"></div>
+                        <sl-color-picker
+                            inline
+                            format="rgba"
+                            .value=${borderColor}
+                            @sl-change=${this.handleBorderColorChange}
+                        ></sl-color-picker>
+                    </sl-dropdown>
+                    <sl-icon name="pencil" style="font-size: 14px; color: var(--yts-text-3);"></sl-icon>
+                </div>
+            </div>
+
+            <div class="effect-row">
+                <div class="effect-label">
+                    <span>Line Spacing</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px; flex: 2;">
+                    <input type="range" class="custom-slider" min="0.5" max="3" step="0.1" .value=${lineSpacing} @input=${this.handleLineSpacingChange}>
+                    <sl-icon name="distribute-vertical" style="font-size: 16px;"></sl-icon>
+                </div>
+            </div>
+
+            <div class="effect-row">
+                <div class="effect-label">
+                    <span>Text Shadow</span>
+                </div>
+                <sl-checkbox ?checked=${textShadow} @sl-change=${this.handleShadowToggle}></sl-checkbox>
+            </div>
+
+            <div class="effect-row">
+                <div class="effect-label">
+                    <span>Text Outline/Glow</span>
+                </div>
+                <sl-checkbox ?checked=${textOutline} @sl-change=${this.handleOutlineToggle}></sl-checkbox>
             </div>
         `;
     }
 
     private _renderPositionSection(currentPosY: number) {
         return html`
+            <div class="section-title">Vertical Offset</div>
             <div class="positioning-container" style="grid-template-columns: 1fr;">
                 <div class="v-offset-group">
-                    <label class="label" id="v-offset-label">Vertical Offset</label>
-                    <sl-tooltip content="Adjust vertical position of subtitles">
+                    <sl-tooltip content="Adjust vertical position of subtitles" placement="bottom">
                         <input type="range" class="custom-slider" aria-labelledby="v-offset-label" min="-150" max="150" value="${currentPosY}" @input=${this.handleVerticalOffsetChange}>
                     </sl-tooltip>
                 </div>
@@ -725,16 +1004,9 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
 
     private _renderFooterActions() {
         return html`
-            <div class="footer-actions">
-                <sl-tooltip content="Apply these styles to all subtitles">
-                    <button type="button" class="footer-btn" aria-label="Apply to All" @click=${this.handleApplyToAll}>Apply to All</button>
-                </sl-tooltip>
-                <sl-tooltip content="Reset styles to default">
-                    <button type="button" class="footer-btn footer-btn-reset" aria-label="Reset styles to default" @click=${this.handleReset}>
-                        Reset
-                        <sl-icon name="stars" style="color: var(--yts-text-2, #cbd5e1);"></sl-icon>
-                    </button>
-                </sl-tooltip>
+            <div style="display: flex; gap: 12px; margin-top: 24px;">
+                <button class="gradient-btn" style="flex: 1;" @click=${this.handleApplyToAll}>Apply to All</button>
+                <button class="footer-btn" style="flex: none; width: 80px;" @click=${this.handleReset}>Reset</button>
             </div>
         `;
     }

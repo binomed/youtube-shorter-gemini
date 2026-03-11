@@ -57,7 +57,7 @@ export class AnalysisController {
     private readonly analysisService: AnalysisService,
     private readonly stemService: StemService,
     private readonly jobProgressService: JobProgressService,
-  ) { }
+  ) {}
 
   /**
    * Trigger AI analysis for a project's video.
@@ -74,7 +74,9 @@ export class AnalysisController {
     description: 'Analysis started and results returned',
   })
   @ApiResponse({ status: 404, description: 'Project not found' })
-  async analyzeProject(@Param('id') id: string): Promise<{ projectId: string; jobId: string }> {
+  async analyzeProject(
+    @Param('id') id: string,
+  ): Promise<{ projectId: string; jobId: string }> {
     this.logger.log(`Starting analysis for project ${id}`);
 
     // Initialize Job in SQLite via unified service
@@ -88,7 +90,9 @@ export class AnalysisController {
       try {
         await this.analysisService.analyzeProject(id, jobId);
       } catch (err) {
-        this.logger.error(`Background analysis failed for ${id}: ${(err as Error).message}`);
+        this.logger.error(
+          `Background analysis failed for ${id}: ${(err as Error).message}`,
+        );
         // Error already handled in service.analyzeProject (it calls jobProgressService.fail)
       }
     })();
@@ -119,11 +123,16 @@ export class AnalysisController {
     let jobId = queryJobId;
 
     if (!jobId) {
-      jobId = await this.jobProgressService.getLatestJobIdByProject(id, 'analysis');
+      jobId = await this.jobProgressService.getLatestJobIdByProject(
+        id,
+        'analysis',
+      );
     }
 
     if (!jobId) {
-      throw new BadRequestException('jobId query parameter is required and no recent job found');
+      throw new BadRequestException(
+        'jobId query parameter is required and no recent job found',
+      );
     }
 
     return this.jobProgressService.getStream<AnalysisProgressEvent>(jobId).pipe(
@@ -181,7 +190,10 @@ export class AnalysisController {
         endTime: sub.endTime,
         text: sub.text,
       })),
-      createdAt: (s.createdAt instanceof Date ? s.createdAt : new Date(s.createdAt)).toISOString(),
+      createdAt: (s.createdAt instanceof Date
+        ? s.createdAt
+        : new Date(s.createdAt)
+      ).toISOString(),
     };
   }
 
@@ -294,7 +306,9 @@ export class AnalysisController {
     }
 
     if (!jobId) {
-      throw new BadRequestException('jobId query parameter is required and no recent job found');
+      throw new BadRequestException(
+        'jobId query parameter is required and no recent job found',
+      );
     }
 
     return this.jobProgressService.getStream<StemProgressEvent>(jobId).pipe(

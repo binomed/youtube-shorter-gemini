@@ -27,153 +27,291 @@ export class YtsPrecisionMultiTimeline extends LitElement {
 
     static styles = css`
         :host {
-            display: block;
+            display: flex;
+            flex-direction: column;
             width: 100%;
-            height: 90px;
-            background: rgba(15, 23, 42, 0.4);
-            border-radius: 12px;
+            height: auto;
             position: relative;
             user-select: none;
             overflow: visible;
-            padding: 0 40px; /* Increased padding to accommodate label overflow at edges */
             box-sizing: border-box;
+            font-family: 'Inter', system-ui, sans-serif;
+            color: white;
+        }
+
+        .header {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: #f1f5f9;
+        }
+
+        .timeline-container {
+            position: relative;
+            height: 60px;
+            background: rgba(30, 41, 59, 0.5);
+            border-radius: 12px;
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
         }
 
         .timeline-track {
-            position: absolute;
-            top: 25px;
-            left: 20px;
-            right: 20px;
-            height: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
+            position: relative;
+            width: 100%;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
             cursor: pointer;
+            overflow: visible;
+        }
+
+        /* Waveform decorative effect */
+        .waveform-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 0 4px;
+            opacity: 0.2;
+            pointer-events: none;
+        }
+
+        .waveform-bar {
+            width: 2px;
+            background: #64748b;
+            border-radius: 1px;
         }
 
         .current-time-indicator {
             position: absolute;
-            top: 0;
-            bottom: 0;
+            top: -10px;
+            bottom: -10px;
             width: 2px;
-            background: var(--yts-accent, #0ea5e9);
-            z-index: 10;
+            background: white;
+            z-index: 30;
             pointer-events: none;
+        }
+
+        .playhead-bubble {
+            position: absolute;
+            top: -8px; /* Lower position to avoid IN label overlap */
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 41, 59, 1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #e2e8f0;
+            padding: 2px 8px; /* Slightly more compact */
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            white-space: nowrap;
+            cursor: grab;
+            pointer-events: auto; /* Enable interaction */
+            z-index: 50; /* Ensure it stays on top of segment blocks */
+        }
+
+        .playhead-bubble:active {
+            cursor: grabbing;
+        }
+
+        .playhead-pointer {
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 5px solid rgba(30, 41, 59, 1);
+            transform: rotate(180deg);
         }
 
         .segment-block {
             position: absolute;
             top: 0;
-            height: 100%;
-            background: rgba(14, 165, 233, 0.3);
-            border: 1px solid rgba(14, 165, 233, 0.6);
-            border-radius: 2px;
+            bottom: 0;
+            background: linear-gradient(90deg, #0ea5e9 0%, #a855f7 100%);
+            opacity: 0.4;
+            border: 2px solid #0ea5e9;
+            border-left: none;
+            border-right: none;
             box-sizing: border-box;
+            z-index: 10;
         }
 
         .handle {
             position: absolute;
-            top: -12px;
-            bottom: -12px;
-            width: 4px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
             background: white;
-            border-radius: 2px;
+            z-index: 25;
             cursor: col-resize;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            z-index: 20;
+            overflow: visible;
         }
 
-        .handle::after {
-            content: '';
+        .handle-circle {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 12px;
-            height: 24px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 4px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
 
-        .handle-start { left: 0; }
-        .handle-end { right: 0; }
+        .handle-start .handle-circle { background: #0ea5e9; }
+        .handle-end .handle-circle { background: #a855f7; }
 
-        .timing-label {
+        .floating-label {
             position: absolute;
+            top: -50px;
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            z-index: 40;
+        }
+
+        .label-in {
+            left: 0;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+        }
+
+        .label-out {
+            top: auto;
+            bottom: -50px;
+            right: 0;
+            transform: translateX(50%);
+            background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 100%);
+        }
+
+        .label-pointer {
+            position: absolute;
+            bottom: -6px;
             left: 50%;
             transform: translateX(-50%);
-            background: #0ea5e9;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid currentColor;
+        }
+
+        .label-in .label-pointer { color: #3b82f6; }
+        
+        .label-out .label-pointer { 
+            color: #8b5cf6;
+            top: -6px;
+            bottom: auto;
+            border-top: none;
+            border-bottom: 6px solid currentColor;
+        }
+
+        .time-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #94a3b8;
+            letter-spacing: 0.5px;
+        }
+
+        .time-footer span {
             color: white;
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-family: monospace;
-            font-weight: bold;
-            white-space: nowrap;
-            pointer-events: none;
-            opacity: 1;
-            z-index: 50;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .handle-start .timing-label {
-            bottom: -32px;
-            transform: translateX(-20%);
-        }
-
-        .handle-end .timing-label {
-            top: -32px;
-            transform: translateX(-80%);
-        }
-
-        .handle:hover .timing-label,
-        .handle-dragging .timing-label {
-            opacity: 1;
-        }
-
-        .handle-dragging {
-            background: var(--yts-accent, #0ea5e9);
+            margin-left: 4px;
         }
     `;
 
     render() {
         if (!this.segment) return html``;
 
-        return html`
-            <div class="timeline-track" @mousedown=${this._onTrackClick}>
-                <div class="current-time-indicator" style="left: ${this._timeToPercent(this.currentTime)}%"></div>
+        const startPct = this._timeToPercent(this.segment.startTime);
+        const endPct = this._timeToPercent(this.segment.endTime);
+        const widthPct = endPct - startPct;
+        const currentPct = this._timeToPercent(this.currentTime);
 
-                <div
-                    class="segment-block"
-                    style="left: ${this._timeToPercent(this.segment.startTime)}%; width: ${this._timeToPercent(this.segment.endTime - this.segment.startTime)}%"
-                >
+        return html`
+            <div class="header">Timeline Editing Zone</div>
+            
+            <div class="timeline-container">
+                <div class="timeline-track" @mousedown=${this._onTrackClick}>
+                    <div class="waveform-bg">
+                        ${Array.from({ length: 40 }).map(() => html`
+                            <div class="waveform-bar" style="height: ${20 + Math.random() * 60}%"></div>
+                        `)}
+                    </div>
+
+                    <div 
+                        class="current-time-indicator" 
+                        style="left: ${currentPct}%"
+                    >
+                        <div class="playhead-bubble" @mousedown=${this._startPlayheadDrag}>
+                            ${this._formatTimeShort(this.currentTime)}
+                            <div class="playhead-pointer"></div>
+                        </div>
+                    </div>
+
+                    <div class="segment-block" style="left: ${startPct}%; width: ${widthPct}%"></div>
+
                     <div
-                        class="handle handle-start ${this.draggingEdge === 'start' ? 'handle-dragging' : ''}"
+                        class="handle handle-start"
+                        style="left: ${startPct}%"
                         @mousedown=${(e: MouseEvent) => this._startDrag(e, 'start')}
                     >
-                        <div class="timing-label">${this._formatTime(this.segment.startTime)}</div>
+                        <div class="floating-label label-in">
+                            <sl-icon name="play-fill" style="font-size: 14px;"></sl-icon> IN ${this._formatTimeShort(this.segment.startTime)}
+                            <div class="label-pointer"></div>
+                        </div>
+                        <div class="handle-circle"></div>
                     </div>
+
                     <div
-                        class="handle handle-end ${this.draggingEdge === 'end' ? 'handle-dragging' : ''}"
+                        class="handle handle-end"
+                        style="left: ${endPct}%"
                         @mousedown=${(e: MouseEvent) => this._startDrag(e, 'end')}
                     >
-                        <div class="timing-label">${this._formatTime(this.segment.endTime)}</div>
+                        <div class="floating-label label-out">
+                            <sl-icon name="play-fill" style="font-size: 14px;"></sl-icon> OUT ${this._formatTimeShort(this.segment.endTime)}
+                            <div class="label-pointer"></div>
+                        </div>
+                        <div class="handle-circle"></div>
                     </div>
                 </div>
             </div>
+
+            <div class="time-footer">
+                <div>IN: <span>${this._formatTimeShort(this.segment.startTime)}</span></div>
+                <div>OUT: <span>${this._formatTimeShort(this.segment.endTime)}</span></div>
+            </div>
         `;
+    }
+
+    private _formatTimeShort(seconds: number): string {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     }
 
     private _timeToPercent(time: number): number {
         if (!this.duration) return 0;
         return (time / this.duration) * 100;
-    }
-
-    private _formatTime(seconds: number): string {
-        const m = Math.floor(seconds / 60);
-        const s = Math.floor(seconds % 60);
-        const ms = Math.floor((seconds % 1) * 100);
-        return `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
     }
 
     private _startDrag(e: MouseEvent, edge: 'start' | 'end') {
@@ -221,13 +359,55 @@ export class YtsPrecisionMultiTimeline extends LitElement {
     }
 
     private _onTrackClick(e: MouseEvent) {
+        if (!this.segment) return;
+        // Prevent trigger if clicking handles
+        if ((e.target as HTMLElement).closest('.handle')) return;
+
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         const x = e.clientX - rect.left;
-        const percent = x / rect.width;
-        const seekTime = percent * this.duration;
+        const percent = Math.max(0, Math.min(1, x / rect.width));
+        let seekTime = percent * this.duration;
 
+        // Clamp seekTime between IN and OUT
+        seekTime = Math.max(this.segment.startTime, Math.min(this.segment.endTime, seekTime));
+
+        this._emitSeek(seekTime);
+
+        // Also start playhead drag on click
+        this._startPlayheadDrag(e);
+    }
+
+    private _startPlayheadDrag(e: MouseEvent) {
+        if (!this.segment) return;
+        e.stopPropagation();
+
+        const rect = (this.shadowRoot!.querySelector('.timeline-track') as HTMLElement).getBoundingClientRect();
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            const x = moveEvent.clientX - rect.left;
+            const percent = Math.max(0, Math.min(1, x / rect.width));
+            let seekTime = percent * this.duration;
+
+            // Clamp seekTime between IN and OUT
+            if (this.segment) {
+                seekTime = Math.max(this.segment.startTime, Math.min(this.segment.endTime, seekTime));
+            }
+
+            this._emitSeek(seekTime);
+        };
+
+        const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    }
+
+    private _emitSeek(time: number) {
         this.dispatchEvent(new CustomEvent('timeline-seek', {
-            detail: { time: seekTime },
+            detail: { time },
             bubbles: true,
             composed: true
         }));

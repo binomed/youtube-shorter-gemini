@@ -156,6 +156,13 @@ export interface SubtitleStyle {
     backgroundColor?: string;
     positionY?: number;
     positionX?: number;
+    textAlign?: 'left' | 'center' | 'right' | 'justify';
+    borderEnabled?: boolean;
+    borderWidth?: number;
+    borderColor?: string;
+    lineSpacing?: number;
+    textShadow?: boolean;
+    textOutline?: boolean;
 }
 
 /**

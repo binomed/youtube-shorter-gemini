@@ -125,9 +125,9 @@ describe('AnalysisService', () => {
     it('should throw NotFoundException when project does not exist', async () => {
       mockProjectRepository.findOneBy.mockResolvedValue(null);
 
-      await expect(service.analyzeProject('nonexistent', 'job-1')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.analyzeProject('nonexistent', 'job-1'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should call GeminiService and save resulting shorts', async () => {
@@ -203,7 +203,9 @@ describe('AnalysisService', () => {
       );
 
       // Should NOT throw — transcription failure is non-fatal
-      await expect(service.analyzeProject('proj-1', 'job-1')).resolves.toBeDefined();
+      await expect(
+        service.analyzeProject('proj-1', 'job-1'),
+      ).resolves.toBeDefined();
     });
   });
 });

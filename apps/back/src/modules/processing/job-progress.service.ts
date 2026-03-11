@@ -20,7 +20,7 @@ export class JobProgressService {
   // Map de jobId -> Subject pour les flux SSE
   private subjects = new Map<string, ReplaySubject<any>>();
 
-  constructor(private readonly jobService: JobService) { }
+  constructor(private readonly jobService: JobService) {}
 
   /**
    * Récupère ou crée un flux de progression pour un Job spécifique.
