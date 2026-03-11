@@ -1,6 +1,10 @@
 # CI Verification Rule
 
-All AI agents MUST verify that the code compiles, passes linting, and passes all tests before completing a task or submitting code for review.
+All AI agents MUST verify that the code compiles, passes linting, and passes all tests before completing a task, submitting code for review, or **PERFORMING ANY GIT COMMIT**.
+
+> [!IMPORTANT]
+> **CI Verification is a hard blocker for Commits.**
+> You ARE NOT ALLOWED to run `git commit` unless you have verified that `npm run lint`, `npm run build`, and `npm run test` pass in the current working state.
 
 ## Mandatory Commands
 
