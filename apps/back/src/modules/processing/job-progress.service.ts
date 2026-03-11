@@ -2,9 +2,9 @@
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
 import { Injectable, Logger } from '@nestjs/common';
-import { Subject, Observable, ReplaySubject } from 'rxjs';
+import { Observable, ReplaySubject } from 'rxjs';
 import { JobService } from './job.service';
-import { Job, JobType } from '../../entities/job.entity';
+import { JobType } from '../../entities/job.entity';
 
 /**
  * JobProgressService — Unifie la gestion de la progression réactive (SSE)

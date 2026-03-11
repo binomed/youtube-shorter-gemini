@@ -25,7 +25,6 @@ import { Observable, map, finalize } from 'rxjs';
 import {
   AnalysisService,
   type AnalysisProgressEvent,
-  type AnalysisResponse,
 } from './analysis.service';
 import { StemService } from './stem.service';
 import { JobProgressService } from '../processing/job-progress.service';
@@ -168,31 +167,58 @@ export class AnalysisController {
    * Helper to map Short entity to ShortResponse DTO.
    */
   private mapToShortResponse(s: any, projectId: string): ShortResponse {
+    const rawShort = s as {
+      id: string;
+      projectId: string;
+      title: string;
+      description: string;
+      startTime: number;
+      endTime: number;
+      confidence: number;
+      orderIndex: number;
+      thumbnailPath?: string;
+      vocalsPath?: string;
+      accompanimentPath?: string;
+      subtitleStyle: SubtitleStyle;
+      segments: any[];
+      subtitles?: any[];
+      createdAt: any;
+    };
+
     return {
-      id: s.id,
-      projectId: s.projectId,
-      title: s.title,
-      description: s.description,
-      startTime: s.startTime,
-      endTime: s.endTime,
-      confidence: s.confidence,
-      orderIndex: s.orderIndex,
-      thumbnailUrl: s.thumbnailPath
-        ? `/api/projects/${projectId}/shorts/${s.id}/thumbnail`
+      id: rawShort.id,
+      projectId: rawShort.projectId,
+      title: rawShort.title,
+      description: rawShort.description,
+      startTime: rawShort.startTime,
+      endTime: rawShort.endTime,
+      confidence: rawShort.confidence,
+      orderIndex: rawShort.orderIndex,
+      thumbnailUrl: rawShort.thumbnailPath
+        ? `/api/projects/${projectId}/shorts/${rawShort.id}/thumbnail`
         : undefined,
-      stemsAvailable: !!(s.vocalsPath && s.accompanimentPath),
-      subtitleStyle: s.subtitleStyle as SubtitleStyle,
-      segments: s.segments,
-      subtitles: s.subtitles?.map((sub: any) => ({
-        id: sub.id,
-        shortId: sub.shortId,
-        startTime: sub.startTime,
-        endTime: sub.endTime,
-        text: sub.text,
-      })),
-      createdAt: (s.createdAt instanceof Date
-        ? s.createdAt
-        : new Date(s.createdAt)
+      stemsAvailable: !!(rawShort.vocalsPath && rawShort.accompanimentPath),
+      subtitleStyle: rawShort.subtitleStyle,
+      segments: rawShort.segments,
+      subtitles: rawShort.subtitles?.map((sub: any) => {
+        const rawSub = sub as {
+          id: string;
+          shortId: string;
+          startTime: number;
+          endTime: number;
+          text: string;
+        };
+        return {
+          id: rawSub.id,
+          shortId: rawSub.shortId,
+          startTime: rawSub.startTime,
+          endTime: rawSub.endTime,
+          text: rawSub.text,
+        };
+      }),
+      createdAt: (rawShort.createdAt instanceof Date
+        ? rawShort.createdAt
+        : new Date(rawShort.createdAt as string | number | Date)
       ).toISOString(),
     };
   }

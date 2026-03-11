@@ -4,7 +4,6 @@
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Subject } from 'rxjs';
 import { NotFoundException } from '@nestjs/common';
 import { StemService } from './stem.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
@@ -57,7 +56,9 @@ import { EventEmitter } from 'events';
 // Mock child_process.spawn and fs
 jest.mock('child_process', () => ({
   spawn: jest.fn(() => {
-    const proc = new EventEmitter() as any;
+    const proc = new EventEmitter() as unknown as NodeJS.EventEmitter & {
+      stderr: EventEmitter;
+    };
     proc.stderr = new EventEmitter();
     setTimeout(() => proc.emit('close', 0), 10);
     return proc;

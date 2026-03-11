@@ -5,7 +5,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter } from 'events';
-import { Subject } from 'rxjs';
 import { NotFoundException } from '@nestjs/common';
 import { AnalysisService } from './analysis.service';
 import { GeminiService } from './gemini.service';
@@ -16,8 +15,6 @@ import { JobProgressService } from '../processing/job-progress.service';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
 import { Subtitle } from '../../entities/subtitle.entity';
-import type { AnalysisProgressEvent } from '@youtube-shorter/shared';
-
 // Mock child_process so spawn returns a fake EventEmitter that immediately exits with code 0
 jest.mock('child_process', () => ({
   spawn: jest.fn(() => {
