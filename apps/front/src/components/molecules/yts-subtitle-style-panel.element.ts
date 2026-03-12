@@ -384,10 +384,15 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
 
         sl-color-picker {
             background: var(--yts-surface-2, #1e2332);
-            padding: 8px;
+            padding: 4px;
             border-radius: var(--yts-radius, 12px);
             border: 1px solid var(--yts-border, rgba(255, 255, 255, 0.1));
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        }
+
+        sl-color-picker::part(base) {
+            border: none;
+            background: transparent;
         }
 
         .preset-header {
@@ -838,23 +843,23 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                     <div>
                         <div class="color-group-title" id="text-color-label">TEXT COLOR</div>
                         <div class="color-bubbles" role="group" aria-labelledby="text-color-label">
-                            <sl-dropdown distance="5">
-                                <sl-tooltip slot="trigger" content="Pick a custom text color" placement="bottom">
-                                    <button type="button" class="color-bubble rainbow-picker ${textColorToggle === 'custom' ? 'active' : ''}" aria-label="Custom text color">
-                                        <sl-icon name="eyedropper"></sl-icon>
-                                    </button>
-                                </sl-tooltip>
-                                <sl-color-picker
-                                    inline
-                                    format="rgba"
-                                    opacity
-                                    label="Custom text color picker"
-                                    .value=${currentColor}
-                                    @sl-change=${(e: Event) => {
+                        <sl-dropdown distance="5" hoist placement="bottom-start">
+                            <sl-tooltip slot="trigger" content="Pick a custom text color" placement="bottom">
+                                <button type="button" class="color-bubble rainbow-picker ${textColorToggle === 'custom' ? 'active' : ''}" aria-label="Custom text color">
+                                    <sl-icon name="eyedropper"></sl-icon>
+                                </button>
+                            </sl-tooltip>
+                            <sl-color-picker
+                                inline
+                                format="rgba"
+                                opacity
+                                label="Custom text color picker"
+                                .value=${currentColor}
+                                @sl-change=${(e: Event) => {
                 this.emitStyleChange({ color: (e.target as HTMLInputElement).value });
             }}
-                                ></sl-color-picker>
-                            </sl-dropdown>
+                            ></sl-color-picker>
+                        </sl-dropdown>
 
                             <sl-tooltip content="Set text color to Black" placement="bottom">
                                 <button type="button" class="color-bubble ${textColorToggle === 'black' ? 'active' : ''}" style="background: #000;" aria-label="Set text color to Black" @click=${() => this.setTextColor('black')}></button>
@@ -868,23 +873,23 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                     <div style="margin-top: 8px;">
                         <div class="color-group-title" id="bg-color-label">BACKGROUND COLOR</div>
                         <div class="color-bubbles" role="group" aria-labelledby="bg-color-label">
-                            <sl-dropdown distance="5">
-                                <sl-tooltip slot="trigger" content="Pick a custom background color" placement="bottom">
-                                    <button type="button" class="color-bubble rainbow-picker ${bgColorToggle === 'custom' ? 'active' : ''}" aria-label="Custom background color">
-                                        <sl-icon name="eyedropper"></sl-icon>
-                                    </button>
-                                </sl-tooltip>
-                                <sl-color-picker
-                                    inline
-                                    format="rgba"
-                                    opacity
-                                    label="Custom background color picker"
-                                    .value=${currentBgColor}
-                                    @sl-change=${(e: Event) => {
+                        <sl-dropdown distance="5" hoist placement="bottom-start">
+                            <sl-tooltip slot="trigger" content="Pick a custom background color" placement="bottom">
+                                <button type="button" class="color-bubble rainbow-picker ${bgColorToggle === 'custom' ? 'active' : ''}" aria-label="Custom background color">
+                                    <sl-icon name="eyedropper"></sl-icon>
+                                </button>
+                            </sl-tooltip>
+                            <sl-color-picker
+                                inline
+                                format="rgba"
+                                opacity
+                                label="Custom background color picker"
+                                .value=${currentBgColor}
+                                @sl-change=${(e: Event) => {
                 this.emitStyleChange({ backgroundColor: (e.target as HTMLInputElement).value });
             }}
-                                ></sl-color-picker>
-                            </sl-dropdown>
+                            ></sl-color-picker>
+                        </sl-dropdown>
 
                             <sl-tooltip content="Set background color to Yellow" placement="bottom">
                                 <button type="button" class="color-bubble ${bgColorToggle === 'yellow' ? 'active' : ''}" style="background: #facc15;" aria-label="Set background color to Yellow" @click=${() => this.setBgColor('yellow')}></button>
@@ -940,7 +945,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                 </div>
                 <div class="border-controls">
                     <input type="range" class="custom-slider" min="1" max="10" .value=${borderWidth} @input=${this.handleBorderWidthChange} ?disabled=${!borderEnabled}>
-                    <sl-dropdown distance="5">
+                    <sl-dropdown distance="5" hoist placement="bottom-start">
                         <div slot="trigger" class="color-dot" style="background: ${borderColor}"></div>
                         <sl-color-picker
                             inline

@@ -152,28 +152,31 @@ export class Short {
     nullable: true,
     transformer: {
       to: (
-        value: Array<{ 
-          startTime: number; 
-          endTime: number; 
-          centerX?: number; 
-          layoutMode?: 'fill' | 'fullscreen' 
-        }> | null | undefined,
+        value:
+          | Array<{
+              startTime: number;
+              endTime: number;
+              centerX?: number;
+              layoutMode?: 'fill' | 'fullscreen';
+            }>
+          | null
+          | undefined,
       ) => JSON.stringify(value),
       from: (value: string) =>
         value
-          ? (JSON.parse(value) as Array<{ 
-              startTime: number; 
-              endTime: number; 
-              centerX?: number; 
-              layoutMode?: 'fill' | 'fullscreen' 
+          ? (JSON.parse(value) as Array<{
+              startTime: number;
+              endTime: number;
+              centerX?: number;
+              layoutMode?: 'fill' | 'fullscreen';
             }>)
           : null,
     },
   })
-  segments?: Array<{ 
-    startTime: number; 
-    endTime: number; 
-    centerX?: number; 
+  segments?: Array<{
+    startTime: number;
+    endTime: number;
+    centerX?: number;
     layoutMode?: 'fill' | 'fullscreen';
     layoutTimeline?: Array<{
       timestamp: number;

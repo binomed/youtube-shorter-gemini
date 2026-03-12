@@ -24,6 +24,7 @@ import {
 } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { createReadStream, existsSync, statSync } from 'fs';
+import * as fsPromises from 'fs/promises';
 import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -169,12 +170,11 @@ export class VideoController {
       // Cleanup orphan Multer upload on failure (Issue #11 extension)
       if (file && file.path && existsSync(file.path)) {
         try {
-          const fs = require('fs/promises');
-          await fs.unlink(file.path);
+          await fsPromises.unlink(file.path);
           this.videoService['logger'].warn(
             `Cleaned up orphan upload after failure: ${file.path}`,
           );
-        } catch (unLinkError) {
+        } catch {
           // Ignore unlink errors
         }
       }

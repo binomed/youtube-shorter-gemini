@@ -12,6 +12,9 @@ import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/badge/badge.js';
 import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
+import type { LayoutEvent, ShortResponse, StemProgressEvent, SubtitleResponse, VideoSegment } from '@youtube-shorter/shared';
+import '../components/molecules/yts-dialog.element.ts';
+import { ytsPremiumStyles } from '../styles/yts-styles.ts';
 import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
 import type { YtsShortPlayer } from '../components/organisms/yts-short-player.element.js';
 import '../components/organisms/yts-short-player.element.js';
@@ -22,8 +25,6 @@ import '../components/molecules/yts-precision-multi-timeline.element.js';
 import '../components/molecules/yts-header.element.js';
 import { projectService } from '../services/project.service.js';
 import { projectSignal, setProject } from '../state/project.state.js';
-import type { ShortResponse, StemProgressEvent, SubtitleResponse, VideoSegment } from '@youtube-shorter/shared';
-
 @customElement('editor-page')
 export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnterObserver {
   @state() private shorts: ShortResponse[] = [];
@@ -261,14 +262,14 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     if (!seg.layoutTimeline) seg.layoutTimeline = [];
 
     // Find if a keyframe exists exactly at this timestamp
-    const existingIndex = seg.layoutTimeline.findIndex((ev: any) => Math.abs(ev.timestamp - timestamp) < 0.1);
+    const existingIndex = seg.layoutTimeline.findIndex((ev: LayoutEvent) => Math.abs(ev.timestamp - timestamp) < 0.1);
 
     if (existingIndex > -1) {
       console.log('[EditorPage] Updating existing keyframe layoutMode');
       seg.layoutTimeline[existingIndex].layoutMode = layoutMode;
     } else {
       console.log('[EditorPage] Adding new keyframe via layout toggle');
-      const player = this.shadowRoot?.querySelector('yts-short-player') as any;
+      const player = this.shadowRoot?.querySelector('yts-short-player') as YtsShortPlayer;
       const currentLayout = player?.getCurrentLayout() || { centerX: 0.5 };
       
       seg.layoutTimeline.push({
@@ -276,7 +277,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         layoutMode,
         centerX: currentLayout.centerX
       });
-      seg.layoutTimeline.sort((a: any, b: any) => a.timestamp - b.timestamp);
+      seg.layoutTimeline.sort((a: LayoutEvent, b: LayoutEvent) => a.timestamp - b.timestamp);
     }
 
     await this.saveSegments(segments);
@@ -301,14 +302,14 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     if (!seg.layoutTimeline) seg.layoutTimeline = [];
 
     // Find if a keyframe exists exactly at this timestamp
-    const existingIndex = seg.layoutTimeline.findIndex((ev: any) => Math.abs(ev.timestamp - timestamp) < 0.1);
+    const existingIndex = seg.layoutTimeline.findIndex((ev: LayoutEvent) => Math.abs(ev.timestamp - timestamp) < 0.1);
 
     if (existingIndex > -1) {
       console.log('[EditorPage] Updating existing keyframe centerX');
       seg.layoutTimeline[existingIndex].centerX = centerX;
     } else {
       console.log('[EditorPage] Adding new keyframe via pan change');
-      const player = this.shadowRoot?.querySelector('yts-short-player') as any;
+      const player = this.shadowRoot?.querySelector('yts-short-player') as YtsShortPlayer;
       const currentLayout = player?.getCurrentLayout() || { layoutMode: 'fill' };
 
       seg.layoutTimeline.push({
@@ -316,7 +317,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         layoutMode: currentLayout.layoutMode,
         centerX
       });
-      seg.layoutTimeline.sort((a: any, b: any) => a.timestamp - b.timestamp);
+      seg.layoutTimeline.sort((a: LayoutEvent, b: LayoutEvent) => a.timestamp - b.timestamp);
     }
     
     await this.saveSegments(segments);
@@ -340,7 +341,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     const seg = segments[0];
     if (!seg.layoutTimeline) seg.layoutTimeline = [];
 
-    const existingIndex = seg.layoutTimeline.findIndex((ev: any) => Math.abs(ev.timestamp - timestamp) < 0.1);
+    const existingIndex = seg.layoutTimeline.findIndex((ev: LayoutEvent) => Math.abs(ev.timestamp - timestamp) < 0.1);
     const intent = e.detail.intent || (existingIndex > -1 ? 'remove' : 'add');
 
     console.log('[EditorPage] Processed intent:', intent);
@@ -365,7 +366,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     } else {
       // Intent: Add (only if doesn't exist)
       if (existingIndex === -1) {
-        const player = this.shadowRoot?.querySelector('yts-short-player') as any;
+        const player = this.shadowRoot?.querySelector('yts-short-player') as YtsShortPlayer;
         const layout = player?.getCurrentLayout() || { layoutMode: 'fill', centerX: 0.5 };
 
         console.log('[EditorPage] Adding new keyframe', { timestamp, layout });
@@ -376,7 +377,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         });
 
         // Sort timeline
-        seg.layoutTimeline.sort((a: any, b: any) => a.timestamp - b.timestamp);
+        seg.layoutTimeline.sort((a: LayoutEvent, b: LayoutEvent) => a.timestamp - b.timestamp);
       }
     }
 
@@ -384,7 +385,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
   }
 
   private handleTogglePlay(): void {
-    const player = this.shadowRoot?.querySelector('yts-short-player') as any;
+    const player = this.shadowRoot?.querySelector('yts-short-player') as YtsShortPlayer;
     if (player && typeof player.togglePlay === 'function') {
       player.togglePlay();
     }
@@ -566,7 +567,9 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     const s = Math.floor(seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   }
-  static styles = css`
+  static styles = [
+    ytsPremiumStyles,
+    css`
     :host {
       display: flex;
       flex-direction: column;
@@ -894,15 +897,6 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       overflow: hidden;
     }
 
-    .dialog-overview::part(panel) {
-      background-color: var(--yts-bg-secondary, #12121a);
-      border: 1px solid var(--yts-glass-border, rgba(99, 102, 241, 0.5));
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
-    }
-
-    .dialog-overview::part(overlay) {
-      backdrop-filter: blur(8px);
-    }
 
     .export-btn {
       background: linear-gradient(90deg, #0ea5e9 0%, #a855f7 100%);
@@ -937,7 +931,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       cursor: not-allowed;
       filter: grayscale(0.5);
     }
-  `;
+  `];
 
   render(): unknown {
     return html`
@@ -957,7 +951,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
   private renderExportDialog(): unknown {
     return html`
-       <sl-dialog 
+       <yts-dialog 
          hoist
          label="Export Short" 
          class="dialog-overview" 
@@ -998,7 +992,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
          <sl-button slot="footer" variant="primary" @click=${this.startExport} ?disabled=${this.exporting}>
             ${this.exporting ? 'Exporting...' : 'Start Export'}
          </sl-button>
-       </sl-dialog>
+       </yts-dialog>
      `;
   }
 

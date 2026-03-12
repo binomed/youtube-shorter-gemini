@@ -431,18 +431,26 @@ export class GeminiService {
     const status = err.status ?? err.statusCode;
 
     // 1. Quota / Rate Limit (429)
-    if (status === 429 || errorMessage.includes('429') || errorMessage.includes('Quota')) {
+    if (
+      status === 429 ||
+      errorMessage.includes('429') ||
+      errorMessage.includes('Quota')
+    ) {
       return "You've reached the Gemini API quota limit. please wait a few seconds and try again. If you are on the free tier, this is common during busy periods.";
     }
 
     // 2. Service Overload / Unavailable (503)
-    if (status === 503 || errorMessage.includes('503') || errorMessage.includes('Service Unavailable')) {
+    if (
+      status === 503 ||
+      errorMessage.includes('503') ||
+      errorMessage.includes('Service Unavailable')
+    ) {
       return "Gemini is currently overloaded or undergoing maintenance. We've tried multiple times, but it remains unresponsive. Please try again in a few minutes.";
     }
 
     // 3. Safety / Blocked Content (not 4xx/5xx but field in response)
     if (errorMessage.includes('blocked') || errorMessage.includes('Safety')) {
-      return "The AI safety filters blocked the analysis of this video. Try a different video or adjust the content.";
+      return 'The AI safety filters blocked the analysis of this video. Try a different video or adjust the content.';
     }
 
     // 4. Fallback for parsing errors
@@ -451,7 +459,7 @@ export class GeminiService {
     }
 
     // 5. General Fallback
-    return "Gemini encountered an unexpected error. Please wait a moment and try again.";
+    return 'Gemini encountered an unexpected error. Please wait a moment and try again.';
   }
 
   /**

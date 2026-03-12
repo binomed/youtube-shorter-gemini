@@ -344,7 +344,10 @@ export class FFmpegService {
       subtitleAssPath?: string;
       vocalsPath?: string;
       musicPath?: string;
-      layoutData?: Array<{ layoutMode: 'fill' | 'fullscreen'; centerX: number }>;
+      layoutData?: Array<{
+        layoutMode: 'fill' | 'fullscreen';
+        centerX: number;
+      }>;
       onProgress?: (percentage: number, message: string) => void;
     },
   ): Promise<void> {
@@ -358,7 +361,10 @@ export class FFmpegService {
       subtitleAssPath?: string;
       vocalsPath?: string;
       musicPath?: string;
-      layoutData?: Array<{ layoutMode: 'fill' | 'fullscreen'; centerX: number }>;
+      layoutData?: Array<{
+        layoutMode: 'fill' | 'fullscreen';
+        centerX: number;
+      }>;
       onProgress?: (percentage: number, message: string) => void;
     },
   ): Promise<void> {
@@ -429,19 +435,21 @@ export class FFmpegService {
       // Audio mixing
       let finalAudioLabel = '0:a?'; // Default to first segment audio if no stems
       const audioStreamsToMix: string[] = [];
-      
+
       if (options?.vocalsPath || options?.musicPath) {
-          if (options.vocalsPath) audioStreamsToMix.push(`[${stemStartIndex}:a]`);
-          const musicIndex = options.vocalsPath ? stemStartIndex + 1 : stemStartIndex;
-          if (options.musicPath) audioStreamsToMix.push(`[${musicIndex}:a]`);
-          
-          filterComplex += `${audioStreamsToMix.join('')}amix=inputs=${audioStreamsToMix.length}:duration=longest[a_final]`;
-          finalAudioLabel = '[a_final]';
+        if (options.vocalsPath) audioStreamsToMix.push(`[${stemStartIndex}:a]`);
+        const musicIndex = options.vocalsPath
+          ? stemStartIndex + 1
+          : stemStartIndex;
+        if (options.musicPath) audioStreamsToMix.push(`[${musicIndex}:a]`);
+
+        filterComplex += `${audioStreamsToMix.join('')}amix=inputs=${audioStreamsToMix.length}:duration=longest[a_final]`;
+        finalAudioLabel = '[a_final]';
       } else {
-          // If no stems, we need to concatenate audio from segments too
-          const audioInputs = segmentPaths.map((_, i) => `[${i}:a]`).join('');
-          filterComplex += `${audioInputs}concat=n=${segmentPaths.length}:v=0:a=1[a_concat]`;
-          finalAudioLabel = '[a_concat]';
+        // If no stems, we need to concatenate audio from segments too
+        const audioInputs = segmentPaths.map((_, i) => `[${i}:a]`).join('');
+        filterComplex += `${audioInputs}concat=n=${segmentPaths.length}:v=0:a=1[a_concat]`;
+        finalAudioLabel = '[a_concat]';
       }
 
       args.push('-filter_complex', filterComplex);

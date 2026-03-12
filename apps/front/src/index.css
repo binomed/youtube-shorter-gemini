@@ -64,16 +64,61 @@
 
   /* Neon Glass Theme V2 - Refined */
   --yts-glass-bg: rgba(30, 35, 50, 0.7);
-  /* Lighter and more opaque */
-  --yts-glass-border: rgba(99, 102, 241, 0.5);
-  /* Stronger border */
-  --yts-neon-blue: #4f46e5;
-  /* Stronger Indigo/Blue */
-  --yts-neon-glow: 0 0 20px rgba(79, 70, 229, 0.6);
-  /* Intensified glow */
+  --yts-glass-border: rgba(99, 102, 241, 0.3);
+  --yts-blur: 24px;
+  
+  --yts-primary: #4f46e5;
+  --yts-primary-hover: #4338ca;
+  
+  --yts-text-1: #f8fafc;
+  --yts-text-2: #cbd5e1;
+  --yts-text-3: #94a3b8;
+  
+  --yts-border: rgba(99, 102, 241, 0.6);
+  --yts-radius: 20px;
+  
+  --yts-neon-glow: 0 0 20px rgba(79, 70, 229, 0.4);
   --yts-gradient-primary: linear-gradient(135deg, #4338ca, #6366f1);
-  /* Deep Royal Blue */
-  --yts-input-bg: rgba(255, 255, 255, 0.05);
+}
+
+/* ========== Shoelace Theme Overrides ========== */
+sl-button[variant="primary"]::part(base) {
+  background: var(--yts-gradient-primary);
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+}
+
+sl-button[variant="primary"]::part(base):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+  filter: brightness(1.1);
+}
+
+sl-button[variant="default"]::part(base) {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--yts-text-2);
+}
+
+sl-button[variant="default"]::part(base):hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--yts-text-1);
+}
+
+sl-button[variant="danger"]::part(base) {
+  background: linear-gradient(135deg, #b91c1c, #ef4444);
+  border: none;
+  color: white;
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+sl-button[variant="danger"]::part(base):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+  filter: brightness(1.1);
 }
 
 /* ========== Global Styles ========== */

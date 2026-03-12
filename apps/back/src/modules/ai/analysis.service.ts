@@ -128,7 +128,8 @@ export class AnalysisService {
           if (useGeminiForSubtitles) {
             // Read audio buffer
             const audioBuffer = await fs.readFile(audioPath);
-            transcript = await this.geminiService.generateSubtitles(audioBuffer);
+            transcript =
+              await this.geminiService.generateSubtitles(audioBuffer);
           } else {
             // Generate subtitles using local WhisperX instead of Gemini
             transcript = await this.whisperService.generateSubtitles(audioPath);

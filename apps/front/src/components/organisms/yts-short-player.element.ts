@@ -806,10 +806,9 @@ export class YtsShortPlayer extends LitElement {
           step="0.01" 
           .value=${String(effectiveCenterX)}
           ?disabled=${isFullscreen}
-          @input=${(e: Event) => {
+          @input=${() => {
         // High frequency update for UI preview only
-        const val = Number((e.target as HTMLInputElement).value);
-        this._updateLocalPanPreview(val);
+        this._updateLocalPanPreview();
       }}
           @change=${(e: Event) => {
         // Low frequency update for persistence
@@ -821,7 +820,7 @@ export class YtsShortPlayer extends LitElement {
     `;
   }
 
-  private _updateLocalPanPreview(_centerX: number) {
+  private _updateLocalPanPreview() {
     // This allows real-time preview without overwhelming the backend
     this.requestUpdate();
   }

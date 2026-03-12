@@ -9,7 +9,11 @@ import { FFmpegService } from '../../workers/ffmpeg.service';
 import { JobService } from './job.service';
 import { JobProgressService } from './job-progress.service';
 import { ExportShortDto } from '@youtube-shorter/shared';
-import type { SubtitleResponse, SubtitleStyle, VideoSegment } from '@youtube-shorter/shared';
+import type {
+  SubtitleResponse,
+  SubtitleStyle,
+  VideoSegment,
+} from '@youtube-shorter/shared';
 
 @Injectable()
 export class ExportService {
@@ -76,25 +80,40 @@ export class ExportService {
       });
 
       // 1. Resolve and Flatten segments into atomic blocks
-      const segmentsToProcess: Array<{ startTime: number; endTime: number }> = [];
-      const layoutData: Array<{ layoutMode: 'fill' | 'fullscreen'; centerX: number }> = [];
+      const segmentsToProcess: Array<{ startTime: number; endTime: number }> =
+        [];
+      const layoutData: Array<{
+        layoutMode: 'fill' | 'fullscreen';
+        centerX: number;
+      }> = [];
 
-      const rawSegments: VideoSegment[] = (short.segments?.length
+      const rawSegments: VideoSegment[] = short.segments?.length
         ? short.segments
-        : [{ startTime: short.startTime, endTime: short.endTime, layoutMode: 'fill', centerX: 0.5 } as VideoSegment]
-      );
+        : [
+            {
+              startTime: short.startTime,
+              endTime: short.endTime,
+              layoutMode: 'fill',
+              centerX: 0.5,
+            } as VideoSegment,
+          ];
 
       for (const seg of rawSegments) {
         if (!seg.layoutTimeline || seg.layoutTimeline.length === 0) {
-          segmentsToProcess.push({ startTime: seg.startTime, endTime: seg.endTime });
+          segmentsToProcess.push({
+            startTime: seg.startTime,
+            endTime: seg.endTime,
+          });
           layoutData.push({
             layoutMode: seg.layoutMode || 'fill',
             centerX: seg.centerX ?? 0.5,
           });
         } else {
           // Sort events by timestamp ascending
-          const events = [...seg.layoutTimeline].sort((a, b) => a.timestamp - b.timestamp);
-          
+          const events = [...seg.layoutTimeline].sort(
+            (a, b) => a.timestamp - b.timestamp,
+          );
+
           let lastTime = seg.startTime;
           let activeMode: 'fill' | 'fullscreen' = seg.layoutMode || 'fill';
           let activeCenter = seg.centerX ?? 0.5;
@@ -102,28 +121,37 @@ export class ExportService {
           for (const ev of events) {
             // Check if the current event is actually inside the segment bounds
             if (ev.timestamp > lastTime && ev.timestamp <= seg.endTime) {
-              // Create a block from the previous time up to this new keyframe's time, 
+              // Create a block from the previous time up to this new keyframe's time,
               // using the PREVIOUSLY active layout properties
-              segmentsToProcess.push({ startTime: lastTime, endTime: ev.timestamp });
-              layoutData.push({ layoutMode: activeMode, centerX: activeCenter });
+              segmentsToProcess.push({
+                startTime: lastTime,
+                endTime: ev.timestamp,
+              });
+              layoutData.push({
+                layoutMode: activeMode,
+                centerX: activeCenter,
+              });
               lastTime = ev.timestamp;
             }
-            
+
             // NOW, update the active properties for the *next* block
             // However, ignore events that happen before the segment starts
             if (ev.timestamp >= seg.startTime) {
               activeMode = ev.layoutMode;
               activeCenter = ev.centerX;
             } else {
-               // If an event occurs before the startTime, it becomes the baseline for the first block
-               activeMode = ev.layoutMode;
-               activeCenter = ev.centerX;
+              // If an event occurs before the startTime, it becomes the baseline for the first block
+              activeMode = ev.layoutMode;
+              activeCenter = ev.centerX;
             }
           }
 
           // Final block from last event (or segment start) to segment end
           if (lastTime < seg.endTime) {
-            segmentsToProcess.push({ startTime: lastTime, endTime: seg.endTime });
+            segmentsToProcess.push({
+              startTime: lastTime,
+              endTime: seg.endTime,
+            });
             layoutData.push({ layoutMode: activeMode, centerX: activeCenter });
           }
         }
@@ -132,10 +160,7 @@ export class ExportService {
       const segmentPaths: string[] = [];
       for (let i = 0; i < segmentsToProcess.length; i++) {
         const seg = segmentsToProcess[i];
-        const segPath = path.join(
-          tempDir,
-          `export-seg-${exportId}-${i}.mp4`,
-        );
+        const segPath = path.join(tempDir, `export-seg-${exportId}-${i}.mp4`);
         await this.ffmpegService.extractSegment(
           project.videoPath,
           segPath,
@@ -350,7 +375,9 @@ export class ExportService {
 
     // 5. Border (Outline) mapping
     const borderEnabled = style?.borderEnabled ?? false;
-    const borderWidth = borderEnabled ? Math.round((style?.borderWidth || 3) * scaleFactor) : 0;
+    const borderWidth = borderEnabled
+      ? Math.round((style?.borderWidth || 3) * scaleFactor)
+      : 0;
     const assOutlineColor = borderEnabled ? borderColor : '&HFFFFFFFF&';
 
     // 6. Shadow mapping
@@ -361,7 +388,7 @@ export class ExportService {
     // 7. Margin Parity: Match the frontend's 90% max-width (5% gap on each side)
     // 5% of 1080 horizontal res = 54px.
     const marginLR = 54;
-    
+
     // Correct MarginV: Frontend uses 20% padding-bottom + translateY offset
     // 20% of 1920 height = 384px.
     const baseMarginBottom = 384;
@@ -370,8 +397,11 @@ export class ExportService {
 
     const transparentColor = '&HFFFFFFFF&';
 
-    const textOutline = style?.textOutline || false;
-    const isTransparentBox = (style?.backgroundColor === 'transparent' || style?.backgroundColor === 'rgba(0,0,0,0)' || style?.backgroundColor === '#00000000');
+    // const textOutline = style?.textOutline || false;
+    const isTransparentBox =
+      style?.backgroundColor === 'transparent' ||
+      style?.backgroundColor === 'rgba(0,0,0,0)' ||
+      style?.backgroundColor === '#00000000';
 
     let ass = `[Script Info]
 ScriptType: v4.00+

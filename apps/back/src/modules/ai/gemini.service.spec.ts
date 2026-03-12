@@ -37,8 +37,8 @@ const validSegmentsResponse = JSON.stringify({
       subjectPosition: 'Center',
       layoutTimeline: [
         { startTime: 15, layoutMode: 'fullscreen', centerX: 0.5 },
-        { startTime: 30, layoutMode: 'fill', centerX: 0.8 }
-      ]
+        { startTime: 30, layoutMode: 'fill', centerX: 0.8 },
+      ],
     },
   ],
 });
@@ -120,7 +120,7 @@ describe('GeminiService', () => {
     });
 
     it('should retry on 429/503 quota errors with exponential backoff', async () => {
-      const quotaError = { status: 429, message: 'Quota exceeded' } as any;
+      const quotaError = { status: 429, message: 'Quota exceeded' };
       mockGenerateContent
         .mockRejectedValueOnce(quotaError)
         .mockResolvedValueOnce({

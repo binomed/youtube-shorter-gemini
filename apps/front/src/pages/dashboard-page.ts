@@ -7,28 +7,25 @@ import '@shoelace-style/shoelace/dist/components/tab-group/tab-group.js';
 import '@shoelace-style/shoelace/dist/components/tab/tab.js';
 import '@shoelace-style/shoelace/dist/components/tab-panel/tab-panel.js';
 import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
-import type SlDialog from '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
 import { projectService } from '../services/project.service.js';
 import type { ProjectResponse } from '@youtube-shorter/shared';
 import { classMap } from 'lit/directives/class-map.js';
 import '../components/molecules/yts-header.element.ts';
+import '../components/molecules/yts-dialog.element.ts';
+import type { YtsDialog } from '../components/molecules/yts-dialog.element.ts';
+import { ytsPremiumStyles } from '../styles/yts-styles.ts';
 
 @customElement('dashboard-page')
 export class DashboardPage extends LitElement {
-  static styles = css`
+  static styles = [
+    ytsPremiumStyles,
+    css`
     :host {
       display: flex;
       flex-direction: column;
       height: 100vh;
       width: 100vw;
-      /* Theme Variables - Issue #12: Extract magic colors */
-      --yts-glass-bg: rgba(30, 41, 59, 0.7);
-      --yts-border: rgba(99, 102, 241, 0.6);
-      --yts-primary: #4f46e5;
-      --yts-primary-hover: #4338ca;
-      --yts-text-1: #f8fafc;
-      --yts-text-2: #cbd5e1;
-      --yts-text-3: #94a3b8;
+      --yts-primary-active: #3730a3;
 
       background: radial-gradient(circle at 50% 50%, #232334 0%, #111116 100%);
       font-family: 'Inter', sans-serif;
@@ -328,7 +325,7 @@ export class DashboardPage extends LitElement {
         font-size: 28px;
         filter: drop-shadow(0 0 5px white);
     }
-  `;
+  `];
 
   @state() private projectName = '';
   @state() private isDragActive = false;
@@ -338,7 +335,7 @@ export class DashboardPage extends LitElement {
 
   // Issue #7: Optimize DOM Access with @query decorator
   // Issue #6: Fix type safety (remove cast)
-  @query('.delete-dialog') private deleteDialog!: SlDialog;
+  @query('.delete-dialog') private deleteDialog!: YtsDialog;
 
   connectedCallback(): void {
     super.connectedCallback();
@@ -581,17 +578,15 @@ export class DashboardPage extends LitElement {
         </div>
       </div>
 
-      <sl-dialog label="Delete Project" class="delete-dialog">
+      <yts-dialog label="Delete Project" class="delete-dialog">
         Are you sure you want to delete this project? This action cannot be undone.
-        <div slot="footer">
-          <sl-button variant="neutral" @click="${(): void => { this.deleteDialog.hide(); }}">
-            Cancel
-          </sl-button>
-          <sl-button variant="danger" @click=${(): void => { void this.confirmDelete(); }}>
-            Delete
-          </sl-button>
-        </div>
-      </sl-dialog>
+        <sl-button slot="footer" variant="default" @click="${(): void => { this.deleteDialog.hide(); }}">
+          Cancel
+        </sl-button>
+        <sl-button slot="footer" variant="primary" @click=${(): void => { void this.confirmDelete(); }}>
+          Delete
+        </sl-button>
+      </yts-dialog>
     `;
   }
 }
