@@ -30,7 +30,8 @@ This instruction set applies exclusively to modifications within `apps/front/`.
 
 4. **Required Reading**:
    - Before building complex components, you MUST review the deep skill file: `../../.agent/skills/lit_web_components/SKILL.md`.
-   - Before styling or building interactive elements, review: `../../.agent/skills/accessibility_wcag/SKILL.md`.
+   - Before writing CSS, creating UI, or customizing Shoelace elements, review: `../../.agent/skills/modern_css_styling/SKILL.md`.
+   - Before building interactive elements, review: `../../.agent/skills/accessibility_wcag/SKILL.md`.
 
 ## ✅ Pre-Commit Verification
 Within this context, ensure you can successfully run:
