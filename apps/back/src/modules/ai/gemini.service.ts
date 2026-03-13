@@ -178,7 +178,7 @@ export class GeminiService {
               },
               text: {
                 type: SchemaType.STRING,
-                description: 'The exact spoken words. MAXIMUM 7 WORDS!',
+                description: 'The exact spoken words. MAXIMUM 5 WORDS!',
               },
             },
             required: ['startTime', 'endTime', 'text'],
@@ -192,7 +192,7 @@ export class GeminiService {
         Rules:
         1. Output a JSON array of segment objects.
         2. Accurately capture the start time and end time in seconds.
-        3. CRITICAL: Break the transcription into VERY SHORT phrases. Each text block MUST contain a maximum of 7 words.
+        3. CRITICAL: Break the transcription into VERY SHORT phrases. Each text block MUST contain a maximum of 5 words.
         4. Do not group long sentences together.
         
         Example Output Format:

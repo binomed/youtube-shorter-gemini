@@ -197,6 +197,7 @@ export interface SubtitleStyle {
     textOutline?: boolean;
     highlightEnabled?: boolean;
     highlightColor?: string;
+    highlightScale?: number;
 }
 
 /**

@@ -445,10 +445,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
           const sEnd = this.formatAssTime(slot.endTime);
 
           // Build dynamic TextLayer content with word scaling
+          const highlightScale = style?.highlightScale || 115;
           const inlineText = sub.words
             .map((w, idx) => {
               const isActive = slot.activeWordIdx === idx;
-              const scale = isActive ? '115' : '100';
+              const scale = isActive ? highlightScale.toString() : '100';
               const color = isActive ? assHighlight : assPrimary;
 
               return `{\\fscx${scale}\\fscy${scale}\\c${color}}${w.text}{\\fscx100\\fscy100\\c${assPrimary}}`;

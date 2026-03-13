@@ -39,7 +39,7 @@ export class WhisperService {
    */
   async generateSubtitlesWithWords(
     inputAudioPath: string,
-    maxWordsPerBlock: number = 7,
+    maxWordsPerBlock: number = 5,
   ): Promise<WhisperChunk[]> {
     const outputDir = path.dirname(inputAudioPath);
     const basename = path.basename(
@@ -123,7 +123,7 @@ export class WhisperService {
    */
   async generateSubtitles(
     inputAudioPath: string,
-    maxWordsPerBlock = 7,
+    maxWordsPerBlock = 5,
   ): Promise<string> {
     const chunks = await this.generateSubtitlesWithWords(
       inputAudioPath,

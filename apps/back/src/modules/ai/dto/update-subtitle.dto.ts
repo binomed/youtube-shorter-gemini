@@ -67,6 +67,12 @@ export class UpdateSubtitleStyleDto {
     message: 'Highlight color must be a valid hex string',
   })
   highlightColor?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(100)
+  @Max(200)
+  highlightScale?: number;
 }
 
 export class UpdateSubtitleTextDto {

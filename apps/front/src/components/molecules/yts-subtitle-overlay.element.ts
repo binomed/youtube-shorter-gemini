@@ -185,7 +185,7 @@ export class YtsSubtitleOverlay extends LitElement {
 
         .word.active {
             color: var(--highlight-color, #facc15);
-            transform: scale(1.15);
+            transform: scale(var(--highlight-scale, 1.15));
             text-shadow: 0 0 1cqw rgba(0,0,0,0.3);
         }
     `;
@@ -211,7 +211,8 @@ export class YtsSubtitleOverlay extends LitElement {
             textAlign: this.subtitleStyle?.textAlign || 'center',
             transform: `translate(${posX}px, ${posY}px)`,
             cursor: this._isDragging ? 'grabbing' : 'grab',
-            '--highlight-color': this.subtitleStyle?.highlightColor || '#facc15'
+            '--highlight-color': this.subtitleStyle?.highlightColor || '#facc15',
+            '--highlight-scale': (this.subtitleStyle?.highlightScale || 115) / 100
         };
 
         if (this.subtitleStyle?.borderEnabled) {

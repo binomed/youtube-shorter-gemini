@@ -77,7 +77,8 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             a.backgroundColor === b.backgroundColor &&
             a.positionY === b.positionY &&
             a.highlightEnabled === b.highlightEnabled &&
-            a.highlightColor === b.highlightColor;
+            a.highlightColor === b.highlightColor &&
+            a.highlightScale === b.highlightScale;
     }
 
     private emitStyleChange(update: Partial<SubtitleStyle>) {
@@ -155,6 +156,11 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         this.emitStyleChange({ highlightColor: picker.value });
     }
 
+    private handleHighlightScaleChange(e: Event) {
+        const input = e.target as HTMLInputElement;
+        this.emitStyleChange({ highlightScale: parseInt(input.value, 10) });
+    }
+
     private handleReset() {
         this.emitStyleChange({
             font: 'inherit',
@@ -170,7 +176,8 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             textShadow: true,
             textOutline: false,
             highlightEnabled: true,
-            highlightColor: '#facc15'
+            highlightColor: '#facc15',
+            highlightScale: 115
         });
     }
 
@@ -992,6 +999,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
     private _renderHighlightSection() {
         const enabled = this.subtitleStyle?.highlightEnabled ?? false;
         const color = this.subtitleStyle?.highlightColor || '#facc15';
+        const scale = this.subtitleStyle?.highlightScale || 115;
 
         return html`
             <div class="section-title">Word Highlighting (AI)</div>
@@ -1002,19 +1010,28 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                 <sl-checkbox ?checked=${enabled} @sl-change=${this.handleHighlightToggle}></sl-checkbox>
             </div>
 
-            <div class="effect-row" ?hidden=${!enabled}>
-                <div class="effect-label">
-                    <span>Highlight Color</span>
+            <div ?hidden=${!enabled}>
+                <div class="effect-row">
+                    <div class="effect-label">
+                        <span>Highlight Color</span>
+                    </div>
+                    <sl-dropdown distance="5" hoist placement="bottom-start">
+                        <div slot="trigger" class="color-dot" style="background: ${color}"></div>
+                        <sl-color-picker
+                            inline
+                            format="hex"
+                            .value=${color}
+                            @sl-change=${this.handleHighlightColorChange}
+                        ></sl-color-picker>
+                    </sl-dropdown>
                 </div>
-                <sl-dropdown distance="5" hoist placement="bottom-start">
-                    <div slot="trigger" class="color-dot" style="background: ${color}"></div>
-                    <sl-color-picker
-                        inline
-                        format="hex"
-                        .value=${color}
-                        @sl-change=${this.handleHighlightColorChange}
-                    ></sl-color-picker>
-                </sl-dropdown>
+
+                <div class="size-slider-group" style="margin-top: 0; margin-bottom: 12px;">
+                    <label class="label" id="scale-label" style="width: 100px;">Scale: ${scale}%</label>
+                    <sl-tooltip content="Adjust how much the active word grows when highlighted" placement="bottom">
+                        <input type="range" class="custom-slider" aria-labelledby="scale-label" min="100" max="200" step="5" value="${scale}" @input=${this.handleHighlightScaleChange}>
+                    </sl-tooltip>
+                </div>
             </div>
         `;
     }
