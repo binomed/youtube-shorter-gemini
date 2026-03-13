@@ -180,34 +180,13 @@ export class ExportService {
       }
 
       // 2. Adjust Subtitle timestamps for concatenated segments
-      const adjustedSubs: SubtitleResponse[] = [];
-      let currentOffset = 0;
-
-      for (const seg of segmentsToProcess) {
-        const segDuration = seg.endTime - seg.startTime;
-        const subsInSeg = (short.subtitles || []).filter(
-          (s) => s.startTime < seg.endTime && s.endTime > seg.startTime,
-        );
-
-        for (const s of subsInSeg) {
-          const subStart = Math.max(s.startTime, seg.startTime);
-          const subEnd = Math.min(s.endTime, seg.endTime);
-          const newStart = currentOffset + (subStart - seg.startTime);
-          const newEnd = currentOffset + (subEnd - seg.startTime);
-          adjustedSubs.push({
-            ...s,
-            startTime: newStart,
-            endTime: newEnd,
-            shortId: s.shortId,
-            words: (s as SubtitleResponse).words?.map((w) => ({
-              ...w,
-              startTime: w.startTime + (newStart - s.startTime),
-              endTime: w.endTime + (newStart - s.startTime),
-            })),
-          } as SubtitleResponse);
-        }
-        currentOffset += segDuration;
-      }
+      // NOTE: We iterate over rawSegments (original, undivided segments), NOT segmentsToProcess
+      // (camera-pan sub-segments). A subtitle that spans a camera-pan boundary would otherwise
+      // match multiple sub-segments and get duplicated in the ASS file.
+      const adjustedSubs = this.adjustSubtitleTimestamps(
+        short.subtitles || [],
+        rawSegments,
+      );
 
       await this.jobProgressService.emit(jobId, {
         phase: 'rendering',
@@ -472,6 +451,54 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     }
 
     return ass;
+  }
+
+  /**
+   * Adjust subtitle timestamps from original video time to the concatenated export timeline.
+   *
+   * We iterate over the ORIGINAL segments (rawSegments), not the camera-pan sub-segments
+   * (segmentsToProcess). Each original segment contributes a contiguous block to the
+   * output timeline. A subtitle that straddles a camera-pan boundary inside a segment must
+   * still appear exactly once — with its full visible duration — in the output.
+   *
+   * @param subtitles  - Original subtitle list (absolute timestamps in the source video)
+   * @param segments   - Original (undivided) video segments
+   * @returns          - New subtitle list with timestamps remapped to the output timeline
+   */
+  adjustSubtitleTimestamps(
+    subtitles: SubtitleResponse[],
+    segments: Array<{ startTime: number; endTime: number }>,
+  ): SubtitleResponse[] {
+    const adjustedSubs: SubtitleResponse[] = [];
+    let currentOffset = 0;
+
+    for (const seg of segments) {
+      const segDuration = seg.endTime - seg.startTime;
+      const subsInSeg = subtitles.filter(
+        (s) => s.startTime < seg.endTime && s.endTime > seg.startTime,
+      );
+
+      for (const s of subsInSeg) {
+        const subStart = Math.max(s.startTime, seg.startTime);
+        const subEnd = Math.min(s.endTime, seg.endTime);
+        const newStart = currentOffset + (subStart - seg.startTime);
+        const newEnd = currentOffset + (subEnd - seg.startTime);
+        adjustedSubs.push({
+          ...s,
+          startTime: newStart,
+          endTime: newEnd,
+          shortId: s.shortId,
+          words: s.words?.map((w) => ({
+            ...w,
+            startTime: w.startTime + (newStart - s.startTime),
+            endTime: w.endTime + (newStart - s.startTime),
+          })),
+        } as SubtitleResponse);
+      }
+      currentOffset += segDuration;
+    }
+
+    return adjustedSubs;
   }
 
   private formatAssTime(seconds: number): string {
