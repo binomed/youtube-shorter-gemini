@@ -123,7 +123,7 @@ export class ExportController {
     @Res() res: Response,
   ): void {
     // Security check: only allow .mp4 files and alphanumeric/dash names
-    if (!/^[a-zA-Z0-0123456789-_]+\.mp4$/.test(filename)) {
+    if (!/^[a-zA-Z0-9_\-]+\.mp4$/.test(filename)) {
       throw new BadRequestException('Invalid filename');
     }
 
