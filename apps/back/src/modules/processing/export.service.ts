@@ -242,16 +242,6 @@ export class ExportService {
         options,
       );
 
-      await this.jobProgressService.emit(jobId, {
-        phase: 'complete',
-        progress: 100,
-        message: 'Export ready!',
-        shortId: short.id,
-      });
-
-      // Mark Job as COMPLETED in DB
-      await this.jobProgressService.complete(jobId);
-
       return `${exportId}.mp4`;
     } catch (error: unknown) {
       const errorMessage =

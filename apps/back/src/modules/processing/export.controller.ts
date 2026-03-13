@@ -56,14 +56,17 @@ export class ExportController {
         );
         const exportUrl = `/api/projects/${projectId}/shorts/${shortId}/export/download/${filename}`;
 
-        // Re-emit completion with the download URL
+        // Final terminal event with download URL
         await this.jobProgressService.emit(jobId, {
           phase: 'complete',
           progress: 100,
-          message: 'Ready',
+          message: 'Export finished! Your download should start automatically.',
           shortId,
           exportUrl,
         } as any);
+
+        // Finally mark the job as finished in DB and close stream gracefully (after 1s delay in service)
+        await this.jobProgressService.complete(jobId);
       } catch (err: unknown) {
         // Ensure job is marked as failed if an unexpected error bubbles up
         const errorMessage = err instanceof Error ? err.message : String(err);
