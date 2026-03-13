@@ -32,6 +32,12 @@ This instruction set applies exclusively to modifications within `apps/back/`.
    - For NestJS controllers and services: `../../.agent/rules/nestjs-backend.md` and `../../.agent/skills/nestjs_backend/SKILL.md`.
    - If touching video editing/export rendering: `../../.agent/skills/ffmpeg_media_processing/SKILL.md`.
    - If tweaking AI prompts or model calls: `../../.agent/skills/gemini_ai_integration/SKILL.md`.
+   - For real-time updates and RxJS streams: `../../.agent/skills/sse_realtime_communication/SKILL.md`.
+   - For database modeling and TypeORM: `../../.agent/skills/typeorm_sqlite_data_layer/SKILL.md`.
+   - For general monorepo and resilience: `../../.agent/skills/monorepo_turborepo/SKILL.md` and `../../.agent/skills/error_handling_resilience/SKILL.md`.
+
+5. **Sub-Agent Pointers**:
+   - For Database Entity work: 👉 **Read [src/entities/AGENTS.md](src/entities/AGENTS.md)** immediately.
 
 ## ✅ Pre-Commit Verification
 Within this context, ensure you can successfully run:

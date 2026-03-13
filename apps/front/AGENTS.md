@@ -32,6 +32,11 @@ This instruction set applies exclusively to modifications within `apps/front/`.
    - Before building complex components, you MUST review the deep skill file: `../../.agent/skills/lit_web_components/SKILL.md`.
    - Before writing CSS, creating UI, or customizing Shoelace elements, review: `../../.agent/skills/modern_css_styling/SKILL.md`.
    - Before building interactive elements, review: `../../.agent/skills/accessibility_wcag/SKILL.md`.
+   - Before working on API calls or real-time updates, review: `../../.agent/skills/sse_realtime_communication/SKILL.md` and `../../.agent/skills/error_handling_resilience/SKILL.md`.
+   - If managing dependencies or build scripts, review: `../../.agent/skills/monorepo_turborepo/SKILL.md`.
+
+5. **Sub-Agent Pointers**:
+   - For Service/API layer work: 👉 **Read [src/services/AGENTS.md](src/services/AGENTS.md)** immediately.
 
 ## ✅ Pre-Commit Verification
 Within this context, ensure you can successfully run:

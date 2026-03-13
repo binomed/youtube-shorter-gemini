@@ -28,11 +28,13 @@ To keep instruction length optimal and improve context quality, precise technica
 - **Scope**: Anything inside `apps/front/`
 - **Focus**: Building reactive UI with Lit, managing state with Lit Signals, styling via Shadow DOM, and ensuring WCAG accessibility.
 - **Action Required**: 👉 **Read [apps/front/AGENTS.md](apps/front/AGENTS.md)** immediately.
+  - If working on **Services/API**: Read [apps/front/src/services/AGENTS.md](apps/front/src/services/AGENTS.md).
 
 ### ⚙️ Backend Engineer (NestJS & Video Processing)
 - **Scope**: Anything inside `apps/back/`
 - **Focus**: Building scalable NestJS REST APIs, managing FFmpeg rendering queues, AI integration with Gemini, and database interactions.
 - **Action Required**: 👉 **Read [apps/back/AGENTS.md](apps/back/AGENTS.md)** immediately.
+  - If working on **Database Entities**: Read [apps/back/src/entities/AGENTS.md](apps/back/src/entities/AGENTS.md).
 
 ### 🧩 Core/Shared Library Maintainer
 - **Scope**: Anything inside `packages/shared/`
