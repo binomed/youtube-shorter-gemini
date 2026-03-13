@@ -396,10 +396,10 @@ export class ExportService {
     const offsetY = Math.round((style?.positionY || 0) * scaleFactor);
 
     // 4. Alignment mapping: ASS Alignment (v4+)
-    // Use Alignment 5 (Middle Center) for both layers to ensure perfect superposition
-    const alignment = 5;
-    const targetCenterY = 1920 - (baseMarginBottom - offsetY);
-    const marginV = targetCenterY; // In Alignment 5, MarginV is distance from TOP to center
+    // Switch to Alignment 2 (Bottom Center) to match CSS flex-end logic.
+    // In Alignment 2, MarginV is the distance from the Bottom edge to the bottom of the subtitle block.
+    const alignment = 2;
+    const marginV = Math.max(0, baseMarginBottom - offsetY);
 
     const transparentColor = '&HFFFFFFFF&';
 
@@ -430,12 +430,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
       const escapedText = sub.text.replace(/\n/g, '\\N');
 
-      if (!isTransparentBox) {
-        // Layer 0: STABLE Background Box
-        // We use a single dialogue event for the whole segment duration to prevent box "ghosting" or jitter.
-        ass += `Dialogue: 0,${start},${end},BgLayer,,0,0,0,,${escapedText}\n`;
-      }
-
       if (highlightEnabled && sub.words && sub.words.length > 0) {
         const slots = this.buildGapFreeTimeSlots(
           sub.words,
@@ -462,9 +456,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             .join(' ')
             .replace(/\n/g, '\\N');
 
+          // SYNCHRONIZED LAYERS: Both BgLayer and TextLayer use the same inlineText (scaling tags)
+          if (!isTransparentBox) {
+            ass += `Dialogue: 0,${sStart},${sEnd},BgLayer,,0,0,0,,${inlineText}\n`;
+          }
           ass += `Dialogue: 1,${sStart},${sEnd},TextLayer,,0,0,0,,${inlineText}\n`;
         }
       } else {
+        if (!isTransparentBox) {
+          ass += `Dialogue: 0,${start},${end},BgLayer,,0,0,0,,${escapedText}\n`;
+        }
         ass += `Dialogue: 1,${start},${end},TextLayer,,0,0,0,,${escapedText}\n`;
       }
     }
