@@ -18,7 +18,7 @@ import { GeminiService } from './gemini.service';
 import { WhisperService } from './whisper.service';
 import { StemService } from './stem.service';
 import { JobProgressService } from '../processing/job-progress.service';
-import { parseSrt } from './utils/srt-parser.util';
+import { parseSrt, stringifySrt, formatSrtTime } from './utils/srt-parser.util';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import {
   AnalysisProgressEvent,
@@ -150,7 +150,7 @@ export class AnalysisService {
           const transcript = transcriptChunks
             .map(
               (c, i) =>
-                `${i + 1}\n${this.formatSrtTime(c.startTime)} --> ${this.formatSrtTime(c.endTime)}\n${c.text}\n`,
+                `${i + 1}\n${formatSrtTime(c.startTime)} --> ${formatSrtTime(c.endTime)}\n${c.text}\n`,
             )
             .join('\n');
 
@@ -455,7 +455,32 @@ export class AnalysisService {
     }
 
     subtitle.text = textDto.text;
-    return await this.subtitleRepository.save(subtitle);
+    const savedSubtitle = await this.subtitleRepository.save(subtitle);
+
+    // 2. Persist change back to Project transcript so it's not lost on segment updates
+    const project = await this.projectRepository.findOneBy({ id: projectId });
+    if (project && project.transcript) {
+      const allSubtitles = parseSrt(project.transcript);
+      // Find matching subtitle in master transcript by original timing
+      // Using a small epsilon for float comparison
+      const EPSILON = 0.001;
+      const masterSub = allSubtitles.find(
+        (s) =>
+          Math.abs(s.startTime - subtitle.startTime) < EPSILON &&
+          Math.abs(s.endTime - subtitle.endTime) < EPSILON,
+      );
+
+      if (masterSub) {
+        masterSub.text = textDto.text;
+        project.transcript = stringifySrt(allSubtitles);
+        await this.projectRepository.save(project);
+        this.logger.debug(
+          `Persisted subtitle correction to master transcript for project ${projectId}`,
+        );
+      }
+    }
+
+    return savedSubtitle;
   }
 
   /**
@@ -542,14 +567,5 @@ export class AnalysisService {
     );
 
     return updatedShort;
-  }
-
-  private formatSrtTime(seconds: number): string {
-    const date = new Date(seconds * 1000);
-    const hh = String(Math.floor(seconds / 3600)).padStart(2, '0');
-    const mm = String(date.getUTCMinutes()).padStart(2, '0');
-    const ss = String(date.getUTCSeconds()).padStart(2, '0');
-    const ms = String(date.getUTCMilliseconds()).padStart(3, '0');
-    return `${hh}:${mm}:${ss},${ms}`;
   }
 }

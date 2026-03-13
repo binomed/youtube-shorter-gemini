@@ -1,7 +1,7 @@
 // Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
 // Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
 
-import { parseSrt } from './srt-parser.util';
+import { parseSrt, formatSrtTime, stringifySrt } from './srt-parser.util';
 
 describe('SrtParser', () => {
   it('should parse valid SRT content successfully', () => {
@@ -92,5 +92,33 @@ Another valid block`;
     expect(result.length).toBe(2);
     expect(result[0].text).toBe('Valid block');
     expect(result[1].text).toBe('Another valid block');
+  });
+
+  describe('formatSrtTime', () => {
+    it('should format seconds to SRT timecode correctly', () => {
+      expect(formatSrtTime(0)).toBe('00:00:00,000');
+      expect(formatSrtTime(1.5)).toBe('00:00:01,500');
+      expect(formatSrtTime(61.234)).toBe('00:01:01,234');
+      expect(formatSrtTime(3661.123)).toBe('01:01:01,123');
+    });
+  });
+
+  describe('stringifySrt', () => {
+    it('should convert subtitle objects back to valid SRT format', () => {
+      const subtitles = [
+        { startTime: 1.0, endTime: 3.5, text: 'Hello world' },
+        { startTime: 4.2, endTime: 6.8, text: 'Test' },
+      ];
+
+      const result = stringifySrt(subtitles);
+      // Normalized line endings for comparison
+      const normalizedResult = result.replace(/\r\n/g, '\n');
+      expect(normalizedResult).toContain(
+        '1\n00:00:01,000 --> 00:00:03,500\nHello world\n',
+      );
+      expect(normalizedResult).toContain(
+        '2\n00:00:04,200 --> 00:00:06,800\nTest\n',
+      );
+    });
   });
 });

@@ -109,7 +109,7 @@ function chunkSubtitle(
 /**
  * Converts SRT timecode to seconds (e.g. "00:01:23,450" -> 83.450)
  */
-function parseTimecode(timecode: string): number {
+export function parseTimecode(timecode: string): number {
   const parts = timecode.split(/[:,]/);
   if (parts.length !== 4) return 0;
 
@@ -119,4 +119,29 @@ function parseTimecode(timecode: string): number {
   const milliseconds = parseInt(parts[3], 10);
 
   return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
+}
+
+/**
+ * Converts seconds to SRT timecode format (e.g. 83.450 -> "00:01:23,450")
+ */
+export function formatSrtTime(seconds: number): string {
+  const date = new Date(seconds * 1000);
+  const hh = String(Math.floor(seconds / 3600)).padStart(2, '0');
+  const mm = String(date.getUTCMinutes()).padStart(2, '0');
+  const ss = String(date.getUTCSeconds()).padStart(2, '0');
+  const ms = String(date.getUTCMilliseconds()).padStart(3, '0');
+  return `${hh}:${mm}:${ss},${ms}`;
+}
+
+/**
+ * Converts an array of subtitle objects back into a raw SRT string.
+ */
+export function stringifySrt(subtitles: ParsedSubtitle[]): string {
+  return subtitles
+    .map((sub, i) => {
+      const index = i + 1;
+      const times = `${formatSrtTime(sub.startTime)} --> ${formatSrtTime(sub.endTime)}`;
+      return `${index}\n${times}\n${sub.text}\n`;
+    })
+    .join('\n');
 }
