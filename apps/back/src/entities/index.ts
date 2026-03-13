@@ -7,4 +7,4 @@
  * TypeORM entities live here.
  * Data Mapper pattern for clean separation.
  */
-export {};
+export { };

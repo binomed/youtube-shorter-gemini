@@ -20,6 +20,7 @@ import { StemService } from './stem.service';
 import { JobProgressService } from '../processing/job-progress.service';
 import { parseSrt, stringifySrt, formatSrtTime } from './utils/srt-parser.util';
 import { FFmpegService } from '../../workers/ffmpeg.service';
+import { SettingsService } from '../settings/settings.service';
 import {
   AnalysisProgressEvent,
   DetectedSegment,
@@ -64,7 +65,9 @@ export class AnalysisService {
     private readonly whisperService: WhisperService,
     private readonly stemService: StemService,
     private readonly jobProgressService: JobProgressService,
-  ) {}
+    private readonly settingsService: SettingsService,
+  ) { }
+
 
   /**
    * Run full analysis pipeline for a project.
@@ -94,13 +97,17 @@ export class AnalysisService {
       );
       const duration = metadata?.duration || 60;
 
-      // Extract 1 frame every 3 seconds for detailed visual tracking without overloading Gemini
-      const maxFrames = Math.floor(duration / 3);
+      // Extract frames based on user settings
+      const settings = await this.settingsService.getSettings();
+      const interval = settings.frameInterval || 3.0;
+      const maxFrames = Math.floor(duration / interval);
       const frames = await this.extractFramesForAnalysis(
         project.videoPath,
         duration,
         maxFrames,
+        interval,
       );
+
       this.logger.log(
         `[Analysis] Extracted ${frames.length} frames. Duration: ${duration}s.`,
       );
@@ -164,7 +171,7 @@ export class AnalysisService {
           }
         } finally {
           // Cleanup audio file immediately after transcription attempt
-          await fs.unlink(audioPath).catch(() => {});
+          await fs.unlink(audioPath).catch(() => { });
         }
       } catch (error) {
         this.logger.warn(`Transcription failed: ${(error as Error).message}`);
@@ -281,9 +288,10 @@ export class AnalysisService {
     videoPath: string,
     duration: number,
     maxFrames: number,
+    interval: number,
   ): Promise<string[]> {
-    const interval = Math.max(1, Math.floor(duration / maxFrames));
     const frames: string[] = [];
+
     const tmpDir = path.join(os.tmpdir(), `yts-frames-${Date.now()}`);
 
     await fs.mkdir(tmpDir, { recursive: true });
@@ -305,7 +313,7 @@ export class AnalysisService {
       }
     } finally {
       // Cleanup temp directory
-      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => { });
     }
 
     this.logger.log(`Extracted ${frames.length} frames from video`);

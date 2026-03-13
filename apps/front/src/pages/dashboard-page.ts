@@ -14,6 +14,7 @@ import '../components/molecules/yts-header.element.ts';
 import '../components/molecules/yts-dialog.element.ts';
 import type { YtsDialog } from '../components/molecules/yts-dialog.element.ts';
 import { ytsPremiumStyles } from '../styles/yts-styles.ts';
+import '../components/organisms/settings-tab.ts';
 
 @customElement('dashboard-page')
 export class DashboardPage extends LitElement {
@@ -562,6 +563,7 @@ export class DashboardPage extends LitElement {
           <sl-tab-group>
               <sl-tab slot="nav" panel="create">Create</sl-tab>
               <sl-tab slot="nav" panel="projects" @click=${(): void => { void this.loadProjects(); }}>Projects</sl-tab>
+              <sl-tab slot="nav" panel="settings">Settings</sl-tab>
 
               <sl-tab-panel name="create">
                   ${this.renderCreateTab()}
@@ -570,8 +572,13 @@ export class DashboardPage extends LitElement {
               <sl-tab-panel name="projects">
                   ${this.renderProjectsTab()}
               </sl-tab-panel>
+
+              <sl-tab-panel name="settings">
+                  <settings-tab></settings-tab>
+              </sl-tab-panel>
           </sl-tab-group>
         </div>
+
 
         <div class="star-deco">
           ✦

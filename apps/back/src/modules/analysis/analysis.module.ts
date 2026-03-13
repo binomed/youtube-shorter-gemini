@@ -11,6 +11,8 @@ import { AnalysisService } from '../ai/analysis.service';
 import { AnalysisController } from '../ai/analysis.controller';
 import { WhisperService } from '../ai/whisper.service';
 import { ProcessingModule } from '../processing/processing.module';
+import { SettingsModule } from '../settings/settings.module';
+
 
 /**
  * AnalysisModule — Domaine: Analyse IA via API Gemini.
@@ -29,9 +31,11 @@ import { ProcessingModule } from '../processing/processing.module';
   imports: [
     TypeOrmModule.forFeature([Short, Project, Subtitle]),
     ProcessingModule, // Provides StemService + FFmpegService + JobService
+    SettingsModule,
   ],
+
   controllers: [AnalysisController],
   providers: [GeminiService, AnalysisService, WhisperService],
   exports: [AnalysisService, GeminiService, WhisperService],
 })
-export class AnalysisModule {}
+export class AnalysisModule { }

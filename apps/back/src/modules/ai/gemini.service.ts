@@ -10,11 +10,15 @@ import {
 } from '@google/generative-ai';
 import type { DetectedSegment } from '@youtube-shorter/shared';
 
+import { SettingsService } from '../settings/settings.service';
+
+
 /** Shape of errors thrown by the Gemini SDK */
 interface GeminiApiError extends Error {
   status?: number;
   statusCode?: number;
 }
+
 
 interface RawLayoutEvent {
   startTime?: number;
@@ -59,9 +63,11 @@ export class GeminiParseError extends Error {
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private readonly genAI: GoogleGenerativeAI;
-  private readonly model: GenerativeModel;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly settingsService: SettingsService,
+  ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
 
     if (!apiKey) {
@@ -69,13 +75,13 @@ export class GeminiService {
     }
 
     this.genAI = new GoogleGenerativeAI(apiKey || '');
+  }
 
-    // Use configurable model, default to gemini-1.5-flash (more stable than preview)
-    const modelName = this.configService.get<string>(
-      'GEMINI_MODEL',
-      'gemini-1.5-flash',
-    );
-    this.model = this.genAI.getGenerativeModel({
+  private async getModel(): Promise<GenerativeModel> {
+    const settings = await this.settingsService.getSettings();
+    const modelName = settings.geminiModel;
+
+    return this.genAI.getGenerativeModel({
       model: modelName,
       generationConfig: {
         temperature: 0.4, // Optimized for viral moment detection and creativity
@@ -148,9 +154,8 @@ export class GeminiService {
         },
       },
     });
-
-    this.logger.log(`Gemini initialized with model: ${modelName}`);
   }
+
 
   /**
    * Generate SRT subtitles from audio buffer using Gemini.
@@ -315,14 +320,14 @@ export class GeminiService {
     const parts: Array<
       { text: string } | { inlineData: { mimeType: string; data: string } }
     > = [
-      { text: prompt },
-      ...videoFrames.map((frame) => ({
-        inlineData: {
-          mimeType: 'image/jpeg' as const,
-          data: frame,
-        },
-      })),
-    ];
+        { text: prompt },
+        ...videoFrames.map((frame) => ({
+          inlineData: {
+            mimeType: 'image/jpeg' as const,
+            data: frame,
+          },
+        })),
+      ];
 
     // Retry with exponential backoff for quota/rate-limit errors
     const maxRetries = 3;
@@ -331,7 +336,8 @@ export class GeminiService {
         this.logger.debug(
           `Sending ${videoFrames.length} frames to Gemini (attempt ${attempt + 1})...`,
         );
-        const result = await this.model.generateContent(parts);
+        const model = await this.getModel();
+        const result = await model.generateContent(parts);
 
         // Safeguard against blocked responses
         if (result.response.promptFeedback?.blockReason) {
@@ -577,10 +583,10 @@ IMPORTANT: Return a valid JSON array. If no segments are found, return [].`;
               : undefined,
           layoutTimeline: Array.isArray(seg.layoutTimeline)
             ? seg.layoutTimeline.map((ev) => ({
-                timestamp: Number(ev.startTime),
-                layoutMode: (ev.layoutMode as 'fill' | 'fullscreen') || 'fill',
-                centerX: typeof ev.centerX === 'number' ? ev.centerX : 0.5,
-              }))
+              timestamp: Number(ev.startTime),
+              layoutMode: (ev.layoutMode as 'fill' | 'fullscreen') || 'fill',
+              centerX: typeof ev.centerX === 'number' ? ev.centerX : 0.5,
+            }))
             : undefined,
         }));
     } catch (error) {

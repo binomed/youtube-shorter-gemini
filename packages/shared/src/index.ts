@@ -4,6 +4,7 @@
  */
 
 // Configuration
+export * from './types/settings';
 export * from './config/constants';
 
 import 'reflect-metadata';
