@@ -9,6 +9,7 @@ import {
   Max,
   Matches,
   MaxLength,
+  IsBoolean,
 } from 'class-validator';
 
 export class UpdateSubtitleStyleDto {
@@ -55,6 +56,17 @@ export class UpdateSubtitleStyleDto {
   @Min(-2000)
   @Max(2000)
   positionX?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  highlightEnabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^#[0-9a-fA-F]{3,8}$/, {
+    message: 'Highlight color must be a valid hex string',
+  })
+  highlightColor?: string;
 }
 
 export class UpdateSubtitleTextDto {

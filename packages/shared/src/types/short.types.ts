@@ -171,6 +171,15 @@ export interface ExportProgressEvent {
 }
 
 /**
+ * Individual word timing for highlight effects.
+ */
+export interface WordTiming {
+    text: string;
+    startTime: number;
+    endTime: number;
+}
+
+/**
  * User-customizable subtitle styling preferences.
  */
 export interface SubtitleStyle {
@@ -186,6 +195,8 @@ export interface SubtitleStyle {
     borderColor?: string;
     textShadow?: boolean;
     textOutline?: boolean;
+    highlightEnabled?: boolean;
+    highlightColor?: string;
 }
 
 /**
@@ -197,4 +208,5 @@ export interface SubtitleResponse {
     startTime: number;
     endTime: number;
     text: string;
+    words?: WordTiming[];
 }

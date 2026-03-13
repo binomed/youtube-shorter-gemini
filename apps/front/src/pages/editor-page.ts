@@ -12,7 +12,7 @@ import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
 import '@shoelace-style/shoelace/dist/components/badge/badge.js';
 import '@shoelace-style/shoelace/dist/components/dialog/dialog.js';
-import type { LayoutEvent, ShortResponse, StemProgressEvent, SubtitleResponse, VideoSegment } from '@youtube-shorter/shared';
+import type { LayoutEvent, StemProgressEvent, ShortResponse, SubtitleResponse, VideoSegment } from '@youtube-shorter/shared';
 import '../components/molecules/yts-dialog.element.ts';
 import { ytsPremiumStyles } from '../styles/yts-styles.ts';
 import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
@@ -98,12 +98,20 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
         try {
           const projectId = projectSignal.get()?.id;
-          if (projectId) {
-            await fetch(`/api/projects/${projectId}/shorts/${this.currentShort.id}/subtitles/${subtitleId}`, {
+          if (projectId && this.currentShort) {
+            const response = await fetch(`/api/projects/${projectId}/shorts/${this.currentShort.id}/subtitles/${subtitleId}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ text })
             });
+            if (response.ok) {
+              const updatedSub = await response.json();
+              // Update with reconciled words from backend
+              if (this.currentShort.subtitles) {
+                this.currentShort.subtitles[subIndex] = updatedSub;
+                this.currentShort = { ...this.currentShort }; 
+              }
+            }
           }
         } catch (err) {
           console.error('Failed to save subtitle text:', err);

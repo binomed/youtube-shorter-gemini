@@ -41,6 +41,9 @@ export class Subtitle {
   @Column({ type: 'text' })
   text: string;
 
+  @Column({ type: 'simple-json', nullable: true })
+  words?: { text: string; startTime: number; endTime: number }[];
+
   @Column({ type: 'integer', default: 0 })
   orderIndex: number;
 }

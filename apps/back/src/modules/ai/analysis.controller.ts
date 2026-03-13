@@ -35,6 +35,7 @@ import {
 import type {
   StemProgressEvent,
   ShortResponse,
+  SubtitleResponse,
   SubtitleStyle,
   UpdateShortSegmentsDto,
 } from '@youtube-shorter/shared';
@@ -207,6 +208,7 @@ export class AnalysisController {
           startTime: number;
           endTime: number;
           text: string;
+          words?: any[];
         };
         return {
           id: rawSub.id,
@@ -214,6 +216,7 @@ export class AnalysisController {
           startTime: rawSub.startTime,
           endTime: rawSub.endTime,
           text: rawSub.text,
+          words: rawSub.words,
         };
       }),
       createdAt: (rawShort.createdAt instanceof Date
@@ -445,13 +448,22 @@ export class AnalysisController {
     @Param('shortId') shortId: string,
     @Param('subtitleId') subtitleId: string,
     @Body() textDto: UpdateSubtitleTextDto,
-  ): Promise<void> {
-    await this.analysisService.updateSubtitleText(
+  ): Promise<SubtitleResponse> {
+    const sub = await this.analysisService.updateSubtitleText(
       projectId,
       shortId,
       subtitleId,
       textDto,
     );
+
+    return {
+      id: sub.id,
+      shortId: sub.shortId,
+      startTime: sub.startTime,
+      endTime: sub.endTime,
+      text: sub.text,
+      words: sub.words,
+    };
   }
 
   /**

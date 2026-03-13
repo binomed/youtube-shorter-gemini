@@ -199,6 +199,11 @@ export class ExportService {
             startTime: newStart,
             endTime: newEnd,
             shortId: s.shortId,
+            words: (s as SubtitleResponse).words?.map((w) => ({
+              ...w,
+              startTime: w.startTime + (newStart - s.startTime),
+              endTime: w.endTime + (newStart - s.startTime),
+            })),
           } as SubtitleResponse);
         }
         currentOffset += segDuration;
@@ -365,13 +370,10 @@ export class ExportService {
     };
 
     const colorPrimary = toAssColor(style?.color, '&H00FFFFFF&');
+    const colorHighlight = toAssColor(style?.highlightColor, '&H0000FFFF&'); // Default yellow highlight if not set
+    const highlightEnabled = style?.highlightEnabled ?? false;
     const bgColor = toAssColor(style?.backgroundColor, '&H80000000&');
     const borderColor = toAssColor(style?.borderColor, '&H00000000&');
-
-    // 4. Alignment mapping: ASS Alignment (v4+)
-    let alignment = 2; // Default centered
-    if (style?.textAlign === 'left') alignment = 1;
-    else if (style?.textAlign === 'right') alignment = 3;
 
     // 5. Border (Outline) mapping
     const borderEnabled = style?.borderEnabled ?? false;
@@ -386,18 +388,21 @@ export class ExportService {
     const shadowColor = '&H33000000&'; // &H33 mapping to roughly 0.8 opacity
 
     // 7. Margin Parity: Match the frontend's 90% max-width (5% gap on each side)
-    // 5% of 1080 horizontal res = 54px.
     const marginLR = 54;
 
     // Correct MarginV: Frontend uses 20% padding-bottom + translateY offset
-    // 20% of 1920 height = 384px.
+    // Correct MarginV: Frontend uses 20% padding-bottom + translateY offset
     const baseMarginBottom = 384;
     const offsetY = Math.round((style?.positionY || 0) * scaleFactor);
-    const marginV = Math.max(10, baseMarginBottom - offsetY);
+
+    // 4. Alignment mapping: ASS Alignment (v4+)
+    // Use Alignment 5 (Middle Center) for both layers to ensure perfect superposition
+    const alignment = 5;
+    const targetCenterY = 1920 - (baseMarginBottom - offsetY);
+    const marginV = targetCenterY; // In Alignment 5, MarginV is distance from TOP to center
 
     const transparentColor = '&HFFFFFFFF&';
 
-    // const textOutline = style?.textOutline || false;
     const isTransparentBox =
       style?.backgroundColor === 'transparent' ||
       style?.backgroundColor === 'rgba(0,0,0,0)' ||
@@ -423,14 +428,45 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       const start = this.formatAssTime(sub.startTime);
       const end = this.formatAssTime(sub.endTime);
 
-      const text = sub.text.replace(/\n/g, '\\N');
+      const escapedText = sub.text.replace(/\n/g, '\\N');
 
       if (!isTransparentBox) {
-        // Layer 0: Uniform background box (BorderStyle 4) that automatically surrounds multiline text
-        ass += `Dialogue: 0,${start},${end},BgLayer,,0,0,0,,${text}\n`;
+        // Layer 0: STABLE Background Box
+        // We use a single dialogue event for the whole segment duration to prevent box "ghosting" or jitter.
+        ass += `Dialogue: 0,${start},${end},BgLayer,,0,0,0,,${escapedText}\n`;
       }
-      // Layer 1: Text directly on top
-      ass += `Dialogue: 1,${start},${end},TextLayer,,0,0,0,,${text}\n`;
+
+      if (highlightEnabled && sub.words && sub.words.length > 0) {
+        const slots = this.buildGapFreeTimeSlots(
+          sub.words,
+          sub.startTime,
+          sub.endTime,
+        );
+
+        const assHighlight = colorHighlight.replace('H00', 'H');
+        const assPrimary = colorPrimary.replace('H00', 'H');
+
+        for (const slot of slots) {
+          const sStart = this.formatAssTime(slot.startTime);
+          const sEnd = this.formatAssTime(slot.endTime);
+
+          // Build dynamic TextLayer content with word scaling
+          const inlineText = sub.words
+            .map((w, idx) => {
+              const isActive = slot.activeWordIdx === idx;
+              const scale = isActive ? '115' : '100';
+              const color = isActive ? assHighlight : assPrimary;
+
+              return `{\\fscx${scale}\\fscy${scale}\\c${color}}${w.text}{\\fscx100\\fscy100\\c${assPrimary}}`;
+            })
+            .join(' ')
+            .replace(/\n/g, '\\N');
+
+          ass += `Dialogue: 1,${sStart},${sEnd},TextLayer,,0,0,0,,${inlineText}\n`;
+        }
+      } else {
+        ass += `Dialogue: 1,${start},${end},TextLayer,,0,0,0,,${escapedText}\n`;
+      }
     }
 
     return ass;
@@ -442,5 +478,59 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     const s = Math.floor(seconds % 60);
     const ms = Math.floor((seconds % 1) * 100);
     return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+  }
+
+  /**
+   * Build gap-free time slots from word timings.
+   * Ensures continuous coverage from subtitleStart to subtitleEnd.
+   * Gaps between words are filled with "no active word" slots (base color only).
+   */
+  private buildGapFreeTimeSlots(
+    words: Array<{ startTime: number; endTime: number; text: string }>,
+    subtitleStart: number,
+    subtitleEnd: number,
+  ): Array<{
+    startTime: number;
+    endTime: number;
+    activeWordIdx: number | null;
+  }> {
+    const slots: Array<{
+      startTime: number;
+      endTime: number;
+      activeWordIdx: number | null;
+    }> = [];
+    let cursor = subtitleStart;
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+
+      // Fill gap before this word (if any > 10ms)
+      if (word.startTime > cursor + 0.01) {
+        slots.push({
+          startTime: cursor,
+          endTime: word.startTime,
+          activeWordIdx: null,
+        });
+      }
+
+      // The word itself
+      slots.push({
+        startTime: word.startTime,
+        endTime: word.endTime,
+        activeWordIdx: i,
+      });
+      cursor = word.endTime;
+    }
+
+    // Fill gap after last word (if any > 10ms)
+    if (cursor < subtitleEnd - 0.01) {
+      slots.push({
+        startTime: cursor,
+        endTime: subtitleEnd,
+        activeWordIdx: null,
+      });
+    }
+
+    return slots;
   }
 }

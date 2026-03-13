@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { spawn } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { WordTiming } from '@youtube-shorter/shared';
 
 export interface WhisperWord {
   word: string;
@@ -21,18 +22,25 @@ export interface WhisperOutput {
   language: string;
 }
 
+export interface WhisperChunk {
+  startTime: number;
+  endTime: number;
+  text: string;
+  words: WordTiming[];
+}
+
 @Injectable()
 export class WhisperService {
   private readonly logger = new Logger(WhisperService.name);
 
   /**
    * Run WhisperX CLI for transcription and word-level timestamps.
-   * Groups words into chunks of a given max length (e.g. 7) to generate a punchy SRT.
+   * Groups words into chunks and returns structured data with word-level timings.
    */
-  async generateSubtitles(
+  async generateSubtitlesWithWords(
     inputAudioPath: string,
     maxWordsPerBlock: number = 7,
-  ): Promise<string> {
+  ): Promise<WhisperChunk[]> {
     const outputDir = path.dirname(inputAudioPath);
     const basename = path.basename(
       inputAudioPath,
@@ -78,11 +86,7 @@ export class WhisperService {
           this.logger.error(
             `whisperx failed with code ${code}. Logs: ${stderrLogs}`,
           );
-          reject(
-            new Error(
-              `WhisperX failed (code ${code}). Is it installed locally?`,
-            ),
-          );
+          reject(new Error(`WhisperX failed (code ${code}).`));
         }
       });
 
@@ -111,62 +115,115 @@ export class WhisperService {
 
     const parsedData = JSON.parse(fileContent) as WhisperOutput;
 
-    // Reconstruct into a SRT with chunks of maxWordsPerBlock
-    return this.buildSrtFromWords(parsedData, maxWordsPerBlock);
+    return this.buildChunksFromWords(parsedData, maxWordsPerBlock);
   }
 
   /**
-   * Constructs an SRT string by grouping words from Whisper segments into max N words chunks.
+   * Legacy method for raw SRT output.
    */
-  private buildSrtFromWords(data: WhisperOutput, maxWords: number): string {
-    let srtData = '';
-    let counter = 1;
+  async generateSubtitles(
+    inputAudioPath: string,
+    maxWordsPerBlock = 7,
+  ): Promise<string> {
+    const chunks = await this.generateSubtitlesWithWords(
+      inputAudioPath,
+      maxWordsPerBlock,
+    );
+    return this.convertChunksToSrt(chunks);
+  }
+
+  /**
+   * Groups words from Whisper segments into max N words chunks.
+   */
+  private buildChunksFromWords(
+    data: WhisperOutput,
+    maxWords: number,
+  ): WhisperChunk[] {
+    const chunks: WhisperChunk[] = [];
 
     for (const segment of data.segments) {
       if (!segment.words || segment.words.length === 0) {
         // Fallback to phrase-level if WhisperX couldn't align words
-        srtData += `${counter}\n`;
-        srtData += `${this.formatSrtTime(segment.start)} --> ${this.formatSrtTime(segment.end)}\n`;
-        srtData += `${segment.text.trim()}\n\n`;
-        counter++;
+        chunks.push({
+          startTime: segment.start,
+          endTime: segment.end,
+          text: segment.text.trim(),
+          words: this.distributeWordsUniformly(
+            segment.text.trim(),
+            segment.start,
+            segment.end,
+          ),
+        });
         continue;
       }
 
       const words = segment.words;
-      let currentChunk: WhisperWord[] = [];
+      let currentWords: WhisperWord[] = [];
 
       for (let i = 0; i < words.length; i++) {
-        currentChunk.push(words[i]);
+        currentWords.push(words[i]);
 
-        if (currentChunk.length >= maxWords || i === words.length - 1) {
-          // Identify chunk times. Some words might be lacking start/end due to silence trimming.
-          // In that case, we fall back to the first available bound in the chunk.
+        if (currentWords.length >= maxWords || i === words.length - 1) {
           const start =
-            currentChunk.find((w) => w.start !== undefined)?.start ??
+            currentWords.find((w) => w.start !== undefined)?.start ??
             segment.start;
-          // For 'end', we search backwards to find the last valid end
           const end =
-            [...currentChunk].reverse().find((w) => w.end !== undefined)?.end ??
+            [...currentWords].reverse().find((w) => w.end !== undefined)?.end ??
             segment.end;
 
-          const textChunk = currentChunk
+          const textChunk = currentWords
             .map((w) => w.word)
             .join(' ')
             .trim();
 
           if (textChunk) {
-            srtData += `${counter}\n`;
-            srtData += `${this.formatSrtTime(start)} --> ${this.formatSrtTime(end)}\n`;
-            srtData += `${textChunk}\n\n`;
-            counter++;
+            chunks.push({
+              startTime: start,
+              endTime: end,
+              text: textChunk,
+              words: currentWords.map((w) => ({
+                text: w.word,
+                startTime: w.start ?? start,
+                endTime: w.end ?? end,
+              })),
+            });
           }
 
-          currentChunk = [];
+          currentWords = [];
         }
       }
     }
 
-    return srtData.trim();
+    return chunks;
+  }
+
+  private distributeWordsUniformly(
+    text: string,
+    startTime: number,
+    endTime: number,
+  ): WordTiming[] {
+    const tokens = text
+      .trim()
+      .split(/\s+/)
+      .filter((t) => t.length > 0);
+    if (tokens.length === 0) return [];
+
+    const duration = Math.max(0, endTime - startTime);
+    const wordDuration = duration / tokens.length;
+
+    return tokens.map((t, i) => ({
+      text: t,
+      startTime: startTime + i * wordDuration,
+      endTime: startTime + (i + 1) * wordDuration,
+    }));
+  }
+
+  private convertChunksToSrt(chunks: WhisperChunk[]): string {
+    return chunks
+      .map((chunk, i) => {
+        return `${i + 1}\n${this.formatSrtTime(chunk.startTime)} --> ${this.formatSrtTime(chunk.endTime)}\n${chunk.text}\n`;
+      })
+      .join('\n');
   }
 
   private formatSrtTime(seconds: number): string {

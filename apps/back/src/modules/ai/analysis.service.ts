@@ -25,7 +25,11 @@ import {
   DetectedSegment,
   UpdateShortSegmentsDto,
   ShortResponse,
+  WordTiming,
+  reconcileWords,
+  distributeWordsUniformly,
 } from '@youtube-shorter/shared';
+import { WhisperChunk } from './whisper.service';
 
 export type { AnalysisProgressEvent };
 
@@ -115,7 +119,7 @@ export class AnalysisService {
       });
 
       const audioPath = path.join(os.tmpdir(), `yts-audio-${Date.now()}.mp3`);
-      let transcript = '';
+      let transcriptChunks: WhisperChunk[] = [];
 
       try {
         try {
@@ -128,19 +132,34 @@ export class AnalysisService {
           if (useGeminiForSubtitles) {
             // Read audio buffer
             const audioBuffer = await fs.readFile(audioPath);
-            transcript =
-              await this.geminiService.generateSubtitles(audioBuffer);
+            const srt = await this.geminiService.generateSubtitles(audioBuffer);
+            // Convert Gemini SRT to Chunks for consistency
+            transcriptChunks = parseSrt(srt).map((s) => ({
+              startTime: s.startTime,
+              endTime: s.endTime,
+              text: s.text,
+              words: distributeWordsUniformly(s.text, s.startTime, s.endTime),
+            }));
           } else {
             // Generate subtitles using local WhisperX instead of Gemini
-            transcript = await this.whisperService.generateSubtitles(audioPath);
+            transcriptChunks =
+              await this.whisperService.generateSubtitlesWithWords(audioPath);
           }
+
+          // Re-generate raw SRT for project transcript storage (backward compatibility)
+          const transcript = transcriptChunks
+            .map(
+              (c, i) =>
+                `${i + 1}\n${this.formatSrtTime(c.startTime)} --> ${this.formatSrtTime(c.endTime)}\n${c.text}\n`,
+            )
+            .join('\n');
 
           // Save transcript to project
           if (transcript) {
             project.transcript = transcript;
             await this.projectRepository.save(project);
             this.logger.log(
-              `[Analysis] Transcript saved for project ${projectId} (${transcript.length} chars). Preview: ${transcript.substring(0, 50)}...`,
+              `[Analysis] Transcript saved for project ${projectId} (${transcript.length} chars).`,
             );
           }
         } finally {
@@ -164,7 +183,7 @@ export class AnalysisService {
         detected = await this.geminiService.detectShortsCandidates(
           frames,
           duration,
-          transcript,
+          project.transcript,
         );
       } catch (error: unknown) {
         if (error instanceof Error && error.name === 'GeminiParseError') {
@@ -199,7 +218,7 @@ export class AnalysisService {
       const shorts = await this.saveDetectedShorts(
         projectId,
         project.videoPath,
-        transcript,
+        transcriptChunks,
         detected,
       );
 
@@ -299,15 +318,14 @@ export class AnalysisService {
   private async saveDetectedShorts(
     projectId: string,
     videoPath: string,
-    transcript: string | undefined,
+    allSubtitles: WhisperChunk[],
     detected: DetectedSegment[],
   ): Promise<Short[]> {
     // Create thumbnails directory if not exists
     const thumbnailsDir = path.join(process.cwd(), 'uploads', 'thumbnails');
     await fs.mkdir(thumbnailsDir, { recursive: true });
 
-    // Parse transcript once if available
-    const allSubtitles = transcript ? parseSrt(transcript) : [];
+    // (transcript is now passed as WhisperChunk[])
 
     // Sort by confidence (highest first) and assign order
     const sorted = [...detected].sort((a, b) => b.confidence - a.confidence);
@@ -334,20 +352,21 @@ export class AnalysisService {
         const segmentSubtitles = allSubtitles.filter(
           (sub) =>
             sub.startTime <= short.endTime && sub.endTime >= short.startTime,
+          // Check if we already created this subtitle for a previous short
+          // Though to truly share the entity between shorts, TypeORM requires a ManyToMany relationship,
+          // but the current schema uses ManyToOne (a subtitle belongs to strictly ONE short).
+          // To fix this without schema migrations, we will duplicate the row but ensure it's
+          // tied explicitly to the precise Short bounds to prevent orphaned references.
         );
 
         if (segmentSubtitles.length > 0) {
           const subtitleEntities = segmentSubtitles.map((sub, index) => {
-            // Check if we already created this subtitle for a previous short
-            // Though to truly share the entity between shorts, TypeORM requires a ManyToMany relationship,
-            // but the current schema uses ManyToOne (a subtitle belongs to strictly ONE short).
-            // To fix this without schema migrations, we will duplicate the row but ensure it's
-            // tied explicitly to the precise Short bounds to prevent orphaned references.
             return this.subtitleRepository.create({
               shortId: short.id,
               startTime: sub.startTime,
               endTime: sub.endTime,
               text: sub.text,
+              words: sub.words,
               orderIndex: index,
             });
           });
@@ -409,7 +428,7 @@ export class AnalysisService {
     shortId: string,
     subtitleId: string,
     textDto: UpdateSubtitleTextDto,
-  ): Promise<void> {
+  ): Promise<Subtitle> {
     const subtitle = await this.subtitleRepository.findOne({
       where: { id: subtitleId, short: { id: shortId, projectId } },
       relations: ['short'],
@@ -418,8 +437,25 @@ export class AnalysisService {
       throw new NotFoundException(`Subtitle ${subtitleId} not found`);
     }
 
+    // Smart reconciliation of word timings
+    if (subtitle.words && (subtitle.words as any[]).length > 0) {
+      subtitle.words = reconcileWords(
+        subtitle.words as WordTiming[],
+        textDto.text,
+        subtitle.startTime,
+        subtitle.endTime,
+      );
+    } else {
+      // Fallback for uniform distribution if no words existed
+      subtitle.words = distributeWordsUniformly(
+        textDto.text,
+        subtitle.startTime,
+        subtitle.endTime,
+      );
+    }
+
     subtitle.text = textDto.text;
-    await this.subtitleRepository.save(subtitle);
+    return await this.subtitleRepository.save(subtitle);
   }
 
   /**
@@ -457,7 +493,9 @@ export class AnalysisService {
       await this.subtitleRepository.delete({ shortId });
 
       // Parse and filter new subtitles
-      const allSubtitles = parseSrt(project.transcript);
+      const allSubtitles = project.transcript
+        ? parseSrt(project.transcript)
+        : [];
       const segmentSubtitles = allSubtitles.filter(
         (sub) =>
           sub.startTime <= short.endTime && sub.endTime >= short.startTime,
@@ -470,6 +508,11 @@ export class AnalysisService {
             startTime: sub.startTime,
             endTime: sub.endTime,
             text: sub.text,
+            words: distributeWordsUniformly(
+              sub.text,
+              sub.startTime,
+              sub.endTime,
+            ),
             orderIndex: index,
           });
         });
@@ -499,5 +542,14 @@ export class AnalysisService {
     );
 
     return updatedShort;
+  }
+
+  private formatSrtTime(seconds: number): string {
+    const date = new Date(seconds * 1000);
+    const hh = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const mm = String(date.getUTCMinutes()).padStart(2, '0');
+    const ss = String(date.getUTCSeconds()).padStart(2, '0');
+    const ms = String(date.getUTCMilliseconds()).padStart(3, '0');
+    return `${hh}:${mm}:${ss},${ms}`;
   }
 }

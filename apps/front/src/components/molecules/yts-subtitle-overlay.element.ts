@@ -169,6 +169,25 @@ export class YtsSubtitleOverlay extends LitElement {
             outline: 0.5cqw solid var(--yts-accent);
             outline-offset: 0.5cqw;
         }
+
+        .word-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.4cqw 0.8cqw;
+        }
+
+        .word {
+            display: inline-block;
+            transition: color 0.15s ease, transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            white-space: pre-wrap;
+        }
+
+        .word.active {
+            color: var(--highlight-color, #facc15);
+            transform: scale(1.15);
+            text-shadow: 0 0 1cqw rgba(0,0,0,0.3);
+        }
     `;
 
     render() {
@@ -191,7 +210,8 @@ export class YtsSubtitleOverlay extends LitElement {
             backgroundColor: this.subtitleStyle?.backgroundColor || 'rgba(0, 0, 0, 0.6)',
             textAlign: this.subtitleStyle?.textAlign || 'center',
             transform: `translate(${posX}px, ${posY}px)`,
-            cursor: this._isDragging ? 'grabbing' : 'grab'
+            cursor: this._isDragging ? 'grabbing' : 'grab',
+            '--highlight-color': this.subtitleStyle?.highlightColor || '#facc15'
         };
 
         if (this.subtitleStyle?.borderEnabled) {
@@ -223,7 +243,16 @@ export class YtsSubtitleOverlay extends LitElement {
                     tabindex="0"
                     aria-label="Edit subtitle"
                 >
-                    ${this.activeSubtitle.text}
+                    ${this.subtitleStyle?.highlightEnabled && this.activeSubtitle.words && this.activeSubtitle.words.length > 0 ? html`
+                        <div class="word-wrapper">
+                            ${this.activeSubtitle.words.map(w => {
+                                const isActive = this.currentTime >= w.startTime && this.currentTime <= w.endTime;
+                                return html`
+                                    <span class="word ${isActive ? 'active' : ''}">${w.text}</span>
+                                `;
+                            })}
+                        </div>
+                    ` : this.activeSubtitle.text}
                 </div>
             ` : html``}
         `;

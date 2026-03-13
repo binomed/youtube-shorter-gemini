@@ -35,6 +35,7 @@ export class YtsShortPlayer extends LitElement {
   @state() private isPlaying = false;
   @state() private currentTime = 0;
   @state() private duration = 0;
+  private _rafId = 0;
 
   private get _activeSegment(): VideoSegment | null {
     if (this.segments && this.segments.length > 0) {
@@ -87,6 +88,41 @@ export class YtsShortPlayer extends LitElement {
       this.isPlaying = false;
     }
     this._dispatchPlaybackStatus();
+    
+    if (this.isPlaying) {
+      this._startRafLoop();
+    } else {
+      this._stopRafLoop();
+    }
+  }
+
+  private _startRafLoop() {
+    this._stopRafLoop();
+    const loop = () => {
+      if (this.videoElement && !this.videoElement.paused) {
+        const newTime = this.videoElement.currentTime;
+        // Optimization: only trigger state update if time changed by more than ~8ms (half a frame at 60fps)
+        // or for better reactivity, just update if changed at all.
+        if (Math.abs(newTime - this.currentTime) > 0.008) {
+          this.currentTime = newTime;
+          
+          this.dispatchEvent(new CustomEvent('time-update', {
+            detail: { currentTime: this.currentTime },
+            bubbles: true,
+            composed: true
+          }));
+        }
+        this._rafId = requestAnimationFrame(loop);
+      }
+    };
+    this._rafId = requestAnimationFrame(loop);
+  }
+
+  private _stopRafLoop() {
+    if (this._rafId) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = 0;
+    }
   }
 
   private _dispatchPlaybackStatus() {
@@ -98,7 +134,11 @@ export class YtsShortPlayer extends LitElement {
   }
 
   private handleTimeUpdate = (): void => {
-    this.currentTime = this.videoElement.currentTime;
+    // Rely on RAF loop for actual time updates during playback
+    // Fallback for seeking or scrubing
+    if (Math.abs(this.videoElement.currentTime - this.currentTime) > 0.1) {
+       this.currentTime = this.videoElement.currentTime;
+    }
 
     this.dispatchEvent(new CustomEvent('time-update', {
       detail: { currentTime: this.currentTime },
@@ -180,6 +220,7 @@ export class YtsShortPlayer extends LitElement {
   }
 
   disconnectedCallback() {
+    this._stopRafLoop();
     window.removeEventListener('keydown', this._handleKeydown);
     super.disconnectedCallback();
   }
@@ -266,6 +307,7 @@ export class YtsShortPlayer extends LitElement {
       justify-content: center;
       overflow: hidden;
       z-index: 1;
+      container-type: size; /* Essential for cqw/cqh units in subtitles */
     }
 
     .video-background {

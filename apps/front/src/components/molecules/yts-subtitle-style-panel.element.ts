@@ -75,7 +75,9 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             a.fontSize === b.fontSize &&
             a.color === b.color &&
             a.backgroundColor === b.backgroundColor &&
-            a.positionY === b.positionY;
+            a.positionY === b.positionY &&
+            a.highlightEnabled === b.highlightEnabled &&
+            a.highlightColor === b.highlightColor;
     }
 
     private emitStyleChange(update: Partial<SubtitleStyle>) {
@@ -143,6 +145,16 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         this.emitStyleChange({ textOutline: sw.checked });
     }
 
+    private handleHighlightToggle(e: Event) {
+        const sw = e.target as HTMLInputElement;
+        this.emitStyleChange({ highlightEnabled: sw.checked });
+    }
+
+    private handleHighlightColorChange(e: Event) {
+        const picker = e.target as HTMLInputElement;
+        this.emitStyleChange({ highlightColor: picker.value });
+    }
+
     private handleReset() {
         this.emitStyleChange({
             font: 'inherit',
@@ -156,7 +168,9 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             borderWidth: 3,
             borderColor: '#000000',
             textShadow: true,
-            textOutline: false
+            textOutline: false,
+            highlightEnabled: true,
+            highlightColor: '#facc15'
         });
     }
 
@@ -709,6 +723,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
             ${this._renderColorsPreviewSection(currentFont, currentColor, currentBgColor, textColorToggle, bgColorToggle, textAlign, borderEnabled, borderWidth, borderColor, textShadow, textOutline)}
             ${this._renderAlignmentSection(textAlign)}
             ${this._renderEffectsSection(borderEnabled, borderWidth, borderColor, textShadow, textOutline)}
+            ${this._renderHighlightSection()}
             ${this._renderPositionSection(currentPosY)}
             ${this._renderFooterActions()}
         `;
@@ -970,6 +985,36 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                     <span>Text Outline/Glow</span>
                 </div>
                 <sl-checkbox ?checked=${textOutline} @sl-change=${this.handleOutlineToggle}></sl-checkbox>
+            </div>
+        `;
+    }
+
+    private _renderHighlightSection() {
+        const enabled = this.subtitleStyle?.highlightEnabled ?? false;
+        const color = this.subtitleStyle?.highlightColor || '#facc15';
+
+        return html`
+            <div class="section-title">Word Highlighting (AI)</div>
+            <div class="effect-row">
+                <div class="effect-label">
+                    <span>Active Word Highlight</span>
+                </div>
+                <sl-checkbox ?checked=${enabled} @sl-change=${this.handleHighlightToggle}></sl-checkbox>
+            </div>
+
+            <div class="effect-row" ?hidden=${!enabled}>
+                <div class="effect-label">
+                    <span>Highlight Color</span>
+                </div>
+                <sl-dropdown distance="5" hoist placement="bottom-start">
+                    <div slot="trigger" class="color-dot" style="background: ${color}"></div>
+                    <sl-color-picker
+                        inline
+                        format="hex"
+                        .value=${color}
+                        @sl-change=${this.handleHighlightColorChange}
+                    ></sl-color-picker>
+                </sl-dropdown>
             </div>
         `;
     }
