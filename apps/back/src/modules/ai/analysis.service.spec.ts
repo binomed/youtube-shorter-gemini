@@ -12,6 +12,7 @@ import { WhisperService } from './whisper.service';
 import { StemService } from './stem.service';
 import { FFmpegService } from '../../workers/ffmpeg.service';
 import { JobProgressService } from '../processing/job-progress.service';
+import { SettingsService } from '../settings/settings.service';
 import { Short } from '../../entities/short.entity';
 import { Project } from '../../entities/project.entity';
 import { Subtitle } from '../../entities/subtitle.entity';
@@ -34,6 +35,7 @@ jest.mock('fs/promises', () => ({
   unlink: jest.fn().mockResolvedValue(undefined),
   readFile: jest.fn().mockResolvedValue(Buffer.from('fake-frame')),
   readdir: jest.fn().mockResolvedValue([]),
+  stat: jest.fn().mockResolvedValue({ isFile: () => true }),
 }));
 
 const mockProject = {
@@ -81,6 +83,13 @@ const mockJobProgressService = {
   fail: jest.fn().mockResolvedValue(undefined),
 };
 
+const mockSettingsService = {
+  getSettings: jest.fn().mockResolvedValue({
+    geminiModel: 'gemini-1.5-flash',
+    frameInterval: 3.0,
+  }),
+};
+
 describe('AnalysisService', () => {
   let service: AnalysisService;
 
@@ -112,6 +121,7 @@ describe('AnalysisService', () => {
           useValue: mockSubtitleRepository,
         },
         { provide: JobProgressService, useValue: mockJobProgressService },
+        { provide: SettingsService, useValue: mockSettingsService },
       ],
     }).compile();
 
@@ -159,6 +169,10 @@ describe('AnalysisService', () => {
       const result = await service.analyzeProject('proj-1', 'job-1');
 
       expect(mockGeminiService.detectShortsCandidates).toHaveBeenCalled();
+      const lastCall = mockGeminiService.detectShortsCandidates.mock.calls[0];
+      expect(lastCall[0]).toBeInstanceOf(Array);
+      expect(lastCall[1]).toBe(120);
+      expect(lastCall[3]).toBeInstanceOf(Buffer);
       expect(mockShortRepository.save).toHaveBeenCalled();
       expect(result).toHaveLength(1);
     });

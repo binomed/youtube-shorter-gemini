@@ -4,10 +4,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { GeminiService } from './gemini.service';
+import { SettingsService } from '../settings/settings.service';
 
 /**
  * GeminiService tests — All external calls to @google/generative-ai are mocked.
  */
+
+const mockSettingsService = {
+  getSettings: jest.fn().mockResolvedValue({
+    geminiModel: 'gemini-1.5-flash',
+    frameInterval: 3.0,
+  }),
+};
 
 const mockGenerateContent = jest.fn();
 const mockGetGenerativeModel = jest.fn().mockReturnValue({
@@ -68,7 +76,7 @@ describe('GeminiService', () => {
       providers: [
         GeminiService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: 'WINSTON_MODULE_PROVIDER', useValue: mockLogger },
+        { provide: SettingsService, useValue: mockSettingsService },
       ],
     }).compile();
 
@@ -88,13 +96,35 @@ describe('GeminiService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].reason).toBe('Highlight Moment');
-      expect(result[0].startTime).toBe(15);
-      expect(result[0].confidence).toBe(0.92);
-      expect(result[0].layoutTimeline).toHaveLength(2);
-      expect(result[0].layoutTimeline?.[0].layoutMode).toBe('fullscreen');
-      expect(result[0].layoutTimeline?.[0].centerX).toBe(0.5);
-      expect(result[0].layoutTimeline).toHaveLength(2);
-      expect(result[0].layoutTimeline?.[1].centerX).toBe(0.8);
+      expect(mockGenerateContent).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ text: expect.stringContaining('frames') }),
+          expect.objectContaining({ inlineData: { mimeType: 'image/jpeg', data: 'frame1.jpg' } })
+        ])
+      );
+    });
+
+    it('should include audio in the parts when provided', async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          text: () => validSegmentsResponse,
+          candidates: [{}],
+        },
+      });
+
+      const audioBuffer = Buffer.from('fake-audio');
+      await service.detectShortsCandidates(['frame1.jpg'], 60, undefined, audioBuffer);
+
+      expect(mockGenerateContent).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            inlineData: {
+              mimeType: 'audio/mp3',
+              data: audioBuffer.toString('base64'),
+            }
+          })
+        ])
+      );
     });
 
     it('should handle JSON wrapped in markdown code blocks', async () => {

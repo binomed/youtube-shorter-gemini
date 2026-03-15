@@ -187,10 +187,21 @@ export class AnalysisService {
 
       let detected: DetectedSegment[] = [];
       try {
+        // Read audio buffer if available for multimodal analysis
+        let audioBuffer: Buffer | undefined;
+        try {
+          if (await fs.stat(audioPath).then(() => true).catch(() => false)) {
+            audioBuffer = await fs.readFile(audioPath);
+          }
+        } catch (e) {
+          this.logger.warn(`Could not read audio for analysis: ${(e as Error).message}`);
+        }
+
         detected = await this.geminiService.detectShortsCandidates(
           frames,
           duration,
           project.transcript,
+          audioBuffer,
         );
       } catch (error: unknown) {
         if (error instanceof Error && error.name === 'GeminiParseError') {

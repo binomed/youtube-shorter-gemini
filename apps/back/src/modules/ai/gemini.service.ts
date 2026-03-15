@@ -306,6 +306,7 @@ export class GeminiService {
     videoFrames: string[],
     videoDuration: number,
     transcript?: string,
+    audioBuffer?: Buffer,
   ): Promise<DetectedSegment[]> {
     // Calculate actual interval based on frame count
     const frameInterval =
@@ -315,6 +316,7 @@ export class GeminiService {
       videoDuration,
       frameInterval,
       transcript,
+      !!audioBuffer,
     );
 
     const parts: Array<
@@ -329,12 +331,21 @@ export class GeminiService {
         })),
       ];
 
+    if (audioBuffer) {
+      parts.push({
+        inlineData: {
+          mimeType: 'audio/mp3',
+          data: audioBuffer.toString('base64'),
+        },
+      });
+    }
+
     // Retry with exponential backoff for quota/rate-limit errors
     const maxRetries = 3;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         this.logger.debug(
-          `Sending ${videoFrames.length} frames to Gemini (attempt ${attempt + 1})...`,
+          `Sending ${videoFrames.length} frames ${audioBuffer ? 'and audio ' : ''}to Gemini (attempt ${attempt + 1})...`,
         );
         const model = await this.getModel();
         const result = await model.generateContent(parts);
@@ -476,16 +487,28 @@ export class GeminiService {
     duration: number,
     interval: number,
     transcript?: string,
+    hasAudio?: boolean,
   ): string {
-    return `You are an expert video editor for YouTube Shorts and TikTok. Analyze these video frames ${transcript ? 'and the provided audio transcript' : ''} to identify the most engaging, punchy 15-35 second segments ("petits bouts").
+    const contextLines = [
+      `- Total video duration: ${duration} seconds`,
+      `- Frame interval: approx ${interval.toFixed(2)} seconds`,
+    ];
+
+    if (transcript) {
+      contextLines.push(`- Transcript/Subtitles: see below\n\n${transcript.slice(0, 10000)}\n(transcript truncated if too long)`);
+    }
+
+    if (hasAudio) {
+      contextLines.push(`- Audio track: Included as multimodal input.`);
+    }
+
+    return `You are an expert video editor for YouTube Shorts and TikTok. Analyze these video frames ${hasAudio ? 'and the audio track' : ''}${transcript ? ' (and the provided transcript)' : ''} to identify the most engaging, punchy 15-35 second segments ("petits bouts").
 
 **Context:**
-- Total video duration: ${duration} seconds
-- Frame interval: approx ${interval.toFixed(2)} seconds
-${transcript ? `- Transcript/Subtitles: see below\n\n${transcript.slice(0, 10000)}\n(transcript truncated if too long)` : ''}
+${contextLines.join('\n')}
 
 **Your task:**
-1. Identify 3-5 high-retention viral moments. Focus on short, dynamic punchlines, interesting facts, or strong hooks. Avoid dragging concepts over 40 seconds.
+1. Identify 3-5 high-retention viral moments. Focus on short, dynamic punchlines, interesting facts, or strong hooks. Use BOTH visual cues (facial expressions, scene changes) and audio cues (tone of voice, excitement, music drops). Avoid dragging concepts over 40 seconds.
 2. For each moment, distinctively suggest "smart crop" metadata to keep the main subject centered in a 9:16 vertical frame.
     - The source is likely 16:9 landscape.
     - Analyze the visual frames in the segment: Where is the main speaker? Are they on the left side, right side, or moving?
