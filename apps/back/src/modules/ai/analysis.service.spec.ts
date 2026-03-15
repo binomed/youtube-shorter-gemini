@@ -169,7 +169,8 @@ describe('AnalysisService', () => {
       const result = await service.analyzeProject('proj-1', 'job-1');
 
       expect(mockGeminiService.detectShortsCandidates).toHaveBeenCalled();
-      const lastCall = mockGeminiService.detectShortsCandidates.mock.calls[0];
+      const lastCall = mockGeminiService.detectShortsCandidates.mock
+        .calls[0] as any[];
       expect(lastCall[0]).toBeInstanceOf(Array);
       expect(lastCall[1]).toBe(120);
       expect(lastCall[3]).toBeInstanceOf(Buffer);

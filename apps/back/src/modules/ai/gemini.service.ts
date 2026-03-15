@@ -12,13 +12,11 @@ import type { DetectedSegment } from '@youtube-shorter/shared';
 
 import { SettingsService } from '../settings/settings.service';
 
-
 /** Shape of errors thrown by the Gemini SDK */
 interface GeminiApiError extends Error {
   status?: number;
   statusCode?: number;
 }
-
 
 interface RawLayoutEvent {
   startTime?: number;
@@ -155,7 +153,6 @@ export class GeminiService {
       },
     });
   }
-
 
   /**
    * Generate SRT subtitles from audio buffer using Gemini.
@@ -322,14 +319,14 @@ export class GeminiService {
     const parts: Array<
       { text: string } | { inlineData: { mimeType: string; data: string } }
     > = [
-        { text: prompt },
-        ...videoFrames.map((frame) => ({
-          inlineData: {
-            mimeType: 'image/jpeg' as const,
-            data: frame,
-          },
-        })),
-      ];
+      { text: prompt },
+      ...videoFrames.map((frame) => ({
+        inlineData: {
+          mimeType: 'image/jpeg' as const,
+          data: frame,
+        },
+      })),
+    ];
 
     if (audioBuffer) {
       parts.push({
@@ -489,54 +486,64 @@ export class GeminiService {
     transcript?: string,
     hasAudio?: boolean,
   ): string {
-    const contextLines = [
-      `- Total video duration: ${duration} seconds`,
-      `- Frame interval: approx ${interval.toFixed(2)} seconds`,
-    ];
+    return `<system_instructions>
+You are a World-Class Viral Video Editor specialized in YouTube Shorts and TikTok. Your goal is to identify segments with the highest "Retention Potential" based on psychological hooks. 
+Use a "Chain of Thought" reasoning before generating the final JSON.
+</system_instructions>
 
-    if (transcript) {
-      contextLines.push(`- Transcript/Subtitles: see below\n\n${transcript.slice(0, 10000)}\n(transcript truncated if too long)`);
-    }
+<context>
+- Total Duration: ${duration} seconds
+- Sampling: 1 frame every ${interval.toFixed(2)}s
+- Modalities: Visual Frames, ${hasAudio ? 'Audio Stream, ' : ''}and Timed Transcript.
+</context>
 
-    if (hasAudio) {
-      contextLines.push(`- Audio track: Included as multimodal input.`);
-    }
+<data_source>
+${transcript ? transcript.slice(0, 10000) : 'No transcript provided.'}
+</data_source>
 
-    return `You are an expert video editor for YouTube Shorts and TikTok. Analyze these video frames ${hasAudio ? 'and the audio track' : ''}${transcript ? ' (and the provided transcript)' : ''} to identify the most engaging, punchy 15-35 second segments ("petits bouts").
+<task_guidelines>
+1. IDENTIFY all segments that match one of these 3 "Viral Patterns":
+   - PATTERN A (The Secret): Reveal of insider info or a "hack" (e.g., "The industry doesn't want you to know...").
+   - PATTERN B (The Discovery): Result of a test or personal experience ("I tested this for 30 days...").
+   - PATTERN C (The Warning/PSA): Urgent advice or common mistake to avoid ("Stop doing this immediately...").
 
-**Context:**
-${contextLines.join('\n')}
+2. RETENTION CRITERIA:
+   - Identify "Pattern Interrupts": Look for sudden changes in vocal energy, camera movement, or subject emotion (Joy, Anger, Surprise).
+   - Hook: The first 3 seconds MUST contain a visual or auditory "curiosity loop".
 
-**Your task:**
-1. Identify 3-5 high-retention viral moments. Focus on short, dynamic punchlines, interesting facts, or strong hooks. Use BOTH visual cues (facial expressions, scene changes) and audio cues (tone of voice, excitement, music drops). Avoid dragging concepts over 40 seconds.
-2. For each moment, distinctively suggest "smart crop" metadata to keep the main subject centered in a 9:16 vertical frame.
-    - The source is likely 16:9 landscape.
-    - Analyze the visual frames in the segment: Where is the main speaker? Are they on the left side, right side, or moving?
-    - Set \`centerX\` (0.0 to 1.0) to the exact actual position of the main speaker/subject (e.g., 0.25 if offset to the left, 0.75 if offset to the right). 
-    - CRITICAL: DO NOT default to 0.5 unless the subject is perfectly dead-center.
-    - \`width\` should typically be 0.5625 (9/16) of the original width to fill the height.
-3. Determine the \`layoutMode\`:
-   - Use 'fill' for talking heads or central subjects where a 9:16 crop works perfectly.
-   - Use 'fullscreen' if the scene contains critical information across the full width (e.g., broad landscape action, gameplay UI, or long horizontal text) that would look weird or be lost if cropped to vertical.
+3. SMART CROP & LAYOUT:
+   - centerX: Coordinate (0.0 to 1.0) of the main subject's nose/eyes.
+   - layoutMode: 'fill' for talking heads, 'fullscreen' for wide action or UI elements.
+</task_guidelines>
 
-**Output format (JSON array only):**
+<constraints>
+- Duration: 15-40 seconds per clip.
+- Quantity: Extract EVERY segment that exceeds a 85/100 viral confidence score. Do not limit yourself to a fixed number.
+- Format: Return ONLY a valid JSON array.
+</constraints>
+
+<output_format>
+Return a JSON array of objects matching this exact structure:
 [
   {
-    "startTime": 45.5,
-    "endTime": 63.2,
-    "confidence": 92,
-    "reason": "Strong visual hook with a fast-paced punchline.",
-    "subjectPosition": "The speaker moves from left to center.",
-    "smartCropData": { "centerX": 0.25, "width": 0.5625 },
-    "layoutMode": "fill",
+    "startTime": number,
+    "endTime": number,
+    "confidence": number,
+    "reason": "Explain the pattern (A, B, or C) and why the hook is strong.",
+    "subjectPosition": "Description of subject location",
+    "layoutMode": "fill" | "fullscreen",
     "layoutTimeline": [
-      { "startTime": 45.5, "layoutMode": "fill", "centerX": 0.25 },
-      { "startTime": 55.0, "layoutMode": "fill", "centerX": 0.5 }
+      {
+        "startTime": number, // absolute time in seconds
+        "layoutMode": "fill" | "fullscreen",
+        "centerX": number
+      }
     ]
   }
 ]
+</output_format>
 
-IMPORTANT: Return a valid JSON array. If no segments are found, return [].`;
+IMPORTANT: Analyze the audio energy and speaker tone to confirm the "Punchline" timing. If no segments are found, return [].`;
   }
 
   /**
@@ -606,10 +613,10 @@ IMPORTANT: Return a valid JSON array. If no segments are found, return [].`;
               : undefined,
           layoutTimeline: Array.isArray(seg.layoutTimeline)
             ? seg.layoutTimeline.map((ev) => ({
-              timestamp: Number(ev.startTime),
-              layoutMode: (ev.layoutMode as 'fill' | 'fullscreen') || 'fill',
-              centerX: typeof ev.centerX === 'number' ? ev.centerX : 0.5,
-            }))
+                timestamp: Number(ev.startTime),
+                layoutMode: (ev.layoutMode as 'fill' | 'fullscreen') || 'fill',
+                centerX: typeof ev.centerX === 'number' ? ev.centerX : 0.5,
+              }))
             : undefined,
         }));
     } catch (error) {

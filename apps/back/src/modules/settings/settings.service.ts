@@ -19,9 +19,14 @@ export class SettingsService implements OnModuleInit {
   async onModuleInit() {
     // Initialize default settings if not present
     for (const [key, value] of Object.entries(this.DEFAULT_SETTINGS)) {
-      const existing = await this.settingsRepository.findOne({ where: { key } });
+      const existing = await this.settingsRepository.findOne({
+        where: { key },
+      });
       if (!existing) {
-        await this.settingsRepository.save({ key, value: JSON.stringify(value) });
+        await this.settingsRepository.save({
+          key,
+          value: JSON.stringify(value),
+        });
       }
     }
   }
@@ -31,9 +36,15 @@ export class SettingsService implements OnModuleInit {
     const dbSettings = await this.settingsRepository.find();
 
     for (const s of dbSettings) {
-      if (s.key in settings) {
+      const key = s.key as keyof AppSettings;
+      if (key in settings) {
         try {
-          (settings as any)[s.key] = JSON.parse(s.value);
+          const value = JSON.parse(s.value) as unknown;
+          if (key === 'geminiModel') {
+            settings.geminiModel = value as string;
+          } else if (key === 'frameInterval') {
+            settings.frameInterval = Number(value);
+          }
         } catch {
           // Fallback to default if parse fails
         }
@@ -43,7 +54,9 @@ export class SettingsService implements OnModuleInit {
     return settings;
   }
 
-  async updateSettings(newSettings: Partial<AppSettings>): Promise<AppSettings> {
+  async updateSettings(
+    newSettings: Partial<AppSettings>,
+  ): Promise<AppSettings> {
     for (const [key, value] of Object.entries(newSettings)) {
       await this.settingsRepository.save({ key, value: JSON.stringify(value) });
     }

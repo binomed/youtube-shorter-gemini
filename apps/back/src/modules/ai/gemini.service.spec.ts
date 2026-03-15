@@ -5,6 +5,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { GeminiService } from './gemini.service';
 import { SettingsService } from '../settings/settings.service';
+import type { DetectedSegment } from '@youtube-shorter/shared';
 
 /**
  * GeminiService tests — All external calls to @google/generative-ai are mocked.
@@ -62,13 +63,6 @@ describe('GeminiService', () => {
     }),
   };
 
-  const mockLogger = {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-  };
-
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -84,6 +78,7 @@ describe('GeminiService', () => {
   });
 
   describe('detectShortsCandidates', () => {
+    /* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
     it('should parse a valid segments JSON response', async () => {
       mockGenerateContent.mockResolvedValue({
         response: {
@@ -92,17 +87,27 @@ describe('GeminiService', () => {
         },
       });
 
-      const result = await service.detectShortsCandidates(['frame1.jpg'], 60);
+      const result: DetectedSegment[] = await service.detectShortsCandidates(
+        ['frame1.jpg'],
+        60,
+      );
 
       expect(result).toHaveLength(1);
       expect(result[0].reason).toBe('Highlight Moment');
-      expect(mockGenerateContent).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({ text: expect.stringContaining('frames') }),
-          expect.objectContaining({ inlineData: { mimeType: 'image/jpeg', data: 'frame1.jpg' } })
-        ])
+      expect(mockGenerateContent).toHaveBeenCalled();
+      const calls = mockGenerateContent.mock.calls;
+      const firstCallParts = calls[0][0] as any[];
+      const hasPrompt = firstCallParts.some(
+        (p: any) =>
+          typeof p.text === 'string' && p.text.includes('Visual Frames'),
       );
+      const hasFrame = firstCallParts.some(
+        (p: any) => p.inlineData?.data === 'frame1.jpg',
+      );
+      expect(hasPrompt).toBe(true);
+      expect(hasFrame).toBe(true);
     });
+    /* eslint-enable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call */
 
     it('should include audio in the parts when provided', async () => {
       mockGenerateContent.mockResolvedValue({
@@ -113,7 +118,12 @@ describe('GeminiService', () => {
       });
 
       const audioBuffer = Buffer.from('fake-audio');
-      await service.detectShortsCandidates(['frame1.jpg'], 60, undefined, audioBuffer);
+      await service.detectShortsCandidates(
+        ['frame1.jpg'],
+        60,
+        undefined,
+        audioBuffer,
+      );
 
       expect(mockGenerateContent).toHaveBeenCalledWith(
         expect.arrayContaining([
@@ -121,9 +131,9 @@ describe('GeminiService', () => {
             inlineData: {
               mimeType: 'audio/mp3',
               data: audioBuffer.toString('base64'),
-            }
-          })
-        ])
+            },
+          }),
+        ]),
       );
     });
 
@@ -135,7 +145,10 @@ describe('GeminiService', () => {
         },
       });
 
-      const result = await service.detectShortsCandidates(['frame1.jpg'], 60);
+      const result: DetectedSegment[] = await service.detectShortsCandidates(
+        ['frame1.jpg'],
+        60,
+      );
       expect(result).toHaveLength(1);
     });
 
@@ -160,7 +173,10 @@ describe('GeminiService', () => {
           },
         });
 
-      const result = await service.detectShortsCandidates(['frame1.jpg'], 60);
+      const result: DetectedSegment[] = await service.detectShortsCandidates(
+        ['frame1.jpg'],
+        60,
+      );
 
       expect(result).toHaveLength(1);
       expect(mockGenerateContent).toHaveBeenCalledTimes(2);
