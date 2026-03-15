@@ -5,6 +5,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { VideoModule } from './modules/video/video.module';
@@ -52,6 +54,12 @@ import { SettingsModule } from './modules/settings/settings.module';
     ProcessingModule,
     PresetsModule,
     SettingsModule,
+
+    // Serve frontend static files
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'front', 'dist'),
+      exclude: ['/api/(.*)'],
+    }),
   ],
 
   controllers: [AppController],

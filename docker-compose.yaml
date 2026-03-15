@@ -1,0 +1,40 @@
+services:
+  youtube-shorter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: youtube-shorter:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      # Data & Uploads
+      - ./apps/back/data:/app/apps/back/data
+      - ./apps/back/uploads:/app/apps/back/uploads
+      - ./apps/back/logs:/app/apps/back/logs
+      # Advanced Model Caching: Persist Demucs AI models to avoid re-downloads (~1GB)
+      - htdemucs_models:/home/appuser/.cache/htdemucs
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    init: true
+    # Reliability: Resource limits to prevent Demucs from crashing the host
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/projects/config"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  htdemucs_models:
+    name: htdemucs_models
