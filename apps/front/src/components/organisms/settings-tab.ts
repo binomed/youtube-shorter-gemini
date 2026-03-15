@@ -188,12 +188,12 @@ export class SettingsTab extends LitElement {
   @state() private loading = true;
   @state() private saving = false;
 
-  async connectedCallback() {
+  async connectedCallback(): Promise<void> {
     super.connectedCallback();
     await this.fetchSettings();
   }
 
-  private async fetchSettings() {
+  private async fetchSettings(): Promise<void> {
     try {
       const response = await fetch('/api/settings');
       if (response.ok) {
@@ -242,7 +242,7 @@ export class SettingsTab extends LitElement {
             hoist
             value=${this.settings.geminiModel} 
             @sl-change=${(e: CustomEvent): void => {
-              const target = e.target as any;
+              const target = e.target as HTMLSelectElement;
               this.updateSetting('geminiModel', target.value);
             }}
           >
@@ -273,7 +273,7 @@ export class SettingsTab extends LitElement {
             max="10"
             .value=${this.settings.frameInterval.toString()} 
             @sl-input=${(e: CustomEvent): void => {
-              const target = e.target as any;
+              const target = e.target as HTMLInputElement;
               this.updateSetting('frameInterval', parseFloat(target.value));
             }}
           ></sl-input>

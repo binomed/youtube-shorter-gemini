@@ -1,37 +1,39 @@
 {
-    "name": "youtube-shorter-gemini",
-    "version": "1.0.0",
-    "description": "YouTube Shorter Gemini - Create Reels from YouTube videos using Gemini",
-    "private": true,
-    "packageManager": "npm@10.9.3",
-    "workspaces": [
-        "apps/*",
-        "packages/*"
-    ],
-    "scripts": {
-        "build": "turbo run build",
-        "dev": "turbo run dev",
-        "lint": "turbo run lint",
-        "test": "turbo run test",
-        "verify": "npm run build && npm run lint && npm run test",
-        "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
-        "clean:temp": "rimraf apps/back/uploads/stems apps/back/uploads/thumbnails",
-        "clean:dist": "rimraf apps/back/dist apps/front/dist packages/shared/dist",
-        "clean": "npm run clean:temp && npm run clean:dist"
-    },
-    "keywords": [
-        "youtube",
-        "shorts",
-        "gemini",
-        "ai",
-        "video"
-    ],
-    "author": "jef",
-    "license": "Apache-2.0",
-    "devDependencies": {
-        "turbo": "latest",
-        "prettier": "latest",
-        "eslint": "latest",
-        "rimraf": "latest"
-    }
+  "name": "youtube-shorter-gemini",
+  "version": "1.0.0",
+  "description": "YouTube Shorter Gemini - Create Reels from YouTube videos using Gemini",
+  "private": true,
+  "packageManager": "npm@10.9.3",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "verify": "npm run build && npm run lint && npm run test",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
+    "clean:temp": "rimraf apps/back/uploads/stems apps/back/uploads/thumbnails",
+    "clean:dist": "rimraf apps/back/dist apps/front/dist packages/shared/dist",
+    "clean": "npm run clean:temp && npm run clean:dist",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "youtube",
+    "shorts",
+    "gemini",
+    "ai",
+    "video"
+  ],
+  "author": "jef",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "eslint": "latest",
+    "husky": "^9.1.7",
+    "prettier": "latest",
+    "rimraf": "latest",
+    "turbo": "latest"
+  }
 }
