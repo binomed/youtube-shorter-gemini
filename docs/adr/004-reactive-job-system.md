@@ -1,38 +1,38 @@
-# ADR 004: Reactive Job System avec SQL-Queue
+# ADR 004: Reactive Job System with SQL-Queue
 
 **Date:** 2026-02-24
 **Status:** Accepted
-**Context:** Story 3.1.5 - Consolidation Architecturale
+**Context:** Story 3.1.5 - Architectural Consolidation
 
 ---
 
-## Contexte
+## Context
 
-Le projet utilise des traitements asynchrones lourds pour certaines fonctionnalités :
-- **Analyse IA** : extraction de frames FFmpeg + appel API Gemini (20-120 secondes)
-- **Séparation de pistes audio** : extraction audio FFmpeg + traitement Demucs ML (30-180 secondes)
+The project uses heavy asynchronous processing for certain features:
+- **AI Analysis**: FFmpeg frame extraction + Gemini API call (20-120 seconds)
+- **Audio Stem Separation**: FFmpeg audio extraction + Demucs ML processing (30-180 seconds)
 
-Avant cette ADR, ces tâches étaient gérées par des `Subject<T>` et des `Map<string, Subject>` stockés en mémoire dans les contrôleurs NestJS. Cette approche présentait plusieurs problèmes :
+Before this ADR, these tasks were managed by `Subject<T>` and `Map<string, Subject>` stored in-memory in NestJS controllers. This approach presented several issues:
 
-1. **Perte de données** : Si le serveur NestJS redémarre pendant un traitement, la progression est perdue et le client ne peut plus suivre l'état.
-2. **Scalabilité** : Impossible d'interroger l'état d'un job depuis plusieurs instances ou après reconnexion SSE.
-3. **Observabilité** : Aucune traçabilité persistante des erreurs ou de l'historique des traitements.
-
----
-
-## Options Considérées
-
-1. **Redis + Bull/BullMQ** : File d'attente avec Redis. Puissant et scalable. Trop lourd pour un usage local desktop sans serveur Redis externe.
-2. **In-memory Subject (existant)** : Simple mais sans persistance. Rejeté à cause des problèmes listés ci-dessus.
-3. **SQL-Queue Pattern (SQLite)** : Entité `Job` persistée dans la base SQLite existante. Légère, sans dépendance externe, parfaitement adaptée à l'usage local.
+1. **Data Loss**: If the NestJS server restarts during processing, progress is lost and the client can no longer track the state.
+2. **Scalability**: Impossible to query the state of a job from multiple instances or after SSE reconnection.
+3. **Observability**: No persistent traceability of errors or processing history.
 
 ---
 
-## Décision
+## Options Considered
 
-Nous adoptons le **pattern SQL-Queue** : une entité `Job` est créée en base de données SQLite (via TypeORM) au démarrage de chaque traitement asynchrone. La progression est mise à jour régulièrement dans cette entité.
+1. **Redis + Bull/BullMQ**: Queue with Redis. Powerful and scalable. Too heavy for local desktop use without an external Redis server.
+2. **In-memory Subject (existing)**: Simple but with no persistence. Rejected due to the issues listed above.
+3. **SQL-Queue Pattern (SQLite)**: `Job` entity persisted in the existing SQLite database. Lightweight, no external dependency, perfectly suited for local use.
 
-### Entité Job
+---
+
+## Decision
+
+We adopt the **SQL-Queue pattern**: a `Job` entity is created in the SQLite database (via TypeORM) at the start of each asynchronous processing task. Progress is updated regularly in this entity.
+
+### Job Entity
 
 ```typescript
 @Entity('jobs')
@@ -49,27 +49,27 @@ export class Job {
 }
 ```
 
-### Flux SSE
+### SSE Stream
 
-Le endpoint SSE (`/stems/progress`, `/analyze/progress`) interroge la DB en polling toutes les 500ms via un `interval` RxJS et émet les événements au client.
-
----
-
-## Conséquences
-
-### Positives
-- ✅ **Résilience** : L'état d'un job survit aux redémarrages du serveur.
-- ✅ **Historique** : Les jobs passés sont consultables pour du debugging.
-- ✅ **Testabilité** : `JobService` peut être mocké facilement dans les tests unitaires.
-- ✅ **Pas de dépendance externe** : SQLite est déjà utilisé dans le projet.
-
-### Négatives
-- ⚠️ **Polling DB** : Le polling toutes les 500ms sur la DB SQLite locale est acceptable pour un usage desktop, mais ne serait pas viable pour un usage concurrentiel élevé.
-- ⚠️ **Nettoyage** : Il faut prévoir une purge périodique des jobs terminés (ex: `CleanupService`).
+The SSE endpoint (`/stems/progress`, `/analyze/progress`) queries the DB using polling every 500ms via an RxJS `interval` and emits events to the client.
 
 ---
 
-## Références
+## Consequences
+
+### Positive
+- ✅ **Resilience**: Job state survives server restarts.
+- ✅ **History**: Past jobs can be queried for debugging.
+- ✅ **Testability**: `JobService` can be easily mocked in unit tests.
+- ✅ **No external dependency**: SQLite is already used in the project.
+
+### Negative
+- ⚠️ **DB Polling**: Polling every 500ms on the local SQLite DB is acceptable for desktop use, but would not be viable for high concurrency.
+- ⚠️ **Cleanup**: Periodic purging of completed jobs must be planned (e.g., `CleanupService`).
+
+---
+
+## References
 
 - [Workers & Job Queues Skill](.agent/skills/workers_job_queues/SKILL.md)
 - [Story 3.1.5](_bmad-output/implementation-artifacts/3-1-5-consolidation-architecturale.md)

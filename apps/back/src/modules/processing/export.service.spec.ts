@@ -109,7 +109,7 @@ describe('ExportService', () => {
     it('REGRESSION: should NOT duplicate subtitles that straddle a camera-pan boundary', () => {
       // Original segment: [2s → 10s] — no layout sub-splitting in this test
       // Subtitle spans [3s → 7s] — straddles the hypothetical pan boundary at 5s
-      const subs = [makeSub('s1', 3, 7, 'aider à découvrir')];
+      const subs = [makeSub('s1', 3, 7, 'help to discover')];
       const segments = [{ startTime: 2, endTime: 10 }];
 
       const result = service.adjustSubtitleTimestamps(subs, segments);
@@ -118,7 +118,7 @@ describe('ExportService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].startTime).toBeCloseTo(1); // 3 - 2
       expect(result[0].endTime).toBeCloseTo(5); // 7 - 2
-      expect(result[0].text).toBe('aider à découvrir');
+      expect(result[0].text).toBe('help to discover');
     });
 
     it('should remap word timings proportionally', () => {

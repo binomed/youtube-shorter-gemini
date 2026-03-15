@@ -66,8 +66,7 @@ export class AnalysisService {
     private readonly stemService: StemService,
     private readonly jobProgressService: JobProgressService,
     private readonly settingsService: SettingsService,
-  ) { }
-
+  ) {}
 
   /**
    * Run full analysis pipeline for a project.
@@ -171,7 +170,7 @@ export class AnalysisService {
           }
         } finally {
           // Cleanup audio file immediately after transcription attempt
-          await fs.unlink(audioPath).catch(() => { });
+          await fs.unlink(audioPath).catch(() => {});
         }
       } catch (error) {
         this.logger.warn(`Transcription failed: ${(error as Error).message}`);
@@ -190,11 +189,18 @@ export class AnalysisService {
         // Read audio buffer if available for multimodal analysis
         let audioBuffer: Buffer | undefined;
         try {
-          if (await fs.stat(audioPath).then(() => true).catch(() => false)) {
+          if (
+            await fs
+              .stat(audioPath)
+              .then(() => true)
+              .catch(() => false)
+          ) {
             audioBuffer = await fs.readFile(audioPath);
           }
         } catch (e) {
-          this.logger.warn(`Could not read audio for analysis: ${(e as Error).message}`);
+          this.logger.warn(
+            `Could not read audio for analysis: ${(e as Error).message}`,
+          );
         }
 
         detected = await this.geminiService.detectShortsCandidates(
@@ -324,7 +330,7 @@ export class AnalysisService {
       }
     } finally {
       // Cleanup temp directory
-      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => { });
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
     }
 
     this.logger.log(`Extracted ${frames.length} frames from video`);

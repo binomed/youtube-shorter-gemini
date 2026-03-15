@@ -12,7 +12,7 @@ import { Job, JobType } from '../../entities/job.entity';
  * Pattern: SQL-Queue — persists job state to SQLite so progress is
  * never lost on server restart (replaces in-memory Subject<T> approach).
  *
- * @see ADR-004: Reactive Job System avec SQL-Queue
+ * @see ADR-004: Reactive Job System with SQL-Queue
  * @see Story 3.1.5 Task 2
  */
 @Injectable()

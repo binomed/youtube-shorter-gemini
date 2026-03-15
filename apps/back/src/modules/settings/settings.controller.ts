@@ -12,7 +12,9 @@ export class SettingsController {
   }
 
   @Post()
-  async updateSettings(@Body() settings: Partial<AppSettings>): Promise<AppSettings> {
+  async updateSettings(
+    @Body() settings: Partial<AppSettings>,
+  ): Promise<AppSettings> {
     return this.settingsService.updateSettings(settings);
   }
 }

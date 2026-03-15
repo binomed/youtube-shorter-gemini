@@ -13,72 +13,72 @@ inputDocuments: ['_bmad-output/planning-artifacts/prd.md', '_bmad-output/plannin
 ## Executive Summary
 
 ### Project Vision
-Permettre à un utilisateur non-technique de transformer une vidéo YouTube longue en plusieurs Shorts verticaux de haute qualité via un processus automatisé "local-first", avec une interface axée sur la simplicité radicale et l'édition textuelle directe. Chaque Short peut être composé d'un ou plusieurs segments non-contigus pour un montage percutant.
+Enable a non-technical user to transform a long YouTube video into multiple high-quality vertical Shorts via an automated "local-first" process, with an interface focused on radical simplicity and direct text editing. Each Short can be composed of one or several non-contiguous segments for punchy editing.
 
 ### Target Users
-Créateurs de contenu et communicants cherchant à maximiser leur présence sur les réseaux sociaux (TikTok, Reels, Shorts) sans la courbe d'apprentissage des logiciels de montage professionnels.
+Content creators and communicators looking to maximize their social media presence (TikTok, Reels, Shorts) without the learning curve of professional editing software.
 
 ---
 
 ## Project Understanding & Discovery
 
 ### Core Interaction Model: The Vertical Reel
-L'expérience centrale adopte la **Piste A (Vertical Reel)** :
-- **Navigation :** L'utilisateur défile verticalement pour passer d'un Short à l'autre.
-- **Gestion de Liste :** Par défaut, tous les Shorts proposés sont inclus dans l'export. L'utilisateur n'intervient que pour **Supprimer** un Short dont il ne veut pas.
-- **Édition des Sous-titres :** Clic direct sur le texte dans la vidéo.
+The core experience adopts **Track A (Vertical Reel)**:
+- **Navigation:** User scrolls vertically to pass from one Short to another.
+- **List Management:** By default, all suggested Shorts are included in the export. The user only intervenes to **Delete** a Short they don't want.
+- **Subtitle Editing:** Direct click on the text in the video.
 
 ---
 
 ## Core User Experience
 
 ### Defining Experience: The Creative Supervisor
-L'utilisateur valide le travail de l'IA par "exception" :
-- **Navigation par Vignettes :** Pour zapper rapidement.
-- **Zéro Timeline Classique :** Remplacée par une gestion de **Segments** au sein d'un même Short via un modèle de "Capture & Ajustement".
+The user validates the AI's work by "exception":
+- **Thumbnail Navigation:** To skip quickly.
+- **Zero Classic Timeline:** Replaced by **Segments** management within the same Short via a "Capture & Adjustment" model.
 
 ---
 
 ## Core Interaction Mechanics (V1)
 
 ### 2.1 Mechanics: Fine-Tuning the Magic
-- **Recadrage Dynamique (Drag-to-Crop) :** Recentrage fluide par glissement.
-- **Modèle de Capture :** On capture un segment en cliquant sur un bouton "Garder ce moment" ou via raccourcis clavier. La timeline ne sert qu'à l'ajustement.
-- **Édition de Texte Contextuelle (Floating Interaction) :** Bulle d'édition flottante au-dessus du texte.
+- **Dynamic Recropping (Drag-to-Crop):** Smooth recentering by dragging.
+- **Capture Model:** A segment is captured by clicking a "Keep this moment" button or via keyboard shortcuts. The timeline is only used for adjustment.
+- **Contextual Text Editing (Floating Interaction):** Floating editing bubble above the text.
 
 ---
 
 ## User Journey Flows
 
-### 2. Parcours "Superviseur" (Revue & Édition Rapide)
-L'utilisateur passe en revue les propositions. S'il n'aime pas une proposition, il la supprime. S'il l'aime, il passe à la suivante ou l'affine.
+### 2. "Supervisor" Journey (Review & Fast Editing)
+The user reviews the suggestions. If they don't like a suggestion, they delete it. If they like it, they move to the next one or refine it.
 
 ```mermaid
 graph TD
-    A[Navigation Verticale / Vignettes] --> B[Visionnage Short]
-    B --> C{Action ?}
-    C -- Pas besoin --> D[Bouton Supprimer 🗑️]
-    D --> E[Short retiré de la file]
-    C -- Retouche Texte --> F[Clic sur mot]
-    F --> G[Bulle Flottante]
-    C -- Retouche Style --> H[Panneau Style]
+    A[Vertical Navigation / Thumbnails] --> B[Watch Short]
+    B --> C{Action?}
+    C -- Not needed --> D[Delete Button 🗑️]
+    D --> E[Short removed from queue]
+    C -- Edit Text --> F[Click on word]
+    F --> G[Floating Bubble]
+    C -- Edit Style --> H[Style Panel]
     G --> I[Auto-Save]
     H --> I
-    I --> J[Suivant]
+    I --> J[Next]
 ```
 
-### 3. Parcours "Perfectionniste" (Multi-Segments)
-Pour les Shorts nécessitant de combiner plusieurs moments de la vidéo source via le mode "Capture".
+### 3. "Perfectionist" Journey (Multi-Segment)
+For Shorts requiring combining several moments from the source video via the "Capture" mode.
 
 ```mermaid
 graph TD
-    A[Short sélectionné] --> B{Structure ?}
-    B -- Ajuster Segment --> C[Micro-Timeline par segment]
-    B -- Ajouter Segment --> D[Lecture source + Bouton 'Capturer']
-    D --> E[Segment ajouté au Short]
-    C --> F[Rendu Jump-cut auto]
+    A[Short selected] --> B{Structure?}
+    B -- Adjust Segment --> C[Micro-Timeline per segment]
+    B -- Add Segment --> D[Source playback + 'Capture' Button]
+    D --> E[Segment added to Short]
+    C --> F[Auto Jump-cut rendering]
     E --> F
-    F --> G[Export global prêt]
+    F --> G[Global export ready]
 ```
 
 ---
@@ -88,46 +88,46 @@ graph TD
 ### Custom Components (Lit)
 
 #### 1. Reel Scroller
-- **Loop :** Non.
-- **Chargement :** Préchargement total par défaut.
+- **Loop:** No.
+- **Loading:** Full preloading by default.
 
 #### 2. Short Previewer
-Gère le rendu vidéo incluant la concaténation visuelle des segments (jump-cuts) et les sous-titres synchronisés sur l'ensemble.
+Handles video rendering including visual concatenation of segments (jump-cuts) and synchronized subtitles across the whole set.
 
 #### 3. Precision Multi-Timeline (Zoomable)
-Affiche le ruban de la vidéo source. Se focalise sur les segments capturés.
-- **Refinement Intelligent :** Les poignées de début/fin s'aimantent aux **limites des mots** détectés par la transcription pour éviter les coupures audio abruptes.
+Displays the source video ribbon. Focuses on captured segments.
+- **Intelligent Refinement:** Start/end handles snap to **word boundaries** detected by transcription to avoid abrupt audio cuts.
 
 ---
 
 ## UX Consistency Patterns
 
-### 1. Hiérarchie des Actions
-- **Action de Suppression (Rouge/Discret) :** Supprimer un Short de la session.
-- **Action de Retouche (Contextuelle) :** Apparaît au survol ou clic (Bordures indigo, bulles).
-- **Action d'Export (Primaire - Indigo) :** Bouton global "Exporter x Shorts" toujours visible.
+### 1. Actions Hierarchy
+- **Delete Action (Red/Discreet):** Delete a Short from the session.
+- **Edit Action (Contextual):** Appears on hover or click (Indigo borders, bubbles).
+- **Export Action (Primary - Indigo):** Global button "Export x Shorts" always visible.
 
-### 2. Feedback d'Ajustement
-Tout changement (Crop, Texte, Trim) est **sauvegardé instantanément** (Auto-save).
+### 2. Adjustment Feedback
+Any change (Crop, Text, Trim) is **saved instantly** (Auto-save).
 
 ---
 
 ## Responsive Design & Accessibility
 
-### 1. Stratégie Responsive (Desktop-first)
-L'application est optimisée pour une utilisation sur ordinateur (puissance de calcul locale requise).
-- **Layout Studio** : Utilisation de panneaux latéraux persistants pour les vignettes et les styles.
-- **Adaptive Sidebars** : Passage en tiroirs (`sl-drawer`) sur les résolutions < 1200px.
+### 1. Responsive Strategy (Desktop-first)
+The application is optimized for use on a computer (local processing power required).
+- **Studio Layout**: Use persistent side panels for thumbnails and styles.
+- **Adaptive Sidebars**: Switch to drawers (`sl-drawer`) on resolutions < 1200px.
 - **Tactile** : Non prioritaire.
 
-### 2. Stratégie d'Accessibilité (Pro Keyboard Shortcuts)
-Intégration des standards logiciels de montage (Premiere, Resolve) :
-- **Lecture** : `Espace` (Play/Pause), `K` (Pause).
-- **Navigation Fine** : `J` (Reculer/Ralentir), `L` (Avancer/Accélérer), `Flèches` (Frame by frame).
-- **Édition** : `I` (Mark In / Début segment), `O` (Mark Out / Fin segment).
-- **Gestion** : `Suppr/Backspace` (Supprimer le Short sélectionné).
-- **Inclusion** : Indice de contraste WCAG 2.1 AA pour l'interface et ombres portées obligatoires sur les sous-titres dynamiques.
+### 2. Accessibility Strategy (Pro Keyboard Shortcuts)
+Integration of video editing software standards (Premiere, Resolve):
+- **Playback**: `Space` (Play/Pause), `K` (Pause).
+- **Fine Navigation**: `J` (Reverse/Slow), `L` (Forward/Speed up), `Arrows` (Frame by frame).
+- **Editing**: `I` (Mark In / Segment start), `O` (Mark Out / Segment end).
+- **Management**: `Del/Backspace` (Delete selected Short).
+- **Inclusion**: WCAG 2.1 AA contrast index for the interface and mandatory drop shadows on dynamic subtitles.
 
 ### 3. Testing Strategy
-- Tests automatisés via **Axe-core**.
-- Validation manuelle de la fluidité des raccourcis clavier "No-Mouse workflow".
+- Automated tests via **Axe-core**.
+- Manual validation of keyboard shortcut fluidity ("No-Mouse workflow").

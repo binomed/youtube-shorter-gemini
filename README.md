@@ -91,7 +91,7 @@ npm run test:cov --workspace=back
 npm run test:coverage --workspace=front
 ```
 
-Pour plus de détails, voir [CONTRIBUTING.md](CONTRIBUTING.md#-running-tests) et [ADR-002](docs/adr/002-testing-strategy.md).
+For more details, see [CONTRIBUTING.md](CONTRIBUTING.md#-running-tests) and [ADR-002](docs/adr/002-testing-strategy.md).
 
 ## 📜 Licence
 Apache License 2.0

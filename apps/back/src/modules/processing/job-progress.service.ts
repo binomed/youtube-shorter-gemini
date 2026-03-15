@@ -7,50 +7,50 @@ import { JobService } from './job.service';
 import { JobType } from '../../entities/job.entity';
 
 /**
- * JobProgressService — Unifie la gestion de la progression réactive (SSE)
- * et la persistance (JobService / SQLite).
+ * JobProgressService — Unifies management of reactive progress (SSE)
+ * and persistence (JobService / SQLite).
  *
- * Mutualisation demandée par l'Audit Backend :
- * Remplace les multi-Maps de Subjects éparpillées dans les contrôleurs.
+ * Consolidates multi-Maps of Subjects previously scattered in controllers,
+ * as requested by the Backend Audit.
  */
 @Injectable()
 export class JobProgressService {
   private readonly logger = new Logger(JobProgressService.name);
 
-  // Map de jobId -> Subject pour les flux SSE
+  // Map of jobId -> Subject for SSE streams
   private subjects = new Map<string, ReplaySubject<any>>();
 
   constructor(private readonly jobService: JobService) {}
 
   /**
-   * Récupère ou crée un flux de progression pour un Job spécifique.
-   * Sera utilisé par les endpoints @Sse().
+   * Retrieves or creates a progress stream for a specific Job.
+   * Used by @Sse() endpoints.
    */
   getStream<T>(jobId: string): Observable<T> {
     if (!this.subjects.has(jobId)) {
       this.subjects.set(jobId, new ReplaySubject<T>(1));
-      this.logger.debug(`Flux SSE créé pour le job: ${jobId}`);
+      this.logger.debug(`SSE stream created for job: ${jobId}`);
     }
     return (this.subjects.get(jobId) as ReplaySubject<T>).asObservable();
   }
 
   /**
-   * Émet une mise à jour de progression.
-   * Met à jour la base de données (JobService) ET pousse l'événement dans le flux SSE.
+   * Emits a progress update.
+   * Updates the database (JobService) AND pushes the event into the SSE stream.
    */
   async emit<T extends { progress: number; message?: string }>(
     jobId: string,
     event: T,
   ): Promise<void> {
-    // 1. Persistance SQL
+    // 1. SQL Persistence
     await this.jobService.updateProgress(jobId, event.progress, event.message);
 
-    // 2. Diffusion Réactive (SSE)
+    // 2. Reactive Broadcast (SSE)
     const subject = this.subjects.get(jobId);
     if (subject) {
       subject.next(event);
 
-      // Si terminé ou en erreur, on ferme le flux après un léger délai
+      // If completed or in error, close the stream after a slight delay
       const eventData = event as Record<string, unknown>;
       const isTerminal =
         eventData.phase === 'complete' ||
@@ -63,7 +63,7 @@ export class JobProgressService {
   }
 
   /**
-   * Initialise un Job et retourne son ID.
+   * Initializes a Job and returns its ID.
    */
   async startJob(params: {
     type: JobType;
@@ -75,7 +75,7 @@ export class JobProgressService {
   }
 
   /**
-   * Marque un job comme réussi.
+   * Marks a job as completed successfully.
    */
   async complete(jobId: string): Promise<void> {
     await this.jobService.complete(jobId);
@@ -83,7 +83,7 @@ export class JobProgressService {
   }
 
   /**
-   * Marque un job comme échoué et notifie le flux.
+   * Marks a job as failed and notifies the stream.
    */
   async fail(jobId: string, error: string): Promise<void> {
     await this.jobService.fail(jobId, error);
@@ -109,7 +109,7 @@ export class JobProgressService {
       setTimeout(() => {
         subject.complete();
         this.subjects.delete(jobId);
-        this.logger.debug(`Flux SSE fermé et nettoyé pour le job: ${jobId}`);
+        this.logger.debug(`SSE stream closed and cleaned up for job: ${jobId}`);
       }, 1000);
     }
   }

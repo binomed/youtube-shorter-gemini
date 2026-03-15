@@ -22,7 +22,7 @@ export type JobStatus = 'pending' | 'running' | 'completed' | 'failed';
  * Persists long-running async tasks (Demucs, FFmpeg) to SQLite,
  * enabling resilient progress tracking that survives server restarts.
  *
- * @see ADR-004: Reactive Job System avec SQL-Queue
+ * @see ADR-004: Reactive Job System with SQL-Queue
  * @see Story 3.1.5 Task 2
  */
 @Entity('jobs')

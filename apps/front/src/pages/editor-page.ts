@@ -198,7 +198,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
     await this.saveSegments([segment]);
 
-    // Redémarrer la vidéo au nouveau point "In" pour vérification
+    // Restart video at new "In" point for verification
     const player = this.shadowRoot?.querySelector('yts-short-player') as HTMLElement & { seekTo: (time: number) => void };
     if (player && player.seekTo) {
       player.seekTo(segment.startTime);
@@ -209,7 +209,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     const segment = e.detail.segment;
     await this.saveSegments([segment]);
 
-    // Redémarrer la vidéo au début du segment
+    // Restart video at the beginning of the segment
     const player = this.shadowRoot?.querySelector('yts-short-player') as HTMLElement & { seekTo: (time: number) => void };
     if (player && player.seekTo) {
       player.seekTo(segment.startTime);

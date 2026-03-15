@@ -21,113 +21,104 @@ editHistory:
 ## Executive Summary
 
 **Vision**
-`youtube-shorter-gemini` est un outil de productivité simplifiant radicalement la création de YouTube Shorts à partir de vidéos longues. L'outil automatise la détection et l'assemblage de moments clés (multi-segments/jump-cuts), la séparation audio et le sous-titrage dynamique, permettant aux créateurs de se concentrer sur le contenu plutôt que sur le montage technique.
+`youtube-shorter-gemini` is a productivity tool that radically simplifies the creation of YouTube Shorts from long videos. The tool automates the detection and assembly of key moments (multi-segments/jump-cuts), audio separation, and dynamic subtitling, allowing creators to focus on content rather than technical editing.
 
-**Differentiateur Clé**
-Fusion de l'analyse sémantique multimodale (Gemini) avec un traitement multimédia local (découpage/rendu) pour garantir confidentialité, réactivité et fluidité sonore (stem separation).
+**Key Differentiator**
+Fusion of multimodal semantic analysis (Gemini) with local multimedia processing (segmenting/rendering) to ensure privacy, reactivity, and audio fluidity (stem separation).
 
-**Cible**
-Créateurs de contenu indépendants (Alex) cherchant à maximiser leur présence multi-plateforme avec un effort minimal.
+**Target**
+Independent content creators (Alex) looking to maximize their multi-platform presence with minimal effort.
 
 ## Success Criteria
 
 ### User Success
-*   **Interaction Manuelle :** < 5 minutes pour produire et affiner 3-5 Shorts (potentiellement multi-segments).
-*   **Qualité IA :** >= 80% des moments clés suggérés sont pertinents et intégrés nativement dans les Shorts.
+*   **Manual Interaction:** < 5 minutes to produce and refine 3-5 Shorts (potentially multi-segment).
+*   **AI Quality:** >= 80% of suggested key moments are relevant and natively integrated into the Shorts.
 
 ### Business Success
-*   **Productivité :** Réduction de 80% du temps de production de Shorts par rapport à un montage manuel traditionnel.
-*   **Engagement :** 100% des vidéos exportées incluent des sous-titres dynamiques optimisés pour la rétention.
+*   **Productivity:** 80% reduction in Shorts production time compared to traditional manual editing.
+*   **Engagement:** 100% of exported videos include dynamic subtitles optimized for retention.
 
 ### Technical Success
-*   **Précision du Timing :** Zéro coupure au milieu d'un mot ou d'une phrase clé grâce au recalage transcription/audio.
-*   **Performance :** Rendu d'un Short de 60s en < 60s sur machine locale.
-*   **Audio :** Transitions fluides (fondus ou stems) sans artefacts perceptibles lors des coupes.
+*   **Timing Precision:** Zero cuts in the middle of a word or key phrase thanks to transcription/audio realignment.
+*   **Performance:** Rendering of a 60s Short in < 60s on a local machine.
+*   **Audio:** Smooth transitions (fades or stems) without perceptible artifacts during cuts.
 
 ## User Journeys
 
-### Alex - Le Créateur Efficace (Success Path)
-Alex importe une vidéo de 15 minutes. L'IA analyse le contenu, sépare la musique de la voix, et propose 3 segments percutants. Alex valide, télécharge et publie. Temps total investi : minimal.
+### Alex - The Efficient Creator (Success Path)
+Alex imports a 15-minute video. The AI analyzes the content, separates music from voice, and suggests 3 punchy segments. Alex validates, downloads, and publishes. Total time invested: minimal.
 
-### Alex - Le Perfectionniste (Adjustment)
-L'IA détecte plusieurs segments d'humour séparés par du "dead air". Alex utilise l'interface pour assembler ces moments non-contigus en un unique Short dynamique (jump-cut), ajuste finement les timestamps de chaque segment et corrige une faute dans les sous-titres.
+### Alex - The Perfectionist (Adjustment)
+The AI detects several humor segments separated by "dead air". Alex uses the interface to assemble these non-contiguous moments into a single dynamic Short (jump-cut), fine-tunes the timestamps for each segment, and fixes a typo in the subtitles.
 
-### Alex - Le Créateur Guidé (Fallback Path)
-Si l'IA ne détecte aucun segment probant, l'outil fournit un "Guide de survie" interactif avec des conseils de montage manuel (ex: tutoriels pour CapCut) et des astuces de tournage pour faciliter l'analyse future.
+### Alex - The Guided Creator (Fallback Path)
+If the AI fails to detect any significant segments, the tool provides an interactive "Survival Guide" with manual editing tips (e.g., tutorials for CapCut) and filming advice to facilitate future analysis.
 
 ## Product Scope & Roadmap
 
-### Phase 1: MVP (Focus Machine Locale)
-*   **Ingestion :** Upload de fichiers locaux (MP4/MOV).
-*   **IA Detection :** Analyse sémantique via Gemini Cloud pour identifier des segments clés.
-*   **Structure Short :** Un Short peut regrouper plusieurs segments non-contigus (jump-cuts).
-*   **Timing Fin :** Recalage automatique des coupes pour éviter les mots tronqués.
-*   **Traitement Local :** Découpage, concaténation et rendu effectués sur la machine utilisateur.
-*   **Édition :** Correction manuelle des sous-titres, du cadrage et du timing.
-*   **Export :** Vidéo verticale (9:16) avec sous-titres incrustés.
+### Phase 1: MVP (Focus Local Machine)
+*   **Ingestion:** Local file upload (MP4/MOV).
+*   **AI Detection:** Semantic analysis via Gemini Cloud to identify key segments.
+*   **Short Structure:** A Short can group multiple non-contiguous segments (jump-cuts).
+*   **Fine Timing:** Automatic cut realignment to avoid truncated words.
+*   **Local Processing:** Segmenting, concatenation, and rendering performed on the user's machine.
+*   **Editing:** Manual correction of subtitles, framing, and timing.
+*   **Export:** Vertical video (9:16) with burned-in subtitles.
 
-### Phase 2: Growth (IA Hybride & Connectivité)
-*   **LLM Hybride :** Choix entre LLM distant (Gemini Cloud) ou local (Chrome built-in APIs).
-*   **Sources :** Import direct via URL YouTube.
-*   **Styles :** Bibliothèque de templates visuels pour les sous-titres.
-
-### Phase 3: Expansion (Distribution & Automatisation)
-*   **Publication :** Exports directs vers APIs YouTube/TikTok/Instagram.
-*   **Visuels+ :** Ajout automatique de B-Rolls illustratifs par IA.
-*   **International :** Traduction multilingue (audio/texte).
-
+### Phase 2: Growth (Hybrid AI & Connectivity)
+*   **Hybrid LLM:** Choice between remote LLM (Gemini Cloud) or local (Chrome built-in APIs).
+*   **Sources:** Direct import via YouTube URL.
+*   **Styles:** Visual template library for subtitles.
+### Phase 3: Expansion (Distribution & Automation)
+*   **Publishing:** Direct exports to YouTube/TikTok/Instagram APIs.
+*   **Visuals+:** Automatic addition of illustrative B-Rolls by AI.
+*   **International:** Multilingual translation (audio/text).
 ## Domain-Specific & Innovation Requirements
 
 ### Privacy & Data Handling
-*   **Zero-Persistence :** Suppression immédiate des fichiers sources et temporaires après téléchargement ou fin de session.
-*   **Consentement IA :** Système d'Opt-in explicite avant tout stockage de corrections utilisateur pour l'entraînement futur.
+*   **Zero-Persistence:** Immediate deletion of source and temporary files after download or session end.
+*   **AI Consent:** Explicit Opt-in system before any storage of user corrections for future training.
 
 ### Innovative Patterns
-*   **Audio Stem Separation :** Isolation des pistes voix/musique en amont pour garantir des transitions sonores parfaites, même lors de jump-cuts entre segments.
-*   **Workflow "Zéro Timeline" :** Édition pilotée par le texte et les segments plutôt que par une timeline complexe, même pour des Shorts multi-segments.
-
+*   **Audio Stem Separation:** Voice/music track isolation upfront to ensure perfect audio transitions, even during jump-cuts between segments.
+*   **"Zero Timeline" Workflow:** Editing driven by text and segments rather than a complex timeline, even for multi-segment Shorts.
 ## Project-Type Specific Requirements (Web App SPA)
 
-*   **Frontend :** Architecture SPA basée sur **Angular** ou **Lit Element**.
-*   **Interactivité :** Feedback temps réel (WebSockets/SSE) pour les barres de progression d'analyse et de rendu.
-*   **Lecteur :** Visualisation native au format vertical **9:16**.
-*   **Navigateurs :** Optimisation prioritaire pour Chrome (exploitation des APIs expertes type Gemini Nano).
+*   **Frontend:** SPA architecture based on **Lit**.
+*   **Interactivity:** Real-time feedback (SSE) for analysis and rendering progress bars.
+*   **Player:** Native visualization in vertical **9:16** format.
+*   **Browsers:** Priority optimization for Chrome (leveraging expert APIs like Gemini Nano).
 
 ## Functional Requirements (Capability Contract)
 
-### 1. Gestion des Médias & Projets
-- **FR-01 :** Importation de fichiers vidéo locaux (MP4, MOV).
-- **FR-02 :** Organisation et nommage des projets de Shorts.
-- **FR-03 :** Information utilisateur obligatoire sur la politique de suppression des données à l'import.
-
-### 2. Analyse & Découpage IA
-- **FR-04 :** Détection et suggestion de segments viraux via analyse multimodale (Gemini). L'utilisateur peut capturer manuellement des segments via un mécanisme **In-Out** pendant la lecture.
-- **FR-05 :** Recalage précis des timestamps (timing fin) basé sur l'audio et le texte pour éviter les mots tronqués.
-- **FR-06 :** Ré-analyse manuelle d'un segment ou d'une zone temporelle sur demande utilisateur.
-
-### 3. Traitement Audio & Sous-titres
-- **FR-07 :** Séparation des pistes voix/musique (Stems).
-- **FR-08 :** Application de fondus audio (Crossfades) automatiques.
-- **FR-09 :** Visualisation et édition manuelle de la transcription/sous-titres.
-
-### 4. Rendu & Guidance
-- **FR-10 :** Rendu vidéo local gérant la concaténation de segments multiples. Supporte le **feedback immédiat** (visualisation du jump-cut dès la fin de la capture) et les transitions par défaut en **jump-cut** avec un mécanisme de **micro-effets** ajustables par cut.
-- **FR-11 :** Suivi de progression en temps réel (analyse et export).
-- **FR-12 :** Affichage de tutoriels contextuels en cas d'échec de la détection automatique.
-- **FR-13 :** Gestion du consentement pour l'apprentissage IA.
-- **FR-14 :** Composition de Shorts à partir d'un nombre illimité de séquences non-contigues (capture In-Out) originaires de la vidéo source.
-
+### 1. Media & Project Management
+- **FR-01:** Import of local video files (MP4, MOV).
+- **FR-02:** Organization and naming of Shorts projects.
+- **FR-03:** Mandatory user information on the data deletion policy upon import.
+### 2. AI Analysis & Segmenting
+- **FR-04:** Detection and suggestion of viral segments via multimodal analysis (Gemini). The user can manually capture segments via an **In-Out** mechanism during playback.
+- **FR-05:** Precise timestamp adjustment (fine timing) based on audio and text to avoid truncated words.
+- **FR-06:** Manual re-analysis of a segment or time zone upon user request.
+### 3. Audio Processing & Subtitles
+- **FR-07:** Voice/music track separation (Stems).
+- **FR-08:** Automatic audio crossfades application.
+- **FR-09:** Visualization and manual editing of transcription/subtitles.
+### 4. Rendering & Guidance
+- **FR-10:** Local video rendering handling multi-segment concatenation. Supports **immediate feedback** (visualizing the jump-cut as soon as core capture ends) and default transitions in **jump-cut** with a **micro-effects** mechanism adjustable per cut.
+- **FR-11:** Real-time progress tracking (analysis and export).
+- **FR-12:** Contextual tutorials display in case of automatic detection failure.
+- **FR-13:** Consent management for AI learning.
+- **FR-14:** Short composition from an unlimited number of non-contiguous sequences (In-Out capture) originating from the source video.
 ## Non-Functional Requirements (Quality Attributes)
 
 ### Performance
-- **Rendu :** Segment de 60s produit en < 60s (machine locale).
-- **UI Latency :** < 200ms pour les interactions sémantiques.
-- **Analyse :** < 30s d'attente initiale pour une vidéo source de 10 minutes.
-
-### Sécurité & Accessibilité
-- **Isolation :** Étanchéité totale des fichiers temporaires entre les sessions.
-- **Accessibilité :** Standard **WCAG 2.1 AA** (navigation clavier, contrastes, lecteurs d'écran).
-
+- **Rendering:** 60s segment produced in < 60s (local machine).
+- **UI Latency:** < 200ms for semantic interactions.
+- **Analysis:** < 30s initial wait for a 10-minute source video.
+### Security & Accessibility
+- **Isolation:** Total isolation of temporary files between sessions.
+- **Accessibility:** **WCAG 2.1 AA** standard (keyboard navigation, contrasts, screen readers).
 ### UX Design
-- **Minimalisme :** Interface focalisée sur le contenu média (zero-distraction).
-- **Efficacité :** Utilisation de raccourcis clavier pour les tâches à haute fréquence.
+- **Minimalism:** Interface focused on media content (zero-distraction).
+- **Efficiency:** Use of keyboard shortcuts for high-frequency tasks.

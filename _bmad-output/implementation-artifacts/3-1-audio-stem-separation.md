@@ -56,7 +56,7 @@ So that transitions and cuts don't sound abrupt.
 ### References
 
 - [Source: epics.md#Story 3.1: Audio Stem Separation]
-- [Source: architecture.md#Mécanisme de SQL-Queue (Réactif)]
+- [Source: architecture.md#SQL-Queue Mechanism (Reactive)]
 - [Source: architecture.md#Media Boundary (FFmpeg)]
 
 ## Dev Agent Record

@@ -68,8 +68,8 @@ so that I have full control over the narrative flow.
 
 ### References
 
-- [Source: _bmad-output/planning-artifacts/prd.md#Functional Requirements] (FR14) - Composition de Shorts à partir d'un nombre illimité de séquences non-contigues (capture In-Out).
-- [Source: _bmad-output/planning-artifacts/ux-design-specification.md#2.1 Mechanics] - Modèle de Capture: "On capture un segment en cliquant sur un bouton ou via raccourcis clavier."
+- [Source: _bmad-output/planning-artifacts/prd.md#Functional Requirements] (FR14) - Short composition from an unlimited number of non-contiguous sequences (In-Out capture).
+- [Source: _bmad-output/planning-artifacts/ux-design-specification.md#2.1 Mechanics] - Capture Model: "A segment is captured by clicking a button or via keyboard shortcuts."
 - [Source: _bmad-output/planning-artifacts/architecture.md#Frontend Architecture] - State Management: Lit Signals natif.
 
 ## Dev Agent Record

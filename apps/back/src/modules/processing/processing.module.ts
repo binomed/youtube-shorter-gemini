@@ -14,17 +14,17 @@ import { ExportService } from './export.service';
 import { ExportController } from './export.controller';
 
 /**
- * ProcessingModule — Domaine: Traitement média local (FFmpeg + Demucs).
+ * ProcessingModule — Domain: Local media processing (FFmpeg + Demucs).
  *
- * Responsabilités (SRP) :
- * - Séparation audio via Demucs (appel CLI local)
- * - Orchestration FFmpeg pour les traitements bas-niveau
- * - Gestion des Jobs persistants (SQL-Queue, ADR-004)
- * - Exportation des Shorts finaux avec sous-titres incrustés
+ * Responsibilities (SRP):
+ * - Audio separation via Demucs (local CLI call)
+ * - FFmpeg orchestration for low-level processing
+ * - Persistent Job management (SQL-Queue, ADR-004)
+ * - Export of final Shorts with hardcoded subtitles
  *
- * Ne pas inclure ici : GeminiService (API externe, appartient à AnalysisModule)
+ * Do not include here: GeminiService (external API, belongs to AnalysisModule)
  *
- * @see audit_report.md Section 1 — Audit Architecture (SRP)
+ * @see audit_report.md Section 1 — Architecture Audit (SRP)
  * @see ADR-003 (Demucs), ADR-004 (SQL-Queue)
  */
 @Module({

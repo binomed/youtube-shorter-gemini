@@ -57,4 +57,4 @@ import { SettingsModule } from './modules/settings/settings.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

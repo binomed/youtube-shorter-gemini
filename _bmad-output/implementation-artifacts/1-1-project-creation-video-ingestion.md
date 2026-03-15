@@ -294,16 +294,16 @@ From **Story 0.2 (quality-gates-testing-setup)**:
 ### Functional Requirements Coverage
 
 **From PRD:**
-- **FR-01:** Importation de fichiers vidéo locaux (MP4, MOV) ✅ This story
-- **FR-02:** Organisation et nommage des projets de Shorts ✅ This story (project naming)
-- **FR-03:** Information utilisateur obligatoire sur la politique de suppression des données à l'import ✅ This story (privacy notice)
+- **FR-01:** Import of local video files (MP4, MOV) ✅ This story
+- **FR-02:** Organization and naming of Short projects ✅ This story (project naming)
+- **FR-03:** Mandatory user information on the data deletion policy upon import ✅ This story (privacy notice)
 
 ### Non-Functional Requirements
 
 **From PRD:**
 - **Performance:** Not directly applicable to upload, but keep in mind for future video processing (rendu < 60s)
 - **Security:** Zero-persistence - files deleted after session (implement in future story, temp storage for now)
-- **Accessibilité:** WCAG 2.1 AA ✅ Must implement in this story
+- **Accessibility:** WCAG 2.1 AA ✅ Must implement in this story
 
 ### Project Structure Notes
 

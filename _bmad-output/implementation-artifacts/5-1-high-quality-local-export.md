@@ -39,7 +39,7 @@ so that I can publish it on social media.
   - [ ] If specific audio stems are requested, dynamically construct FFmpeg inputs and complex filtergraphs to mix the selected stems instead of the original video audio.
   - [ ] Generate the concat list for FFmpeg `concat` demuxer and execute extraction using non-blocking `spawn` in `ffmpeg.service.ts`.
   - [ ] Process the video: Scale to 1080:1920 (`-vf "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"`).
-  - [ ] Apply hardcoded subtitle burn-in. Generer un fichier `.ass` temporaire depuis les données SQLite configurées par l'utilisateur (incluant Font, Color, Outline, Position XY) et utiliser un filtergraph pour l'incruster dans la trame vidéo (ex: `subtitles=temp.ass`).
+  - [ ] Apply hardcoded subtitle burn-in. Generate a temporary `.ass` file from user-configured SQLite data (including Font, Color, Outline, Position XY) and use a filtergraph to burn it into the video frame (e.g., `subtitles=temp.ass`).
   - [ ] Extract progress percentage from `stderr` inside the FFmpeg process wrapper and dispatch it to the `JobService`.
   - [ ] Provide the stream or download link to the final generated file upon successful completion (`code === 0`).
   - [ ] Ensure `try/finally` blocks are in place to `fs.unlink` all temporary `.mp4` chunks, `.ass` subtitle files, and `concat.txt` lists **specifically created for this export only** regardless of success or failure. Do NOT clear the entire temp directory or stems.
@@ -78,8 +78,8 @@ From Story 4.1 (`feat: complete Story 4.1...`):
 - **Learning:** Subtitle styles are highly dynamic now. Ensure the FFmpeg complex filter parses the exact current subtitle settings (font, color, box) directly from the persistent SQLite schema for the target Short.
 
 ### Project Context Reference
-- [Source: _bmad-output/planning-artifacts/prd.md#Functional Requirements] (FR15) - Exportation du Short finalisé vers un fichier local (MP4) avec sous-titres incrustés et audio optimisé.
-- [Source: _bmad-output/planning-artifacts/architecture.md#Mécanisme de SQL-Queue] - Reactive SQL Queue architecture for FFmpeg operations.
+- [Source: _bmad-output/planning-artifacts/prd.md#Functional Requirements] (FR15) - Export of the finalized Short to a local file (MP4) with hardcoded subtitles and optimized audio.
+- [Source: _bmad-output/planning-artifacts/architecture.md#SQL-Queue Mechanism] - SQL-Queue Mechanism for FFmpeg operations.
 - [Source: .agent/skills/ffmpeg_media_processing/SKILL.md] - Usage of `scale=1080:1920:force_original_aspect_ratio=decrease` for vertical layout exports.
 
 ## Dev Agent Record

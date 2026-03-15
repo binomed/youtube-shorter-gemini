@@ -77,12 +77,12 @@ cd packages/shared && npm test
 ## 🖋 Commit Conventions
 
 We use **Conventional Commits**:
-- `feat:` : Nouvelle fonctionnalité
-- `fix:` : Correction de bug
+- `feat:` : New feature
+- `fix:` : Bug fix
 - `docs:` : Documentation
-- `style:` : Formattage
-- `refactor:` : Refactorisation
-- `test:` : Ajout de tests
+- `style:` : Formatting
+- `refactor:` : Refactoring
+- `test:` : Adding tests
 - `chore:` : Maintenance
 
 ### Example
@@ -97,32 +97,32 @@ git commit -m "feat: add video segment analysis service"
 - **Documentation**: JSDoc required for all public APIs and business logic
 - **Tests**: Co-located (`.spec.ts` next to source files)
 
-## 🛡 Ensurer la Stabilité de la CI
+## 🛡 Ensuring CI Stability
 
-Pour éviter de "casser" la CI lors de vos commits, suivez ces règles et utilisez les outils de validation locale.
+To avoid "breaking" the CI during your commits, follow these rules and use local validation tools.
 
-### ✅ Checklist Pré-Push (Obligatoire)
-Avant chaque `git push`, lancez la commande suivante à la racine du projet :
+### ✅ Pre-Push Checklist (Mandatory)
+Before each `git push`, run the following command at the project root:
 ```bash
 npm run verify
 ```
-Cette commande exécute séquentiellement :
-1. `npm run build` : Vérifie la compilation et la résolution des types transverses.
-2. `npm run lint` : Vérifie le style et les types non-safe.
-3. `npm run test` : Lance la suite complète de tests (Back, Front, Shared).
+This command executes sequentially:
+1. `npm run build`: Verifies compilation and resolution of cross-cutting types.
+2. `npm run lint`: Verifies style and unsafe types.
+3. `npm run test`: Launches the complete test suite (Back, Front, Shared).
 
-### 🏗 Garde-fous Architecturaux
-- **Pas d'imports dynamiques pour les built-ins Node** : Évitez `await import('fs/promises')` ou `path` à l'intérieur des fonctions. Utilisez des imports statiques en haut de fichier pour garantir la compatibilité avec l'environnement de test Jest/Vitest sans flags expérimentaux.
-- **Hygiène des Mocks** : Dans vos tests (`.spec.ts`), assurez-vous de réinitialiser non seulement les compteurs d'appels (`jest.clearAllMocks()`) mais aussi les implémentations spécifiques (`mockResolvedValue`) dans le `beforeEach` si vous modifiez des modules globaux (ex: `fs`).
-- **Dépendances Monorepo** : Si vous modifiez `packages/shared`, vous **devez** lancer `npm run build` à la racine pour que les changements soient visibles par `apps/back` et `apps/front`.
+### 🏗 Architectural Safeguards
+- **No dynamic imports for Node built-ins**: Avoid `await import('fs/promises')` or `path` inside functions. Use static imports at the top of the file to ensure compatibility with Jest/Vitest test environments without experimental flags.
+- **Mock Hygiene**: In your tests (`.spec.ts`), ensure you reset not only call counters (`jest.clearAllMocks()`) but also specific implementations (`mockResolvedValue`) in the `beforeEach` if you modify global modules (e.g., `fs`).
+- **Monorepo Dependencies**: If you modify `packages/shared`, you **must** run `npm run build` at the root for the changes to be visible to `apps/back` and `apps/front`.
 
 ## 🔄 Development Workflow
 
-1. Use `/sprint-planning` pour le suivi
-2. `/create-story` pour détailler une tâche
-3. `/dev-story` pour l'implémentation
-4. **/verify-ci** : Vérifier que le code compile, passe le lint et les tests (obligatoire avant review)
-5. `/code-review` avant de merger
+1. Use `/sprint-planning` for tracking
+2. `/create-story` for detailing a task
+3. `/dev-story` for implementation
+4. **/verify-ci**: Verify that code compiles, passes lint and tests (mandatory before review)
+5. `/code-review` before merging
 
 ## ⚖️ Licence
 

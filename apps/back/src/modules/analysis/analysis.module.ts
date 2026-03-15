@@ -13,18 +13,17 @@ import { WhisperService } from '../ai/whisper.service';
 import { ProcessingModule } from '../processing/processing.module';
 import { SettingsModule } from '../settings/settings.module';
 
-
 /**
- * AnalysisModule — Domaine: Analyse IA via API Gemini.
+ * AnalysisModule — Domain: AI Analysis via Gemini API.
  *
- * Responsabilités (SRP) :
- * - Orchestration du pipeline d'analyse (frames → Gemini → DB)
- * - Exposition des endpoints REST/SSE pour l'analyse et la séparation de stems
+ * Responsibilities (SRP):
+ * - Analysis pipeline orchestration (frames → Gemini → DB)
+ * - Exposure of REST/SSE endpoints for analysis and stem separation
  *
- * Importe ProcessingModule pour rendre StemService disponible dans AnalysisController.
- * (Pattern NestJS : cross-module dependency via imports)
+ * Imports ProcessingModule to make StemService available in AnalysisController.
+ * (NestJS Pattern: cross-module dependency via imports)
  *
- * @see audit_report.md Section 1 — Audit Architecture (SRP)
+ * @see audit_report.md Section 1 — Architecture Audit (SRP)
  * @see ADR-004 (SQL-Queue)
  */
 @Module({
@@ -38,4 +37,4 @@ import { SettingsModule } from '../settings/settings.module';
   providers: [GeminiService, AnalysisService, WhisperService],
   exports: [AnalysisService, GeminiService, WhisperService],
 })
-export class AnalysisModule { }
+export class AnalysisModule {}

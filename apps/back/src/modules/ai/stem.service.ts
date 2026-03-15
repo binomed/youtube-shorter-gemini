@@ -28,7 +28,7 @@ import * as fs from 'fs/promises';
  * 4. Persist progress via JobService (SQL-Queue) — survives server restarts.
  * 5. Emit SSE progress events for real-time UI updates.
  *
- * @see ADR-004: Reactive Job System avec SQL-Queue
+ * @see ADR-004: Reactive Job System with SQL-Queue
  * @service
  */
 @Injectable()

@@ -23,36 +23,36 @@ This document records the architectural decisions for the youtube-shorter-gemini
 ### Requirements Overview
 
 **Functional Requirements:**
-Le système doit permettre l'ingestion de vidéos locales, leur analyse sémantique via Gemini, le recalage précis (Timing IA), la séparation audio et le rendu final vertical, le tout piloté par une interface SPA minimaliste. L'accessibilité (WCAG 2.1 AA) est un pré-requis fonctionnel majeur.
+The system must allow ingestion of local videos, their semantic analysis via Gemini, precise realignment (AI Timing), audio separation, and final vertical rendering, all driven by a minimalist SPA interface. Accessibility (WCAG 2.1 AA) is a major functional prerequisite.
 
 **Non-Functional Requirements:**
-- **Performance :** Rendu local < 60s pour un segment de 60s. Temps réel pour les retours d'état.
-- **Confidentialité :** Zero-persistence et traitement local des médias.
-- **Qualité de Code :** SOLID, KISS, tests unitaires (classes), typage fort (Typescript). Style orienté objet (classes) privilégié.
-- **Documentation :** JSDoc, ADRs, Guide de contribution (CONTRIBUTING.md), Agent docs.
+- **Performance:** Local rendering < 60s for a 60s segment. Real-time status feedback.
+- **Privacy:** Zero-persistence and local media processing.
+- **Code Quality:** SOLID, KISS, unit tests (classes), strong typing (TypeScript). Object-oriented style (classes) preferred.
+- **Documentation:** JSDoc, ADRs, Contribution Guide (CONTRIBUTING.md), Agent docs.
 
 ## Implementation Patterns & Consistency Rules
 
 ### Naming Patterns
-- **Backend (TS) :** `camelCase` pour méthodes/variables, `PascalCase` pour Classes/Types. Fichiers : `nom-domaine.service.ts`.
-- **Frontend (Lit) :** `camelCase` pour props/méthodes. Fichiers : `mon-composant.element.ts`.
-- **Base de Données :** `snake_case` pour tables/colonnes (SQL). Mappage `camelCase` dans les entités TypeORM.
-- **API REST :** Kebab-case pluriel (ex: `/api/video-segments`).
+- **Backend (TS):** `camelCase` for methods/variables, `PascalCase` for Classes/Types. Files: `domain-name.service.ts`.
+- **Frontend (Lit):** `camelCase` for props/methods. Files: `my-component.element.ts`.
+- **Database:** `snake_case` for tables/columns (SQL). `camelCase` mapping in TypeORM entities.
+- **REST API:** Plural kebab-case (e.g., `/api/video-segments`).
 
 ### Structure Patterns
-- **Co-location :** Fichiers de tests (`*.spec.ts`) à côté du code source.
-- **Frontend :** Organisation **Atomic Design** (`atoms/`, `molecules/`, `organisms/`, `templates/`).
-- **Shared Package :** Un package `shared` centralise les DTOs, interfaces de validation et types communs pour garantir la cohérence Back/Front.
+- **Co-location:** Test files (`*.spec.ts`) next to the source code.
+- **Frontend:** **Atomic Design** organization (`atoms/`, `molecules/`, `organisms/`, `templates/`).
+- **Shared Package:** A `shared` package centralizes DTOs, validation interfaces, and common types to ensure Back/Front consistency.
 
 ### Format Patterns
-- **API Enveloping :** Toutes les réponses REST suivent `{ success: boolean, data: T, error?: string }`.
-- **Temporal :** Dates au format **ISO 8601** (strings).
-- **Errors :** Utilisation systématique des exceptions NestJS (`HttpException`).
+- **API Enveloping:** All REST responses follow `{ success: boolean, data: T, error?: string }`.
+- **Temporal:** Dates in **ISO 8601** format (strings).
+- **Errors:** Systematic use of NestJS exceptions (`HttpException`).
 
 ### Process Patterns
-- **Documentation :** **JSDoc** obligatoire pour toute logique métier et APIs publiques.
-- **Commits :** **Conventional Commits** (`feat:`, `fix:`, `docs:`, `refactor:`).
-- **Licence :** En-tête de licence Apache 2.0 présent dans chaque fichier source.
+- **Documentation:** **JSDoc** mandatory for all business logic and public APIs.
+- **Commits:** **Conventional Commits** (`feat:`, `fix:`, `docs:`, `refactor:`).
+- **License:** Apache 2.0 license header present in each source file.
 
 ## System Layout & Boundaries
 
@@ -88,96 +88,96 @@ youtube-shorter-gemini/
 ### Architectural Boundaries & Integration
 
 **1. API Boundary (REST/SSE):**
-- Le Frontend ne manipule jamais directement le système de fichiers ou les modèles IA.
-- Toute interaction passe par le service `back` via des endpoints typés.
-- Les notifications de progression de rendu (FFmpeg) sont poussées via **SSE**.
+- The Frontend never directly manipulates the file system or AI models.
+- All interaction goes through the `back` service via typed endpoints.
+- Rendering progress notifications (FFmpeg) are pushed via **SSE**.
 
 **2. Data Boundary (Local SQLite):**
-- Seul le Backend a accès à l'instance SQLite.
-- Les données sont isolées par projet. Aucun stockage média binaire en base.
+- Only the Backend has access to the SQLite instance.
+- Data is isolated by project. No binary media storage in the database.
 
 **3. Media Boundary (FFmpeg):**
-- Orchestration via un **JobService (TypeORM + SQLite)**. Les tâches longues (FFmpeg, IA) sont enregistrées en base pour persistence.
-- Exécution via `child_process.spawn` dans des services isolés pour ne pas bloquer l'Event Loop.
-- État de progression mis à jour en base et diffusé via **SSE**.
+- Orchestration via a **JobService (TypeORM + SQLite)**. Long tasks (FFmpeg, AI) are recorded in the database for persistence.
+- Execution via `child_process.spawn` in isolated services to avoid blocking the Event Loop.
+- Progress state updated in the database and broadcast via **SSE**.
 
-### Mapping des fonctionnalités (Requirements to Code)
-- **Ingestion (FR-01) :** `apps/back/modules/ingestion`
-- **IA Detection (FR-04) :** `apps/back/modules/analysis` (Gemini API / Ollama)
-- **Timing IA (FR-05) :** `apps/back/modules/processing/timing`
-- **Rendu (FR-12) :** `apps/back/modules/processing/render` (FFmpeg Wrapper gérant la concaténation de segments multiples + JobService)
-- **UI (FR-15) :** `apps/front/components/organisms/shorts-editor`
+### Feature Mapping (Requirements to Code)
+- **Ingestion (FR-01):** `apps/back/modules/ingestion`
+- **AI Detection (FR-04):** `apps/back/modules/analysis` (Gemini API / Ollama)
+- **AI Timing (FR-05):** `apps/back/modules/processing/timing`
+- **Rendering (FR-12):** `apps/back/modules/processing/render` (FFmpeg Wrapper handling multi-segment concatenation + JobService)
+- **UI (FR-15):** `apps/front/components/organisms/shorts-editor`
 
 ### Technical Constraints & Dependencies
-- **Monorepo :** Séparation claire mais gestion unifiée du code.
-- **Backend :** API REST avec **NestJS**. Orchestration CPU-intensive (FFmpeg) via une file d'attente (**JobService (TypeORM + SQLite)** pour la persistance et la simplicité).
-- **Frontend :** SPA avec **LitElement** et **Lit Signals** (native). Build via **Vite**.
-- **Data :** **SQLite** pour les métadonnées de projet. Pas de stockage média persistant.
-- **IA :** Hybride (Gemini Cloud + Ollama Local).
-- **Standards :** Prettier, Convention de Commit, Licence Apache 2.0.
-- **Accessibilité :** Priorité aux standards WCAG dès la conception.
+- **Monorepo:** Clear separation but unified code management.
+- **Backend:** REST API with **NestJS**. CPU-intensive orchestration (FFmpeg) via a queue (**JobService (TypeORM + SQLite)** for persistence and simplicity).
+- **Frontend:** SPA with **LitElement** and **Lit Signals** (native). Build via **Vite**.
+- **Data:** **SQLite** for project metadata. No persistent media storage.
+- **AI:** Hybrid (Gemini Cloud + Ollama Local).
+- **Standards:** Prettier, Commit Convention, Apache 2.0 License.
+- **Accessibility:** Priority for WCAG standards from design.
 
 ### Cross-Cutting Concerns
-- **Orchestration Multimédia :** Gestion asynchrone des tâches FFmpeg pour éviter de bloquer le thread principal.
-- **Real-time Feedback :** Utilisation de **SSE** pour notifier le frontend de l'avancement des traitements backend.
-- **Traçabilité Décisionnelle :** Mise en place d'ADRs dès le démarrage.
+- **Multimedia Orchestration:** Asynchronous management of FFmpeg tasks to avoid blocking the main thread.
+- **Real-time Feedback:** Use of **SSE** to notify the frontend of backend processing progress.
+- **Decision Traceability:** Implementation of ADRs from the start.
 
 ## Core Architectural Decisions
 
 ### Data Architecture
-- **Database :** SQLite (moteur de stockage local, fichier unique).
-- **ORM :** **TypeORM v0.3.x** (Data Mapper pattern). Permet une séparation nette entre entités DB et logique métier, facilitant **SOLID**.
-- **Migrations :** Gérées via TypeORM CLI pour assurer la traçabilité des évolutions du schéma.
+- **Database:** SQLite (local storage engine, single file).
+- **ORM:** **TypeORM v0.3.x** (Data Mapper pattern). Allows clear separation between DB entities and business logic, facilitating **SOLID**.
+- **Migrations:** Managed via TypeORM CLI to ensure traceability of schema evolutions.
 
 ### Security & Secret Management
-- **Authentification :** Aucune (usage local uniquement).
-- **Secrets :** Usage de fichiers `.env` ignorés par Git. Un fichier `.env.sample` sera fourni pour configurer les clés Gemini/Ollama.
-- **Middlewares :** **Helmet** pour la sécurité de base de l'API NestJS.
-- **Validation :** Validation stricte des entrées via **class-validator** et les Pipes NestJS.
+- **Authentication:** None (local use only).
+- **Secrets:** Use of `.env` files ignored by Git. A `.env.sample` file will be provided to configure Gemini/Ollama keys.
+- **Middlewares:** **Helmet** for basic NestJS API security.
+- **Validation:** Strict input validation via **class-validator** and NestJS Pipes.
 
 ### API & Communication Patterns
-- **API REST :** Standard pour toutes les interactions synchrones (gestion de projet, CRUD segments).
-- **SSE (Server-Sent Events) :** Utilisé pour le streaming d'état lors des tâches asynchrones (découpage FFmpeg, analyse IA).
-- **Contrat d'Interface :** DTOs partagés (TypeScript) dans le package `shared` du monorepo.
+- **REST API:** Standard for all synchronous interactions (project management, segment CRUD).
+- **SSE (Server-Sent Events):** Used for state streaming during asynchronous tasks (FFmpeg segmenting, AI analysis).
+- **Interface Contract:** Shared DTOs (TypeScript) in the monorepo's `shared` package.
 
 ### Frontend Architecture
-- **State Management :** **Lit Signals** (natif) pour une réactivité fine sans surpoids.
-- **Routing :** **@vaadin/router** (léger et standard-compliant).
-- **Atomic Design :** Composants organisés par atomes/molécules, utilisant du **CSS pur** (Shadow DOM) avec Tailwind pour le layout global.
+- **State Management:** **Lit Signals** (native) for fine-grained reactivity without overhead.
+- **Routing:** **@vaadin/router** (lightweight and standards-compliant).
+- **Atomic Design:** Components organized by atoms/molecules, using **pure CSS** (Shadow DOM) with Tailwind for global layout.
 
-### Mécanisme de SQL-Queue (Réactif)
+### SQL-Queue Mechanism (Reactive)
 
-Pour garantir la légèreté (KISS) et la résilience, nous utilisons une file d'attente pilotée par événements :
+To ensure lightweightness (KISS) and resilience, we use an event-driven queue:
 
-1.  **Réception (Front -> Back) :** Le Frontend envoie une requête de traitement. Le Backend enregistre immédiatement le job en base (`jobs` table) avec `status: 'PENDING'`.
-2.  **Activation Réactive :** Au lieu de "poller" (interroger) la base, le Backend déclenche immédiatement le traitement via un `EventEmitter` (ou appel direct au `ProcessorService`) dès l'insertion.
-3.  **Exécution FFmpeg :** Le Worker lance `child_process.spawn`. NestJS écoute les flux `stdout/stderr` de FFmpeg.
-4.  **Mise à jour en flux tendu :** À chaque progression détectée dans la sortie FFmpeg, le Backend met à jour la ligne en base **ET** émet un message via le flux **SSE** ouvert par le client.
-5.  **Rétablissement (Auto-Guetteur) :** Un service de fond léger ne vérifie la base **qu'au démarrage** ou en cas de crash pour relancer les jobs qui seraient restés bloqués en `PROCESSING`. En régime de croisière, tout est évènementiel.
+1.  **Reception (Front -> Back):** The Frontend sends a processing request. The Backend immediately records the job in the database (`jobs` table) with `status: 'PENDING'`.
+2.  **Reactive Activation:** Instead of "polling" the database, the Backend immediately triggers processing via an `EventEmitter` (or direct call to the `ProcessorService`) upon insertion.
+3.  **FFmpeg Execution:** The Worker starts `child_process.spawn`. NestJS listens to FFmpeg's `stdout/stderr` streams.
+4.  **In-flight Update:** Each time progress is detected in the FFmpeg output, the Backend updates the database row **AND** emits a message via the **SSE** stream opened by the client.
+5.  **Recovery (Auto-Watchdog):** A lightweight background service only checks the database **at startup** or in case of a crash to restart jobs that may have stayed stuck in `PROCESSING`. In normal operation, everything is event-driven.
 
 ## Architecture Validation Results
 
 ### Coherence Validation ✅
 
 **Decision Compatibility:**
-- L'empilement **Turborepo + NestJS + Lit** est parfaitement cohérent pour un projet TypeScript Full-Stack en 2026.
-- **TypeORM + SQLite** est la solution la plus stable pour une gestion de base de données locale typée par classes.
-- L'approche **SSE + SQL-Queue réactive** élimine les dépendances lourdes (Redis) tout en assurant la persistance.
+- The **Turborepo + NestJS + Lit** stack is perfectly coherent for a Full-Stack TypeScript project in 2026.
+- **TypeORM + SQLite** is the most stable solution for class-typed local database management.
+- The **SSE + reactive SQL-Queue** approach eliminates heavy dependencies (Redis) while ensuring persistence.
 
 **Pattern Consistency:**
-- Les patterns de nommage (camelCase/snake_case) et la structure **Atomic Design** soutiennent directement l'objectif de code propre (SOLID).
+- Naming patterns (camelCase/snake_case) and the **Atomic Design** structure directly support the goal of clean code (SOLID).
 
 ### Requirements Coverage Validation ✅
 
 **Functional Requirements Coverage:**
-- **Ingestion/Projets :** Couverts par `apps/back/modules/ingestion` et TypeORM.
-- **Analyse IA :** Couverts par `apps/back/modules/analysis` (Gemini API).
-- **Processing/Render :** Couverts par le `JobService` réactif et FFmpeg dans `apps/back/modules/processing`.
-- **UI :** Couvert par Lit et Lit Signals dans `apps/front`.
+- **Ingestion/Projects:** Covered by `apps/back/modules/ingestion` and TypeORM.
+- **AI Analysis:** Covered by `apps/back/modules/analysis` (Gemini API).
+- **Processing/Render:** Covered by the reactive `JobService` and FFmpeg in `apps/back/modules/processing`.
+- **UI:** Covered by Lit and Lit Signals in `apps/front`.
 
 **Non-Functional Requirements Coverage:**
-- **Performance :** L'usage de `spawn` asynchrone garantit que l'Event Loop NestJS n'est jamais bloqué.
-- **Local-first :** Suppression de Redis pour un déploiement "Zero-Config" via SQLite/FFmpeg.
+- **Performance:** Asynchronous `spawn` ensures the NestJS Event Loop is never blocked.
+- **Local-first:** Redis removal for a "Zero-Config" deployment via SQLite/FFmpeg.
 
 ### Architecture Readiness Assessment
 
@@ -185,9 +185,9 @@ Pour garantir la légèreté (KISS) et la résilience, nous utilisons une file d
 **Confidence Level:** HIGH
 
 **AI Agent Guidelines:**
-- Utiliser `apps/back` et `apps/front` comme racines.
-- Partager les DTOs via `packages/shared`.
-- Respecter le pattern de Job SQL réactif pour toute tâche > 2s.
+- Use `apps/back` and `apps/front` as roots.
+- Share DTOs via `packages/shared`.
+- Respect the reactive SQL Job pattern for any task > 2s.
 
 ---
 *Created as part of the youtube-shorter-gemini architecture definition.*
@@ -195,45 +195,44 @@ Pour garantir la légèreté (KISS) et la résilience, nous utilisons une file d
 ## Starter Template Evaluation
 
 ### Primary Technology Domain
-**Full-Stack Monorepo** (Local + Cloud Hybrid) basé sur l'écosystème TypeScript.
+**Full-Stack Monorepo** (Local + Cloud Hybrid) based on the TypeScript ecosystem.
 
 ### Starter Options Considered
 
-1.  **Nx :** Très puissant, excellent support NestJS/Vite, mais peut être trop complexe (Over-engineering) pour un projet individuel "KISS".
-2.  **NestJS Native Monorepo :** Simple pour le backend, mais moins outillé pour gérer un frontend Lit/Vite au sein du même repo de manière fluide.
-3.  **Turborepo + npm workspaces :** **SÉLECTIONNÉ**. Offre le meilleur équilibre entre simplicité de configuration (KISS) et performance.
+1.  **Nx:** Very powerful, excellent NestJS/Vite support, but can be too complex (Over-engineering) for a "KISS" individual project.
+2.  **NestJS Native Monorepo:** Simple for the backend, but less equipped to manage a Lit/Vite frontend within the same repo smoothly.
+3.  **Turborepo + npm workspaces:** **SELECTED**. Offers the best balance between configuration simplicity (KISS) and performance.
 
 ### Selected Starter: Turborepo (via npm workspaces)
 
 **Rationale for Selection:**
-Turborepo permet une séparation nette entre `apps/api` (NestJS) et `apps/web` (Lit/Vite) tout en facilitant le partage de code (DTOs, Types) via des librairies locales. Sa configuration est minimale (`turbo.json`) et son exécution est extrêmement rapide.
+Turborepo allows a clean separation between `apps/api` (NestJS) and `apps/web` (Lit/Vite) while facilitating code sharing (DTOs, Types) via local libraries. Its configuration is minimal (`turbo.json`) and its execution is extremely fast.
 
 **Initialization Command:**
 
 ```bash
-pnpm create turbo@latest ./ --example kitchen-sink (adapté pour Nest/Vite)
-# Ou initialisation manuelle pour un contrôle total SOLID/KISS
-```
+pnpm create turbo@latest ./ --example kitchen-sink (adapted for Nest/Vite)
+# Or manual initialization for total SOLID/KISS control```
 
 ### Architectural Decisions Provided by Starter
 
 **Language & Runtime:**
-- **TypeScript 5.x** configuré via des `tsconfig` partagés à la racine.
-- **npm workspaces** pour la gestion des dépendances et du linking local.
+- **TypeScript 5.x** configured via shared `tsconfig` at the root.
+- **npm workspaces** for dependency management and local linking.
 
 **Styling Solution:**
-- **Tailwind CSS 4.x** intégré via Vite pour le frontend.
-- **CSS Pure** pour les composants Lit (Atomic Design).
+- **Tailwind CSS 4.x** integrated via Vite for the frontend.
+- **Pure CSS** for Lit components (Atomic Design).
 
 **Build Tooling:**
-- **Vite 6.x** pour le frontend (HMR ultra-rapide).
-- **Nest CLI** pour le backend.
-- **Turbo** pour orchestrer les builds, lint et tests en parallèle.
+- **Vite 6.x** for the frontend (ultra-fast HMR).
+- **Nest CLI** for the backend.
+- **Turbo** to orchestrate builds, lint and tests in parallel.
 
 **Testing Framework:**
-- **Vitest** (Frontend) et **Jest** (Backend/NestJS) pour une couverture complète des classes.
+- **Vitest** (Frontend) and **Jest** (Backend/NestJS) for complete class coverage.
 
 **Code Organization:**
 - `apps/api` : Backend NestJS.
 - `apps/web` : Frontend Lit.
-- `packages/shared` : Contrat d'interface (DTOs), constantes et types partagés.
+- `packages/shared`: Interface contract (DTOs), shared constants and types.

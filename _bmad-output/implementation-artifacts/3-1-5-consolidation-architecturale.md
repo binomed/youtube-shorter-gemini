@@ -1,10 +1,10 @@
-# Story 3.1.5: Consolidation Architecturale, Lisibilité et Qualité
+# Story 3.1.5: Architectural Consolidation, Readability and Quality
 
 Status: done
 
 ## Story
 
-As a **développeur** du projet YouTube Shorter Gemini,
+As a YouTube Shorter Gemini **developer**,
 I want to consolidate the architecture, improve code readability, and reinforce test coverage,
 so that the codebase is resilient, maintainable, and ready for future features (Dynamic Subtitles, Export).
 
@@ -12,65 +12,65 @@ so that the codebase is resilient, maintainable, and ready for future features (
 
 ## Acceptance Criteria
 
-1. **[Backend - Architecture]** Le module `AiModule` est scindé en `AnalysisModule` (Gemini) et `ProcessingModule` (Demucs/FFmpeg), chacun avec une responsabilité unique (SRP). ✅
-2. **[Backend - Job Queue]** `StemService` utilise le pattern SQL-Queue avec une entité `Job` persistée en SQLite, remplaçant les `Subject<T>` et `Map` in-memory actuels. ✅
-3. **[Backend - Tests]** Le dossier `modules/ai` dispose de fichiers `.spec.ts` pour `analysis.service.ts`, `gemini.service.ts`, `stem.service.ts`, et `analysis.controller.ts`. ✅
-4. **[Frontend - Composants]** Les composants dont le `render()` dépasse 80 lignes sont refactorisés : le `render()` principal orchestre des méthodes privées `renderXxx()` sémantiques. ✅
-5. **[Frontend - State]** Les mises à jour de l'état global passent par des fonctions action explicites. ✅ (existant)
-6. **[Frontend - Tests]** Des fichiers `.spec.ts` sont créés pour `dashboard-page.ts` et `editor-page.ts`. ✅ (partiel)
-7. **[Code Mort]** Tous les `console.log('DEBUG: ...')` sont supprimés. ✅
-8. **[CSS]** Convention `--yts-*` dans shadow DOM documentée. ⬜ (todo)
-9. **[Nettoyage]** Scripts `clean:temp`, `clean:dist`, `clean` dans `package.json`. ✅
-10. **[Documentation]** ADR 004 créé. ✅
+1. **[Backend - Architecture]** The `AiModule` module is split into `AnalysisModule` (Gemini) and `ProcessingModule` (Demucs/FFmpeg), each with a single responsibility (SRP). ✅
+2. **[Backend - Job Queue]** `StemService` uses the SQL-Queue pattern with a persisted `Job` entity in SQLite, replacing the current in-memory `Subject<T>` and `Map`. ✅
+3. **[Backend - Tests]** The `modules/ai` directory has `.spec.ts` files for `analysis.service.ts`, `gemini.service.ts`, `stem.service.ts`, and `analysis.controller.ts`. ✅
+4. **[Frontend - Components]** Components whose `render()` exceeds 80 lines are refactored: the main `render()` orchestrates semantic private `renderXxx()` methods. ✅
+5. **[Frontend - State]** Global state updates go through explicit action functions. ✅ (existing)
+6. **[Frontend - Tests]** `.spec.ts` files are created for `dashboard-page.ts` and `editor-page.ts`. ✅ (partial)
+7. **[Dead Code]** All `console.log('DEBUG: ...')` are removed. ✅
+8. **[CSS]** `--yts-*` convention in shadow DOM is documented. ⬜ (todo)
+9. **[Cleanup]** `clean:temp`, `clean:dist`, `clean` scripts in root `package.json`. ✅
+10. **[Documentation]** ADR 004 created. ✅
 
 ---
 
 ## Tasks / Subtasks
 
-### Tâche 1 – Refonte du Module Backend (AC: #1)
-- [x] Créer `apps/back/src/modules/analysis/analysis.module.ts` avec `GeminiService`, `AnalysisService`, `AnalysisController`
-- [x] Créer `apps/back/src/modules/processing/processing.module.ts` avec `StemService`, `FFmpegService`
-- [ ] Supprimer `ai.module.ts` (obsolète — conservé pour compatibilité transitoire)
-- [x] Vérifier que les entités (`Short`, `Project`) sont correctement partagées via `TypeOrmModule.forFeature()`
+### Task 1 – Backend Module Refactor (AC: #1)
+- [x] Create `apps/back/src/modules/analysis/analysis.module.ts` with `GeminiService`, `AnalysisService`, `AnalysisController`
+- [x] Create `apps/back/src/modules/processing/processing.module.ts` with `StemService`, `FFmpegService`
+- [ ] Delete `ai.module.ts` (obsolete — kept for temporary compatibility)
+- [x] Verify that entities (`Short`, `Project`) are correctly shared via `TypeOrmModule.forFeature()`
 
-### Tâche 2 – Implémentation du Pattern SQL-Queue (AC: #2)
-- [x] Créer l'entité `Job` (`id`, `type`, `status`, `projectId`, `shortId?`, `progress`, `error?`, `createdAt`, `updatedAt`)
-- [x] Créer `JobService` avec méthodes : `create()`, `updateProgress()`, `complete()`, `fail()`, `findByProject()`, `purgeOld()`
-- [x] Refactoriser `StemService` : persister la progression via `JobService` (dual-channel SSE + SQL)
-- [x] Mettre à jour TypeORM pour inclure l'entité `Job` dans `AppModule`
+### Task 2 – SQL-Queue Pattern Implementation (AC: #2)
+- [x] Create `Job` entity (`id`, `type`, `status`, `projectId`, `shortId?`, `progress`, `error?`, `createdAt`, `updatedAt`)
+- [x] Create `JobService` with methods: `create()`, `updateProgress()`, `complete()`, `fail()`, `findByProject()`, `purgeOld()`
+- [x] Refactor `StemService`: persist progress via `JobService` (dual-channel SSE + SQL)
+- [x] Update TypeORM to include `Job` entity in `AppModule`
 
-### Tâche 3 – Tests Backend Module IA (AC: #3)
-- [x] Créer `analysis.service.spec.ts`
-- [x] Créer `gemini.service.spec.ts`
-- [x] Créer `stem.service.spec.ts`
-- [x] Créer `analysis.controller.spec.ts`
+### Task 3 – AI Module Backend Tests (AC: #3)
+- [x] Create `analysis.service.spec.ts`
+- [x] Create `gemini.service.spec.ts`
+- [x] Create `stem.service.spec.ts`
+- [x] Create `analysis.controller.spec.ts`
 
-### Tâche 4 – Refactorisation Frontend : Décomposition des Composants (AC: #4)
-- [x] **`yts-video-player.element.ts`** : Extraire `renderLoadingOverlay`, `renderErrorOverlay`, `renderSeekBar`, `renderControlRow`, `renderKeyboardHints`
-- [x] **`editor-page.ts`** : Extraire `renderSegmentsSidebar`, `renderReelCenter`, `renderToolsPanel`, `renderAudioPanel`
+### Task 4 – Frontend Refactor: Component Decomposition (AC: #4)
+- [x] **`yts-video-player.element.ts`**: Extract `renderLoadingOverlay`, `renderErrorOverlay`, `renderSeekBar`, `renderControlRow`, `renderKeyboardHints`
+- [x] **`editor-page.ts`**: Extract `renderSegmentsSidebar`, `renderReelCenter`, `renderToolsPanel`, `renderAudioPanel`
 
-### Tâche 5 – Signal State Discipline (AC: #5)
-- [x] Audit : seules `setProject()` et `clearProject()` utilisées (confirmé, pas de `.set()` direct)
+### Task 5 – Signal State Discipline (AC: #5)
+- [x] Audit: only `setProject()` and `clearProject()` used (confirmed, no direct `.set()`)
 
-### Tâche 6 – Tests Frontend Pages (AC: #6)
-- [x] Créer `dashboard-page.spec.ts`
-- [x] Créer `editor-page.spec.ts`
-- [ ] Créer `analysis-page.spec.ts` (optionnel)
-- [ ] Créer `yts-app.element.spec.ts` (optionnel)
+### Task 6 – Frontend Page Tests (AC: #6)
+- [x] Create `dashboard-page.spec.ts`
+- [x] Create `editor-page.spec.ts`
+- [ ] Create `analysis-page.spec.ts` (optional)
+- [ ] Create `yts-app.element.spec.ts` (optional)
 
-### Tâche 7 – Suppression Code Mort (AC: #7)
-- [x] Supprimer `console.log('DEBUG: ...')` dans `project.service.ts`
-- [x] Supprimer `console.log` inutiles dans `yts-app.element.ts`
+### Task 7 – Dead Code Removal (AC: #7)
+- [x] Remove `console.log('DEBUG: ...')` in `project.service.ts`
+- [x] Remove useless `console.log` in `yts-app.element.ts`
 
-### Tâche 8 – Convention CSS / Tailwind (AC: #8)
-- [ ] Mettre à jour `.agent/skills/lit_web_components/SKILL.md` avec section CSS Guidelines
+### Task 8 – CSS / Tailwind Convention (AC: #8)
+- [ ] Update `.agent/skills/lit_web_components/SKILL.md` with CSS Guidelines section
 
-### Tâche 9 – Scripts NPM de Nettoyage (AC: #9)
-- [x] Ajouter `rimraf` en devDependency
-- [x] Ajouter `clean:temp`, `clean:dist`, `clean` dans `package.json` racine
+### Task 9 – NPM Cleanup Scripts (AC: #9)
+- [x] Add `rimraf` as devDependency
+- [x] Add `clean:temp`, `clean:dist`, `clean` in root `package.json`
 
-### Tâche 10 – Documentation ADRs (AC: #10)
-- [x] Créer `docs/adr/004-reactive-job-system.md` — SQL-Queue pattern
+### Task 10 – ADR Documentation (AC: #10)
+- [x] Create `docs/adr/004-reactive-job-system.md` — SQL-Queue pattern
 
 ---
 
@@ -78,9 +78,9 @@ so that the codebase is resilient, maintainable, and ready for future features (
 
 ### Architecture & Patterns
 
-- **Séparation de module** : NestJS impose une organisation par domaine. L'IA externe (API Gemini) et le traitement local (Demucs) sont des domaines distincts. Voir [Source: .agent/skills/nestjs_backend/SKILL.md].
-- **SQL-Queue Pattern** : Le pattern réactif SQL-Queue est documenté dans [Source: .agent/skills/workers_job_queues/SKILL.md]. Toujours utiliser ce pattern pour les tâches CPU/IO-bound longues.
-- **LitElement Rendering** : Les méthodes `renderXxx()` privées doivent retourner `TemplateResult` (importé de `lit`). Ne pas créer de sous-`@customElement` inutilement. Voir [Source: .agent/skills/lit_web_components/SKILL.md].
+- **Module separation**: NestJS enforces domain-based organization. External AI (Gemini API) and local processing (Demucs) are distinct domains. See [Source: .agent/skills/nestjs_backend/SKILL.md].
+- **SQL-Queue Pattern**: The SQL-Queue reactive pattern is documented in [Source: .agent/skills/workers_job_queues/SKILL.md]. Always use this pattern for long-running CPU/IO-bound tasks.
+- **LitElement Rendering**: Private `renderXxx()` methods must return `TemplateResult` (imported from `lit`). Do not create unnecessary sub-`@customElement`. See [Source: .agent/skills/lit_web_components/SKILL.md].
 
 ### Project Structure Notes
 
@@ -89,37 +89,37 @@ apps/back/src/
 ├── modules/
 │   ├── analysis/          [NEW] Gemini + AnalysisService
 │   │   ├── analysis.module.ts
-│   │   ├── analysis.service.ts   (déplacé depuis /ai)
+│   │   ├── analysis.service.ts   (moved from /ai)
 │   │   ├── analysis.service.spec.ts  [NEW]
-│   │   ├── analysis.controller.ts (déplacé depuis /ai)
+│   │   ├── analysis.controller.ts (moved from /ai)
 │   │   └── analysis.controller.spec.ts [NEW]
 │   ├── processing/        [NEW] FFmpeg + Demucs
 │   │   ├── processing.module.ts
-│   │   ├── stem.service.ts       (déplacé depuis /ai)
+│   │   ├── stem.service.ts       (moved from /ai)
 │   │   ├── stem.service.spec.ts  [NEW]
-│   │   └── ffmpeg.service.ts     (déplacé depuis /workers)
-│   ├── ai/               [DELETE] Remplacé par analysis/ et processing/
-│   └── video/             [existant]
+│   │   └── ffmpeg.service.ts     (moved from /workers)
+│   ├── ai/               [DELETE] Replaced by analysis/ and processing/
+│   └── video/             [existing]
 ├── entities/
-│   ├── job.entity.ts      [NEW] Entité SQL-Queue
+│   ├── job.entity.ts      [NEW] SQL-Queue Entity
 │   └── ...
 apps/front/src/
 ├── components/organisms/
-│   └── yts-video-player.element.ts  [MODIFY] décomposer render()
+│   └── yts-video-player.element.ts  [MODIFY] decompose render()
 ├── pages/
 │   ├── dashboard-page.spec.ts        [NEW]
 │   ├── analysis-page.spec.ts         [NEW]
 │   └── editor-page.spec.ts           [NEW]
 ```
 
-### Références
+### References
 
-- [Source: audit_report.md] - Rapport d'audit complet des 10 axes
-- [Source: .agent/skills/nestjs_backend/SKILL.md] - Patterns NestJS
-- [Source: .agent/skills/workers_job_queues/SKILL.md] - Pattern SQL-Queue
-- [Source: .agent/skills/lit_web_components/SKILL.md] - Conventions Lit
+- [Source: audit_report.md] - Full audit report of the 10 axes
+- [Source: .agent/skills/nestjs_backend/SKILL.md] - NestJS Patterns
+- [Source: .agent/skills/workers_job_queues/SKILL.md] - SQL-Queue Pattern
+- [Source: .agent/skills/lit_web_components/SKILL.md] - Lit Conventions
 - [Source: .agent/skills/ffmpeg_media_processing/SKILL.md] - FFmpeg patterns
-- [Source: .agent/skills/testing_strategy/SKILL.md] - Stratégie de test
+- [Source: .agent/skills/testing_strategy/SKILL.md] - Testing strategy
 
 ---
 
@@ -131,15 +131,15 @@ Gemini 2.5 Pro (2026-02-24)
 
 ### Debug Log References
 
-*À remplir lors de l'implémentation.*
+*To be filled during implementation.*
 
 ### Completion Notes List
 
-*À remplir lors de l'implémentation.*
+*To be filled during implementation.*
 
 ### File List
 
-**Nouveaux fichiers :**
+**New files:**
 - `apps/back/src/modules/analysis/analysis.module.ts`
 - `apps/back/src/modules/analysis/analysis.service.spec.ts`
 - `apps/back/src/modules/analysis/analysis.controller.spec.ts`
@@ -153,13 +153,13 @@ Gemini 2.5 Pro (2026-02-24)
 - `apps/front/src/components/organisms/yts-app.element.spec.ts`
 - `docs/adr/004-reactive-job-system.md`
 
-**Fichiers modifiés :**
+**Modified files:**
 - `apps/back/src/app.module.ts`
-- `apps/back/src/modules/ai/ai.module.ts` → supprimé après migration
+- `apps/back/src/modules/ai/ai.module.ts` → deleted after migration
 - `apps/front/src/components/organisms/yts-video-player.element.ts`
 - `apps/front/src/services/project.service.ts`
 - `apps/front/src/components/organisms/yts-app.element.ts`
 - `apps/front/src/state/project.state.ts`
 - `.agent/skills/lit_web_components/SKILL.md`
 - `docs/adr/001-monorepo-structure.md`
-- `package.json` (racine)
+- `package.json` (root)

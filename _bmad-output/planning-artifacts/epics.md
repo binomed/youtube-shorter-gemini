@@ -13,31 +13,31 @@ This document provides the complete epic and story breakdown for youtube-shorter
 
 ### Functional Requirements
 
-FR1: Importation de fichiers vidéo locaux (MP4, MOV).
-FR2: Organisation et nommage des projets de Shorts.
-FR3: Information utilisateur obligatoire sur la politique de suppression des données à l'import.
-FR4: Détection et suggestion de segments viraux via analyse multimodale (Gemini). L'utilisateur peut capturer manuellement des segments via un mécanisme In-Out pendant la lecture.
-FR5: Recalage précis des timestamps (timing fin) basé sur l'audio et le texte pour éviter les mots tronqués.
-FR6: Ré-analyse manuelle d'un segment ou d'une zone temporelle sur demande utilisateur.
-FR7: Séparation des pistes voix/musique (Stems).
-FR8: Application de fondus audio (Crossfades) automatiques.
-FR9: Visualisation et édition manuelle de la transcription/sous-titres.
-FR10: Rendu vidéo local gérant la concaténation de segments multiples. Supporte le feedback immédiat (visualisation du jump-cut dès la fin de la capture) et les transitions par défaut en jump-cut avec un mécanisme de micro-effets ajustables par cut.
-FR11: Suivi de progression en temps réel (analyse et export).
-FR12: Affichage de tutoriels contextuels en cas d'échec de la détection automatique.
-FR13: Gestion du consentement pour l'apprentissage IA.
-FR14: Composition de Shorts à partir d'un nombre illimité de séquences non-contigues (capture In-Out) originaires de la vidéo source.
-FR15: Exportation du Short finalisé vers un fichier local (MP4) avec sous-titres incrustés et audio optimisé.
+FR1: Import of local video files (MP4, MOV).
+FR2: Organization and naming of Short projects.
+FR3: Mandatory user information on the data deletion policy upon import.
+FR4: Detection and suggestion of viral segments via multimodal analysis (Gemini). The user can manually capture segments via an In-Out mechanism during playback.
+FR5: Precise timestamp adjustment (fine timing) based on audio and text to avoid truncated words.
+FR6: Manual re-analysis of a segment or time zone upon user request.
+FR7: Voice/music track separation (Stems).
+FR8: Automatic audio crossfades application.
+FR9: Visualization and manual editing of transcription/subtitles.
+FR10: Local video rendering handling multi-segment concatenation. Supports immediate feedback (visualizing the jump-cut as soon as the capture ends) and default jump-cut transitions with a mechanism for adjustable micro-effects per cut.
+FR11: Real-time progress tracking (analysis and export).
+FR12: Contextual tutorial display in case of automatic detection failure.
+FR13: Consent management for AI learning.
+FR14: Short composition from an unlimited number of non-contiguous sequences (In-Out capture) originating from the source video.
+FR15: Export of the finalized Short to a local file (MP4) with burned-in subtitles and optimized audio.
 
 ### NonFunctional Requirements
 
-NFR1: Rendu d'un segment de 60s produit en < 60s (machine locale).
-NFR2: UI Latency < 200ms pour les interactions sémantiques.
-NFR3: Analyse < 30s d'attente initiale pour une vidéo source de 10 minutes.
-NFR4: Étanchéité totale des fichiers temporaires entre les sessions.
-NFR5: Standard WCAG 2.1 AA (navigation clavier, contrastes, lecteurs d'écran).
-NFR6: Minimalisme : Interface focalisée sur le contenu média (zero-distraction).
-NFR7: Efficacité : Utilisation de raccourcis clavier pour les tâches à haute fréquence.
+NFR1: Rendering of a 60s segment produced in < 60s (local machine).
+NFR2: UI Latency < 200ms for semantic interactions.
+NFR3: Analysis < 30s initial wait for a 10-minute source video.
+NFR4: Total isolation of temporary files between sessions.
+NFR5: WCAG 2.1 AA Standard (keyboard navigation, contrasts, screen readers).
+NFR6: Minimalism: Interface focused on media content (zero-distraction).
+NFR7: Efficiency: Use of keyboard shortcuts for high-frequency tasks.
 
 ### Additional Requirements
 
