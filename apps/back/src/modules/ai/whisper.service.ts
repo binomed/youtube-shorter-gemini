@@ -57,16 +57,27 @@ export class WhisperService {
       // Note: First run will download the model, which can be slow and output a lot to stderr.
       // Using 'base' model to drastically improve speed (up to 10x faster than medium) while
       // keeping phoneme alignment accurate. Added batch_size for parallel inference.
+      const batchSize = process.env.WHISPER_BATCH_SIZE || '16';
+      const model = process.env.WHISPER_MODEL || 'base';
+      const computeType = process.env.WHISPER_COMPUTE_TYPE || 'int8';
+      const device = process.env.WHISPER_DEVICE || 'cpu';
+
+      this.logger.log(
+        `Running WhisperX: model=${model}, batchSize=${batchSize}, computeType=${computeType}, device=${device}`,
+      );
+
       const proc = spawn('whisperx', [
         inputAudioPath,
         '--model',
-        'base',
+        model,
         '--output_format',
         'json',
         '--compute_type',
-        'int8', // int8 is optimized for CPU/Mac fallback speed
+        computeType,
         '--batch_size',
-        '16', // Process multiple audio chunks in parallel
+        batchSize,
+        '--device',
+        device,
         '--output_dir',
         outputDir,
       ]);
@@ -76,17 +87,21 @@ export class WhisperService {
       proc.stderr.on('data', (data: Buffer) => {
         const text = data.toString();
         stderrLogs += text;
-        // Whisper logs its progress on stderr primarily
-        this.logger.debug(`[whisperx] ${text.trim()}`);
+        // WhisperX can be very chatty on stderr
+        if (text.includes('Progress') || text.includes('%')) {
+          this.logger.debug(`[whisperx] ${text.trim()}`);
+        }
       });
 
-      proc.on('close', (code) => {
+      proc.on('close', (code, signal) => {
         if (code === 0) resolve();
         else {
           this.logger.error(
-            `whisperx failed with code ${code}. Logs: ${stderrLogs}`,
+            `whisperx failed with code ${code} and signal ${signal}. Logs: ${stderrLogs}`,
           );
-          reject(new Error(`WhisperX failed (code ${code}).`));
+          reject(
+            new Error(`WhisperX failed (code ${code}, signal ${signal}).`),
+          );
         }
       });
 

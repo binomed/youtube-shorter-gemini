@@ -3,8 +3,8 @@ FROM node:20-slim AS pruner
 WORKDIR /app
 RUN npm install -g turbo
 COPY . .
-# Prune the workspace for the 'back' app (and its dependencies like 'shared')
-RUN turbo prune back --docker
+# Prune the workspace for BOTH back and front apps
+RUN turbo prune back front --docker
 
 # Stage 2: Build
 FROM node:20-slim AS builder
@@ -30,12 +30,13 @@ RUN apt-get update && apt-get install -y \
     python3-venv \
     libsndfile1 \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up Python virtual environment for Demucs
+# Set up Python virtual environment for Demucs and WhisperX
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip3 install --no-cache-dir demucs soundfile
+RUN pip3 install --no-cache-dir "torch<2.6" "torchaudio<2.6" demucs whisperx soundfile
 
 # Security: Create a non-root user
 RUN groupadd -r appgroup && useradd -r -g appgroup -m -s /sbin/nologin appuser
@@ -49,8 +50,11 @@ COPY --from=builder /app/apps/back/package.json ./apps/back/
 COPY --from=builder /app/apps/front/dist ./apps/front/dist
 
 # Setup persistent directory structure with correct permissions
-# Note: /home/appuser/.cache/htdemucs is where Demucs stores its heavy models
-RUN mkdir -p apps/back/data apps/back/uploads apps/back/logs /home/appuser/.cache/htdemucs \
+# Note: /home/appuser/.cache is where Demucs and WhisperX store their heavy models
+RUN mkdir -p apps/back/data apps/back/uploads apps/back/logs \
+    /home/appuser/.cache/htdemucs \
+    /home/appuser/.cache/torch \
+    /home/appuser/.cache/whisper \
     && chown -R appuser:appgroup /app /home/appuser/.cache
 
 # Environment variables

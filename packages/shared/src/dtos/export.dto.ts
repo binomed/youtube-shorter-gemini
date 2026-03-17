@@ -1,5 +1,5 @@
 import { IsBoolean, IsOptional, IsString } from 'class-validator';
-import { SubtitleStyle } from '../types/short.types';
+import type { SubtitleStyle } from '../types/short.types';
 
 export class ExportShortDto {
     /** Include original audio track (or vocals if stems are used) */

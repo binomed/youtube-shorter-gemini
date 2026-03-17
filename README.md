@@ -37,20 +37,22 @@ ffmpeg -version
 ffprobe -version
 ```
 
-### 3. Demucs (MANDATORY for Audio Separation)
-The project uses **Demucs** (Meta Research) to isolate vocals from background music. This requires Python 3.
+### 3. Acoustic AI Models (Transcription & Separation)
+The project uses **WhisperX** for transcription and **Demucs** for audio separation. Both require Python 3 and PyTorch.
 
 **Installation:**
 ```bash
 # Ensure Python 3 is installed
 python3 --version
 
-# Install demucs and torchcodec (required for saving audio)
-python3 -m pip install -U demucs torchcodec soundfile
+# Install all AI dependencies
+# Note: Pinning torch < 2.6 is recommended to avoid new loading security changes
+python3 -m pip install -U "torch<2.6" "torchaudio<2.6" demucs whisperx soundfile
 ```
 
 **Verification:**
 ```bash
+whisperx --help
 demucs --help
 ```
 
@@ -92,6 +94,44 @@ npm run test:coverage --workspace=front
 ```
 
 For more details, see [CONTRIBUTING.md](CONTRIBUTING.md#-running-tests) and [ADR-002](docs/adr/002-testing-strategy.md).
+
+## 🐳 Docker & Deployment Profiles
+
+This project supports two execution modes to balance between **portability** (Open Source friendly) and **precision** (Power Users).
+
+### 1. Cloud Profile (Default & Portable)
+Uses the Gemini API for transcription. It's lightweight and runs on almost any machine.
+- **RAM Required**: ~1GB
+- **Setup**: `docker-compose up --build`
+- **Precision**: Good (phrase-level)
+
+### 2. Local Profile (High Precision)
+Uses **WhisperX** (local Python) for surgical word-level alignment and **Demucs** for stem separation.
+- **RAM Required**: 8GB - 10GB
+- **Setup**: Set `USE_GEMINI_SUBTITLES=false` in `docker-compose.yaml`.
+- **Precision**: Surgical (word-level forced alignment)
+
+#### 🍏 Mac (Apple Silicon / Intel)
+- **Colima**: `colima start --cpu 4 --memory 10 --vm-type vz`
+- **Docker Desktop**: In **Settings > Resources**, set RAM to at least 8GB (10GB recommended for WhisperX).
+
+#### 🪟 Windows (WSL 2)
+- **Prerequisite**: Ensure **WSL 2** is installed and set as the default version (`wsl --set-default-version 2`).
+- **Docker Desktop**: 
+    1. Go to **Settings > Resources > WSL Integration**.
+    2. Enable integration with your default distro.
+    3. WSL 2 will dynamically manage RAM, but if you experience OOM, create a `.wslconfig` file in your user folder:
+       ```ini
+       [wsl2]
+       memory=10GB
+       ```
+
+#### 🐧 Linux
+- Ensure the current user is in the `docker` group (`sudo usermod -aG docker $USER`).
+- Linux handles memory natively, so `docker-compose up --build` should work directly if your system has 8GB+ RAM.
+
+> [!IMPORTANT]
+> Ensure `shm_size: 2gb` is set in your `docker-compose.yaml` to avoid OOM crashes with local ML engines (WhisperX/Demucs).
 
 ## 📜 Licence
 Apache License 2.0

@@ -10,4 +10,4 @@ cd /app/apps/back
 # Use 'exec' to replace the shell with the node process.
 # This ensures that SIGTERM/SIGINT signals reach Node.js directly.
 echo "Launching NestJS backend (serving frontend on root)..."
-exec node dist/main.js
+exec node dist/src/main.js

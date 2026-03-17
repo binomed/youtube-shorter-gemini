@@ -27,11 +27,15 @@
         "preset": "ts-jest",
         "testEnvironment": "node",
         "roots": [
-            "<rootDir>/test"
+            "<rootDir>/test",
+            "<rootDir>/src"
         ],
         "testMatch": [
             "**/*.spec.ts"
-        ]
+        ],
+        "moduleNameMapper": {
+            "^(\\.\\.?/.*)\\.js$": "$1"
+        }
     },
     "dependencies": {
         "class-transformer": "^0.5.1",

@@ -10,8 +10,12 @@ export default defineConfig({
     plugins: [
         tailwindcss(),
     ],
+    define: {
+        'process.env': {},
+        'global': 'globalThis',
+    },
     optimizeDeps: {
-        include: ['@youtube-shorter/shared'],
+        include: ['@youtube-shorter/shared', 'class-transformer', 'class-validator', 'reflect-metadata'],
     },
     server: {
         proxy: {

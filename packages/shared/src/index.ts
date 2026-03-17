@@ -18,7 +18,7 @@ export { ExportShortDto } from './dtos/export.dto';
 export * from './utils/word-reconciler.util';
 
 // Types
-export { ProjectResponse } from './types/project.types';
-export { ShortResponse, AnalysisResponse, AnalysisProgressEvent, DetectedSegment, StemProgressEvent, ExportProgressEvent, SubtitleResponse, VideoSegment, SubtitleStyle, LayoutEvent, WordTiming } from './types/short.types';
-export { SubtitlePreset, CreateSubtitlePresetDto } from './types/subtitle-preset.types';
-export { ErrorResponse, ValidationErrorResponse, ValidationError } from './types/error.types';
+export type { ProjectResponse } from './types/project.types';
+export type { ShortResponse, AnalysisResponse, AnalysisProgressEvent, DetectedSegment, StemProgressEvent, ExportProgressEvent, SubtitleResponse, VideoSegment, SubtitleStyle, LayoutEvent, WordTiming } from './types/short.types';
+export type { SubtitlePreset, CreateSubtitlePresetDto } from './types/subtitle-preset.types';
+export type { ErrorResponse, ValidationErrorResponse, ValidationError } from './types/error.types';

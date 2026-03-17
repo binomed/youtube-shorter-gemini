@@ -55,10 +55,8 @@ import { SettingsModule } from './modules/settings/settings.module';
     PresetsModule,
     SettingsModule,
 
-    // Serve frontend static files
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'front', 'dist'),
-      exclude: ['/api/(.*)'],
+      rootPath: join(process.cwd(), '..', 'front', 'dist'),
     }),
   ],
 
