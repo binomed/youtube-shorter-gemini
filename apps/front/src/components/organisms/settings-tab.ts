@@ -3,7 +3,8 @@
 
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import type { AppSettings, GeminiModelInfo } from '@youtube-shorter/shared';
+import { GEMINI_MODELS } from '@youtube-shorter/shared';
+import type { AppSettings } from '@youtube-shorter/shared';
 
 import '@shoelace-style/shoelace/dist/components/select/select.js';
 import '@shoelace-style/shoelace/dist/components/option/option.js';
@@ -11,43 +12,7 @@ import '@shoelace-style/shoelace/dist/components/input/input.js';
 import '@shoelace-style/shoelace/dist/components/button/button.js';
 import { ytsPremiumStyles } from '../../styles/yts-styles';
 
-const GEMINI_MODELS: GeminiModelInfo[] = [
-  {
-    name: 'Gemini 3.1 Pro (Preview)',
-    code: 'gemini-3.1-pro-preview',
-    pricing: '$2.00 - $4.00 per 1M input / $12.00 - $18.00 per 1M output',
-  },
-  {
-    name: 'Gemini 3.1 Flash-Lite Preview',
-    code: 'gemini-3.1-flash-lite-preview',
-    pricing: '$0.05 - $0.10 per 1M input / $0.15 - $0.30 per 1M output',
-  },
-  {
-    name: 'Gemini 3 Flash Preview',
-    code: 'gemini-3-flash-preview',
-    pricing: '$0.10 - $0.20 per 1M input / $0.30 - $0.60 per 1M output',
-  },
-  {
-    name: 'Gemini 2.5 Pro',
-    code: 'gemini-2.5-pro',
-    pricing: '$1.25 - $2.50 per 1M input / $10.00 - $15.00 per 1M output',
-  },
-  {
-    name: 'Gemini 2.5 Flash-Lite',
-    code: 'gemini-2.5-flash-lite',
-    pricing: '$0.075 - $0.15 per 1M input / $0.30 - $0.60 per 1M output',
-  },
-  {
-    name: 'Gemini 1.5 Flash',
-    code: 'gemini-1.5-flash',
-    pricing: 'Legacy - Stable',
-  },
-  {
-    name: 'Gemini 1.5 Pro',
-    code: 'gemini-1.5-pro',
-    pricing: 'Legacy - Stable',
-  },
-];
+// GEMINI_MODELS imported from @youtube-shorter/shared
 
 @customElement('settings-tab')
 export class SettingsTab extends LitElement {

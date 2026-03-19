@@ -10,6 +10,11 @@ export default defineConfig({
     plugins: [
         tailwindcss(),
     ],
+    resolve: {
+        alias: {
+            '@youtube-shorter/shared': '../../packages/shared/src/index.ts',
+        },
+    },
     define: {
         'process.env': {},
         'global': 'globalThis',
