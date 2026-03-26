@@ -48,4 +48,10 @@ coverage
 _bmad-output/planning-artifacts/validation-report-*
 
 tests
-apps/back/database.sqlite
+# Local data and Database
+data/*.db
+data/*.sqlite
+apps/back/*.sqlite
+uploads/
+!data/.gitkeep
+!uploads/.gitkeep
