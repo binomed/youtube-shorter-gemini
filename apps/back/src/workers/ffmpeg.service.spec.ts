@@ -60,6 +60,7 @@ describe('FFmpegService', () => {
             width: 1920,
             height: 1080,
             codec_name: 'h264',
+            r_frame_rate: '60/1',
           },
         ],
       };
@@ -70,6 +71,7 @@ describe('FFmpegService', () => {
 
       expect(result).toEqual({
         duration: 120.5,
+        framerate: 60,
         resolution: '1920x1080',
         codec: 'h264',
         width: 1920,

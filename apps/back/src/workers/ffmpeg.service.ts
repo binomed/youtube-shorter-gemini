@@ -13,6 +13,7 @@ import * as path from 'path';
  */
 export interface VideoMetadata {
   duration: number;
+  framerate: number;
   resolution: string;
   codec: string;
   width: number;
@@ -25,6 +26,7 @@ export interface VideoMetadata {
 interface FFprobeStream {
   codec_type: string;
   codec_name?: string;
+  r_frame_rate?: string;
   width?: number;
   height?: number;
 }
@@ -98,8 +100,23 @@ export class FFmpegService {
       const resolution = `${width}x${height}`;
       const codec = videoStream.codec_name ?? 'unknown';
 
+      // Parse framerate (e.g. "30000/1001" or "25/1")
+      let framerate = 30; // fallback
+      if (videoStream.r_frame_rate) {
+        const [num, den] = videoStream.r_frame_rate.split('/');
+        if (num && den) {
+          const parsedNum = parseFloat(num);
+          const parsedDen = parseFloat(den);
+          if (parsedDen > 0) framerate = parsedNum / parsedDen;
+        } else {
+          const parsed = parseFloat(videoStream.r_frame_rate);
+          if (!isNaN(parsed) && parsed > 0) framerate = parsed;
+        }
+      }
+
       return {
         duration,
+        framerate,
         resolution,
         codec,
         width,

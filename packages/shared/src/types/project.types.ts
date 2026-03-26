@@ -22,6 +22,9 @@ export interface ProjectResponse {
     /** Video duration in seconds (optional, extracted from metadata) */
     duration?: number;
 
+    /** Video framerate (optional, e.g. 29.97, 30, 60) */
+    framerate?: number;
+
     /** Video resolution (optional, e.g. "1920x1080") */
     resolution?: string;
 

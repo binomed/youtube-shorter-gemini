@@ -83,6 +83,12 @@ export class Project {
   duration?: number;
 
   /**
+   * Video framerate (e.g. 24, 25, 29.97, 30, 60)
+   */
+  @Column({ type: 'float', nullable: true })
+  framerate?: number;
+
+  /**
    * Video resolution (width x height)
    * @example "1920x1080"
    */

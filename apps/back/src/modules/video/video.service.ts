@@ -134,6 +134,7 @@ export class VideoService {
       aiLearningConsent: aiLearningConsent || false,
       ...(metadata && {
         duration: metadata.duration,
+        framerate: metadata.framerate,
         resolution: metadata.resolution,
         codec: metadata.codec,
       }),
@@ -172,6 +173,7 @@ export class VideoService {
       isExported: savedProject.isExported,
       isAnalyzed: !!savedProject.transcript,
       ...(savedProject.duration && { duration: savedProject.duration }),
+      ...(savedProject.framerate && { framerate: savedProject.framerate }),
       ...(savedProject.resolution && { resolution: savedProject.resolution }),
       ...(savedProject.codec && { codec: savedProject.codec }),
     };
@@ -201,6 +203,7 @@ export class VideoService {
       isExported: project.isExported,
       isAnalyzed: !!project.transcript,
       ...(project.duration && { duration: project.duration }),
+      ...(project.framerate && { framerate: project.framerate }),
       ...(project.resolution && { resolution: project.resolution }),
       ...(project.codec && { codec: project.codec }),
     };
@@ -224,6 +227,7 @@ export class VideoService {
       isExported: project.isExported,
       isAnalyzed: !!project.transcript, // Derived field
       ...(project.duration && { duration: project.duration }),
+      ...(project.framerate && { framerate: project.framerate }),
       ...(project.resolution && { resolution: project.resolution }),
       ...(project.codec && { codec: project.codec }),
     }));
