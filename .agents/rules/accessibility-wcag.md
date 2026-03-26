@@ -16,4 +16,4 @@ WCAG 2.1 Level AA compliance is **mandatory** for:
 - Media controls
 - Color contrast and typography
 
-Use and read .agent/skills/accessibility_wcag/SKILL.md !
+Use and read .agents/skills/accessibility_wcag/SKILL.md !

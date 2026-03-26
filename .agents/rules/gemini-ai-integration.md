@@ -15,4 +15,4 @@ Use this skill when working on AI-powered features in `apps/back/src/modules/ana
 - Implementing fallback to local Ollama models
 
 
-Use and read .agent/skills/gemini_ai_integration/SKILL.md !
+Use and read .agents/skills/gemini_ai_integration/SKILL.md !
