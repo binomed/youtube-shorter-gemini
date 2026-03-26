@@ -25,6 +25,18 @@ export class YtsPrecisionMultiTimeline extends LitElement {
     @property({ type: Boolean }) isPlaying = false;
 
     @state() private draggingEdge: 'start' | 'end' | null = null;
+    @state() private _zoom = 1; // 1 = 100% of container is 60s or duration
+
+    /**
+   * True framerate of the original video (e.g. 24, 25, 29.97, 60).
+   * Used to snap timeline actions perfectly to video frames.
+   */
+  @property({ type: Number })
+  fps = 30;
+
+  private get _frameDuration() {
+    return 1 / (this.fps > 0 ? this.fps : 30);
+  }
 
     static styles = css`
         :host {
@@ -49,13 +61,35 @@ export class YtsPrecisionMultiTimeline extends LitElement {
 
         .timeline-container {
             position: relative;
-            height: 60px;
+            height: 80px;
             background: rgba(30, 41, 59, 0.5);
             border-radius: 12px;
-            padding: 0 40px 0 16px; /* Less padding on left to fit button */
+            padding: 0 16px; 
             display: flex;
             align-items: center;
             gap: 16px;
+            overflow: hidden;
+        }
+
+        .timeline-scroll-container {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+            padding: 0 40px; /* Padding for handles at edges */
+        }
+
+        .timeline-scroll-container::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .timeline-scroll-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
         }
 
         .play-btn {
@@ -82,7 +116,9 @@ export class YtsPrecisionMultiTimeline extends LitElement {
 
         .timeline-track {
             position: relative;
-            width: 100%;
+            width: 100%; /* Will be overridden by inline style for zoom */
+            min-width: 100%;
+            flex-shrink: 0; /* CRITICAL: Prevent flexbox from squishing the zoomed track */
             height: 48px;
             background: rgba(255, 255, 255, 0.03);
             border-radius: 8px;
@@ -313,7 +349,12 @@ export class YtsPrecisionMultiTimeline extends LitElement {
                     </button>
                 </sl-tooltip>
 
-                <div class="timeline-track" @mousedown=${this._onTrackClick}>
+                <div class="timeline-scroll-container">
+                    <div 
+                        class="timeline-track" 
+                        style="width: ${this._zoom * 100}%;" 
+                        @mousedown=${this._onTrackClick}
+                    >
                     <div class="waveform-bg">
                         ${Array.from({ length: 40 }).map(() => html`
                             <div class="waveform-bar" style="height: ${20 + Math.random() * 60}%"></div>
@@ -367,11 +408,12 @@ export class YtsPrecisionMultiTimeline extends LitElement {
                         <div class="handle-circle"></div>
                     </div>
                 </div>
+                </div>
             </div>
 
             <div class="time-footer">
-                <div>IN: <span>${this._formatTimeShort(this.segment.startTime)}</span></div>
-                <div>OUT: <span>${this._formatTimeShort(this.segment.endTime)}</span></div>
+                <div>IN: <span style="color: white; border: 1px solid rgba(255,255,255,0.3); padding: 1px 4px; border-radius: 4px;">${this._formatTimeShort(this.segment.startTime)}</span> / ${this._formatTimeShort(this.duration)}</div>
+                <div>OUT: <span style="color: white; border: 1px solid rgba(255,255,255,0.3); padding: 1px 4px; border-radius: 4px;">${this._formatTimeShort(this.segment.endTime)}</span> / ${this._formatTimeShort(this.duration)}</div>
             </div>
         `;
     }
@@ -384,7 +426,13 @@ export class YtsPrecisionMultiTimeline extends LitElement {
 
     private _timeToPercent(time: number): number {
         if (!this.duration) return 0;
+        // Total width is controlled by zoom. 100% is the "viewport" width.
+        // We calculate position relative to the track's total width.
         return (time / this.duration) * 100;
+    }
+
+    private _snapToFrame(time: number): number {
+        return Math.round(time / this._frameDuration) * this._frameDuration;
     }
 
     private _startDrag(e: MouseEvent, edge: 'start' | 'end') {
@@ -396,7 +444,8 @@ export class YtsPrecisionMultiTimeline extends LitElement {
             const rect = this.shadowRoot!.querySelector('.timeline-track')!.getBoundingClientRect();
             const x = moveEvent.clientX - rect.left;
             const percent = Math.max(0, Math.min(1, x / rect.width));
-            const newTime = percent * this.duration;
+            const rawTime = percent * this.duration;
+            const newTime = this._snapToFrame(rawTime);
 
             const updatedSegment = { ...this.segment };
 
@@ -439,7 +488,8 @@ export class YtsPrecisionMultiTimeline extends LitElement {
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         const x = e.clientX - rect.left;
         const percent = Math.max(0, Math.min(1, x / rect.width));
-        let seekTime = percent * this.duration;
+        const rawTime = percent * this.duration;
+        let seekTime = this._snapToFrame(rawTime);
 
         // Clamp seekTime between IN and OUT
         seekTime = Math.max(this.segment.startTime, Math.min(this.segment.endTime, seekTime));
@@ -459,7 +509,8 @@ export class YtsPrecisionMultiTimeline extends LitElement {
         const onMouseMove = (moveEvent: MouseEvent) => {
             const x = moveEvent.clientX - rect.left;
             const percent = Math.max(0, Math.min(1, x / rect.width));
-            let seekTime = percent * this.duration;
+            const rawTime = percent * this.duration;
+            let seekTime = this._snapToFrame(rawTime);
 
             // Clamp seekTime between IN and OUT
             if (this.segment) {
@@ -491,6 +542,87 @@ export class YtsPrecisionMultiTimeline extends LitElement {
             bubbles: true,
             composed: true
         }));
+    }
+
+    connectedCallback() {
+        super.connectedCallback();
+        window.addEventListener('keydown', this._handleKeydown, { capture: true });
+    }
+
+    disconnectedCallback() {
+        window.removeEventListener('keydown', this._handleKeydown, { capture: true });
+        super.disconnectedCallback();
+    }
+
+    protected firstUpdated() {
+        const scrollContainer = this.shadowRoot?.querySelector('.timeline-scroll-container');
+        if (scrollContainer) {
+            // Must use non-passive listener to be able to call preventDefault()
+            scrollContainer.addEventListener('wheel', (e) => this._onWheel(e as WheelEvent), { passive: false });
+        }
+    }
+
+    private _handleKeydown = (e: KeyboardEvent) => {
+        // Only trigger if focus is potentially on or near the timeline or no other input is focused
+        const activeElement = e.composedPath()[0] as HTMLElement;
+        const isInput =
+            activeElement instanceof HTMLInputElement ||
+            activeElement instanceof HTMLTextAreaElement ||
+            activeElement.isContentEditable;
+
+        if (isInput) return;
+
+        const isZoomIn = (e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=');
+        const isZoomOut = (e.ctrlKey || e.metaKey) && (e.key === '-');
+
+        if (isZoomIn) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            this._applyZoom(1.2);
+        } else if (isZoomOut) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            this._applyZoom(0.8);
+        }
+    };
+
+    private _onWheel(e: WheelEvent) {
+        console.log('onWheel', e.ctrlKey, e.metaKey)
+        if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            this._applyZoom(delta, e.clientX);
+            console.log('onWheel', delta, e.clientX)
+        }
+    }
+
+    private _applyZoom(factor: number, clientX?: number) {
+        const container = this.shadowRoot?.querySelector('.timeline-scroll-container') as HTMLElement;
+        const track = this.shadowRoot?.querySelector('.timeline-track') as HTMLElement;
+        if (!container || !track) return;
+
+        const oldZoom = this._zoom;
+        const maxZoom = Math.max(1, this.duration / 30); // Max zoom allows 30s to fill the viewport
+        const newZoom = Math.max(1, Math.min(maxZoom, this._zoom * factor));
+
+        if (newZoom === oldZoom) return;
+
+        // Calculate visual center of zoom
+        let pivotPercent = 0.5;
+        if (clientX !== undefined) {
+            const rect = container.getBoundingClientRect();
+            const xInContainer = clientX - rect.left;
+            pivotPercent = (xInContainer + container.scrollLeft) / (track.offsetWidth || 1);
+        }
+
+        this._zoom = newZoom;
+
+        // Adjust scroll to keep pivot point pinned
+        this.updateComplete.then(() => {
+            const newTrackWidth = track.offsetWidth;
+            const newScrollLeft = pivotPercent * newTrackWidth - (clientX !== undefined ? (clientX - container.getBoundingClientRect().left) : (container.offsetWidth / 2));
+            container.scrollLeft = newScrollLeft;
+        });
     }
 }
 

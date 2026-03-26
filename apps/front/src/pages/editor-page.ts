@@ -209,6 +209,10 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     const segment = e.detail.segment;
     await this.saveSegments([segment]);
 
+    // Wait for Lit to process property updates (currentShort, segments)
+    // before asking the player to seek, to avoid jump-cuts triggered by old bounds.
+    await this.updateComplete;
+
     // Restart video at the beginning of the segment
     const player = this.shadowRoot?.querySelector('yts-short-player') as HTMLElement & { seekTo: (time: number) => void };
     if (player && player.seekTo) {
@@ -1080,6 +1084,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                   <yts-precision-multi-timeline
                       style="flex-shrink: 0; width: 100%; max-width: 800px; padding-bottom: 24px;"
                       .duration=${projectSignal.get()?.duration || 0}
+                      .fps=${projectSignal.get()?.framerate || 30}
                       .currentTime=${this.currentTime}
                       .isPlaying=${this.isPlaying}
                       .segment=${this.currentShort.segments?.[0] || { startTime: this.currentShort.startTime, endTime: this.currentShort.endTime }}
