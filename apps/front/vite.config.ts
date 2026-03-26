@@ -29,5 +29,14 @@ export default defineConfig({
                 changeOrigin: true,
             },
         },
+        watch: {
+            usePolling: true,
+        },
+    },
+    build: {
+        sourcemap: true,
+    },
+    css: {
+        devSourcemap: true,
     },
 });
