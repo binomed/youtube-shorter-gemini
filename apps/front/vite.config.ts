@@ -20,7 +20,17 @@ export default defineConfig({
         'global': 'globalThis',
     },
     optimizeDeps: {
-        include: ['@youtube-shorter/shared', 'class-transformer', 'class-validator', 'reflect-metadata'],
+        include: [
+            '@shoelace-style/shoelace',
+            'lit',
+            '@lit-labs/signals',
+            '@vaadin/router',
+            'axios',
+            '@youtube-shorter/shared',
+            'class-transformer',
+            'class-validator',
+            'reflect-metadata'
+        ],
     },
     server: {
         proxy: {

@@ -113,7 +113,7 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
 
     private setBgColor(color: string) {
         this.emitStyleChange({
-            backgroundColor: color === 'yellow' ? '#facc15' : color === 'black' ? 'rgba(0,0,0,0.6)' : 'transparent'
+            backgroundColor: color === 'transparent' ? 'transparent' : color === 'black' ? 'rgba(0,0,0,0.6)' : color
         });
     }
 
@@ -709,8 +709,8 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         if (currentColor === '#fff' || currentColor === 'white' || currentColor === '#ffffff') textColorToggle = 'white';
 
         let bgColorToggle = 'custom';
-        if (currentBgColor === '#facc15' || currentBgColor === 'yellow') bgColorToggle = 'yellow';
-        if (currentBgColor === 'rgba(0,0,0,0.6)' || currentBgColor === 'rgba(0, 0, 0, 0.6)') bgColorToggle = 'black';
+        if (currentBgColor === 'transparent' || currentBgColor === 'rgba(0,0,0,0)' || currentBgColor === '#00000000') bgColorToggle = 'transparent';
+        else if (currentBgColor === 'rgba(0,0,0,0.6)' || currentBgColor === 'rgba(0, 0, 0, 0.6)') bgColorToggle = 'black';
 
         const presets = presetState.presets.value;
         const isLoading = presetState.isLoading.value;
@@ -848,15 +848,21 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
         `;
 
         if (borderEnabled) {
-            previewStyle += `border: ${borderWidth}px solid ${borderColor};`;
+            previewStyle += `-webkit-text-stroke: ${borderWidth}px ${borderColor};`;
         }
 
+        const shadows = [];
         if (textShadow) {
-            previewStyle += `text-shadow: 2px 2px 4px rgba(0,0,0,0.5);`;
+            shadows.push('2px 2px 4px rgba(0,0,0,0.8)');
         }
 
         if (textOutline) {
-            previewStyle += `-webkit-text-stroke: 1px ${currentColor === '#ffffff' ? '#000000' : '#ffffff'};`;
+            const isDark = currentColor === '#000000' || currentColor === 'black';
+            shadows.push(`0 0 8px ${isDark ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.8)'}`);
+        }
+        
+        if (shadows.length) {
+            previewStyle += `text-shadow: ${shadows.join(', ')};`;
         }
 
         return html`
@@ -913,8 +919,10 @@ export class YtsSubtitleStylePanel extends SignalWatcher(LitElement) {
                             ></sl-color-picker>
                         </sl-dropdown>
 
-                            <sl-tooltip content="Set background color to Yellow" placement="bottom">
-                                <button type="button" class="color-bubble ${bgColorToggle === 'yellow' ? 'active' : ''}" style="background: #facc15;" aria-label="Set background color to Yellow" @click=${() => this.setBgColor('yellow')}></button>
+                            <sl-tooltip content="No Background (Transparent)" placement="bottom">
+                                <button type="button" class="color-bubble ${bgColorToggle === 'transparent' ? 'active' : ''}" style="background: repeating-conic-gradient(#80808033 0% 25%, transparent 0% 50%) 50% / 10px 10px;" aria-label="Set background color to Transparent" @click=${() => this.setBgColor('transparent')}>
+                                    <sl-icon name="slash-circle"></sl-icon>
+                                </button>
                             </sl-tooltip>
                             <sl-tooltip content="Set background color to Semi-transparent Black" placement="bottom">
                                 <button type="button" class="color-bubble ${bgColorToggle === 'black' ? 'active' : ''}" style="background: rgba(0,0,0,0.6);" aria-label="Set background color to Semi-transparent Black" @click=${() => this.setBgColor('black')}></button>

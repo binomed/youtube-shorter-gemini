@@ -366,8 +366,11 @@ export class ExportService {
 
     // 4. Alignment mapping: ASS Alignment (v4+)
     // Switch to Alignment 2 (Bottom Center) to match CSS flex-end logic.
-    // In Alignment 2, MarginV is the distance from the Bottom edge to the bottom of the subtitle block.
-    const alignment = 2;
+    // In Alignment 1/2/3, MarginV is the distance from the Bottom edge.
+    let alignment = 2;
+    if (style?.textAlign === 'left') alignment = 1;
+    else if (style?.textAlign === 'right') alignment = 3;
+    
     const marginV = Math.max(0, baseMarginBottom - offsetY);
 
     const transparentColor = '&HFFFFFFFF&';
@@ -392,6 +395,14 @@ Style: TextLayer,${fontName},${fontSize},${colorPrimary},&H000000FF&,${assOutlin
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
+
+    const textOutlineGlow = style?.textOutline ?? false;
+    const isDarkText = style?.color === '#000000' || style?.color === 'black';
+    // Base glow color formatting for ASS tags (needs to be just &HBBGGRR& without alpha for \3c, so we strip the first 2 hex chars after H)
+    const rawGlowColor = toAssColor(isDarkText ? '#ffffff' : '#ffffff', '&H00FFFFFF&');
+    const glowAssColor = rawGlowColor.replace('&H00', '&H');
+    // Using \blur10 for a soft glow, \bord8 for thickness, \3a&H60& for semi-transparency on the glow
+    const glowTag = `{\\blur10\\bord${Math.round(8 * scaleFactor)}\\3c${glowAssColor}\\3a&H60&}`;
 
     for (const sub of subtitles) {
       const start = this.formatAssTime(sub.startTime);
@@ -427,16 +438,23 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             .replace(/\n/g, '\\N');
 
           // SYNCHRONIZED LAYERS: Both BgLayer and TextLayer use the same inlineText (scaling tags)
+          // ASS rendering order is defined by Layer number. Lower number = background, Higher number = foreground.
           if (!isTransparentBox) {
             ass += `Dialogue: 0,${sStart},${sEnd},BgLayer,,0,0,0,,${inlineText}\n`;
           }
-          ass += `Dialogue: 1,${sStart},${sEnd},TextLayer,,0,0,0,,${inlineText}\n`;
+          if (textOutlineGlow) {
+            ass += `Dialogue: 1,${sStart},${sEnd},TextLayer,,0,0,0,,${glowTag}${inlineText}\n`;
+          }
+          ass += `Dialogue: 2,${sStart},${sEnd},TextLayer,,0,0,0,,${inlineText}\n`;
         }
       } else {
         if (!isTransparentBox) {
           ass += `Dialogue: 0,${start},${end},BgLayer,,0,0,0,,${escapedText}\n`;
         }
-        ass += `Dialogue: 1,${start},${end},TextLayer,,0,0,0,,${escapedText}\n`;
+        if (textOutlineGlow) {
+          ass += `Dialogue: 1,${start},${end},TextLayer,,0,0,0,,${glowTag}${escapedText}\n`;
+        }
+        ass += `Dialogue: 2,${start},${end},TextLayer,,0,0,0,,${escapedText}\n`;
       }
     }
 

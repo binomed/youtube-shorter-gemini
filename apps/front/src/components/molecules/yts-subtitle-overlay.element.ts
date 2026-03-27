@@ -143,7 +143,7 @@ export class YtsSubtitleOverlay extends LitElement {
             pointer-events: auto;
             cursor: grab;
             user-select: none;
-            text-align: center;
+            /* text-align removed because we map it dynamically */
             
             /* Responsive Padding: Match the backend 'Outline' of 20px (per 1000px height) */
             /* 20px / 562.5px design width = 3.55cqw. We use 3.5cqw for parity. */
@@ -173,7 +173,7 @@ export class YtsSubtitleOverlay extends LitElement {
         .word-wrapper {
             display: flex;
             flex-wrap: wrap;
-            justify-content: center;
+            /* justify-content is mapped dynamically to support left/right/center alignment */
             gap: 0.4cqw 0.8cqw;
         }
 
@@ -186,7 +186,7 @@ export class YtsSubtitleOverlay extends LitElement {
         .word.active {
             color: var(--highlight-color, #facc15);
             transform: scale(var(--highlight-scale, 1.15));
-            text-shadow: 0 0 1cqw rgba(0,0,0,0.3);
+            /* Inherit text-shadow instead of overriding */
         }
     `;
 
@@ -203,36 +203,52 @@ export class YtsSubtitleOverlay extends LitElement {
         const fsValue = this.subtitleStyle?.fontSize || 40;
         const responsiveFontSize = `${(fsValue / 562.5) * 100}cqw`;
         
+        // Alignment Mapping
+        let alignSelf = 'center';
+        let justifyContent = 'center';
+        if (this.subtitleStyle?.textAlign === 'left') { 
+            alignSelf = 'flex-start'; 
+            justifyContent = 'flex-start';
+        } else if (this.subtitleStyle?.textAlign === 'right') { 
+            alignSelf = 'flex-end'; 
+            justifyContent = 'flex-end'; 
+        }
+
         const styles: Record<string, string | number> = {
             fontFamily: this.subtitleStyle?.font || 'inherit',
             fontSize: responsiveFontSize,
             color: this.subtitleStyle?.color || '#ffffff',
             backgroundColor: this.subtitleStyle?.backgroundColor || 'rgba(0, 0, 0, 0.6)',
             textAlign: this.subtitleStyle?.textAlign || 'center',
+            alignSelf: alignSelf,
             transform: `translate(${posX}px, ${posY}px)`,
             cursor: this._isDragging ? 'grabbing' : 'grab',
             '--highlight-color': this.subtitleStyle?.highlightColor || '#facc15',
             '--highlight-scale': (this.subtitleStyle?.highlightScale || 115) / 100
         };
 
+        // Border as WebkitTextStroke (FFMPEG BorderStyle: 1 Outline)
         if (this.subtitleStyle?.borderEnabled) {
             const bw = this.subtitleStyle.borderWidth || 3;
-            styles.border = `calc(${(bw / 562.5) * 100}cqw) solid ${this.subtitleStyle.borderColor || '#000000'}`;
+            styles.WebkitTextStroke = `calc(${(bw / 562.5) * 100}cqw) ${this.subtitleStyle.borderColor || '#000000'}`;
         } else {
-            styles.border = 'none';
+            styles.WebkitTextStroke = '0';
         }
 
+        // Shadow and Glow
+        const shadows = [];
         if (this.subtitleStyle?.textShadow) {
-            styles.textShadow = '0.4cqw 0.4cqw 0.8cqw rgba(0,0,0,0.5)';
-        } else {
-            styles.textShadow = 'none';
+            shadows.push('0.4cqw 0.4cqw 0.8cqw rgba(0,0,0,0.8)');
         }
-
+        
         if (this.subtitleStyle?.textOutline) {
-            styles.webkitTextStroke = `0.2cqw ${this.subtitleStyle.color === '#ffffff' ? '#000000' : '#ffffff'}`;
-        } else {
-            styles.webkitTextStroke = '0';
+            // Apply Glow
+            const isDarkColor = this.subtitleStyle.color === '#000000' || this.subtitleStyle.color === 'black';
+            const glowColor = isDarkColor ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.8)';
+            shadows.push(`0 0 1.5cqw ${glowColor}`);
         }
+        
+        styles.textShadow = shadows.length > 0 ? shadows.join(', ') : 'none';
 
         return html`
             ${this.activeSubtitle ? html`
@@ -245,7 +261,7 @@ export class YtsSubtitleOverlay extends LitElement {
                     aria-label="Edit subtitle"
                 >
                     ${this.subtitleStyle?.highlightEnabled && this.activeSubtitle.words && this.activeSubtitle.words.length > 0 ? html`
-                        <div class="word-wrapper">
+                        <div class="word-wrapper" style="justify-content: ${justifyContent}">
                             ${this.activeSubtitle.words.map(w => {
                                 const isActive = this.currentTime >= w.startTime && this.currentTime <= w.endTime;
                                 return html`
