@@ -370,7 +370,7 @@ export class ExportService {
     let alignment = 2;
     if (style?.textAlign === 'left') alignment = 1;
     else if (style?.textAlign === 'right') alignment = 3;
-    
+
     const marginV = Math.max(0, baseMarginBottom - offsetY);
 
     const transparentColor = '&HFFFFFFFF&';
@@ -399,7 +399,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     const textOutlineGlow = style?.textOutline ?? false;
     const isDarkText = style?.color === '#000000' || style?.color === 'black';
     // Base glow color formatting for ASS tags (needs to be just &HBBGGRR& without alpha for \3c, so we strip the first 2 hex chars after H)
-    const rawGlowColor = toAssColor(isDarkText ? '#ffffff' : '#ffffff', '&H00FFFFFF&');
+    const rawGlowColor = toAssColor(
+      isDarkText ? '#ffffff' : '#ffffff',
+      '&H00FFFFFF&',
+    );
     const glowAssColor = rawGlowColor.replace('&H00', '&H');
     // Using \blur10 for a soft glow, \bord8 for thickness, \3a&H60& for semi-transparency on the glow
     const glowTag = `{\\blur10\\bord${Math.round(8 * scaleFactor)}\\3c${glowAssColor}\\3a&H60&}`;
