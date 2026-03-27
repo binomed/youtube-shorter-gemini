@@ -58,6 +58,30 @@ export class UpdateSubtitleStyleDto {
   positionX?: number;
 
   @IsOptional()
+  @IsString()
+  textAlign?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  borderEnabled?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  borderWidth?: number;
+
+  @IsOptional()
+  @IsString()
+  borderColor?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  textShadow?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  textOutline?: boolean;
+
+  @IsOptional()
   @IsBoolean()
   highlightEnabled?: boolean;
 

@@ -125,24 +125,34 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     this.editingSubtitle = null;
   }
 
-  private async handleStyleChange(e: CustomEvent): Promise<void> {
+  private _styleSaveTimer?: number;
+
+  private handleStyleChange(e: CustomEvent): void {
     const newStyle = e.detail.subtitleStyle;
     if (this.currentShort) {
       this.currentShort.subtitleStyle = newStyle;
       this.currentShort = { ...this.currentShort }; // Trigger Lit update
 
-      try {
-        const projectId = projectSignal.get()?.id;
-        if (projectId) {
-          await fetch(`/api/projects/${projectId}/shorts/${this.currentShort.id}/style`, {
+      const projectId = projectSignal.get()?.id;
+      const shortId = this.currentShort.id;
+      
+      if (!projectId || !shortId) return;
+
+      if (this._styleSaveTimer) {
+        window.clearTimeout(this._styleSaveTimer);
+      }
+
+      this._styleSaveTimer = window.setTimeout(async () => {
+        try {
+          await fetch(`/api/projects/${projectId}/shorts/${shortId}/style`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(newStyle)
           });
+        } catch (err) {
+          console.error('Failed to save subtitle style:', err);
         }
-      } catch (err) {
-        console.error('Failed to save subtitle style:', err);
-      }
+      }, 500);
     }
   }
 
