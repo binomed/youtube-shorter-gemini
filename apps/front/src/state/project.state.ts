@@ -1,10 +1,6 @@
 
-/*
- * Copyright (c) 2026 YouTube Shorter Gemini. All rights reserved.
- * Licensed under the Apache-2.0 License. See LICENSE file in the project root for full license information.
- */
 import { signal } from '@lit-labs/signals';
-import type { ProjectResponse } from '@youtube-shorter/shared';
+import type { ProjectResponse, ShortResponse } from '@youtube-shorter/shared';
 
 /**
  * Global reactive state for the current project.
@@ -18,6 +14,30 @@ export const projectSignal = signal<ProjectResponse | null>(null);
  */
 export const setProject = (project: ProjectResponse | null): void => {
     projectSignal.set(project);
+};
+
+/**
+ * Updates a single short within the current project.
+ * Useful for keeping the sidebar in sync with editor changes.
+ * @param updatedShort The updated short data
+ */
+export const updateShortInProject = (updatedShort: ShortResponse): void => {
+    const current = projectSignal.get();
+    if (current && current.shorts) {
+        const updatedShorts = current.shorts.map(s => s.id === updatedShort.id ? updatedShort : s);
+        projectSignal.set({ ...current, shorts: updatedShorts });
+    }
+};
+
+/**
+ * Sets the list of shorts for the current project.
+ * @param shorts Array of shorts
+ */
+export const setShorts = (shorts: ShortResponse[]): void => {
+    const current = projectSignal.get();
+    if (current) {
+        projectSignal.set({ ...current, shorts });
+    }
 };
 
 /**

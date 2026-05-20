@@ -24,10 +24,9 @@ import '../components/molecules/yts-subtitle-style-panel.element.js';
 import '../components/molecules/yts-precision-multi-timeline.element.js';
 import '../components/molecules/yts-header.element.js';
 import { projectService } from '../services/project.service.js';
-import { projectSignal, setProject } from '../state/project.state.js';
+import { projectSignal, setProject, updateShortInProject, setShorts } from '../state/project.state.js';
 @customElement('editor-page')
 export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnterObserver {
-  @state() private shorts: ShortResponse[] = [];
   @state() private currentShort: ShortResponse | null = null;
   @state() private loading = true;
   @state() private stemSeparating = false;
@@ -110,6 +109,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
               if (this.currentShort.subtitles) {
                 this.currentShort.subtitles[subIndex] = updatedSub;
                 this.currentShort = { ...this.currentShort }; 
+                updateShortInProject(this.currentShort);
               }
             }
           }
@@ -132,6 +132,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     if (this.currentShort) {
       this.currentShort.subtitleStyle = newStyle;
       this.currentShort = { ...this.currentShort }; // Trigger Lit update
+      updateShortInProject(this.currentShort);
 
       const projectId = projectSignal.get()?.id;
       const shortId = this.currentShort.id;
@@ -166,20 +167,25 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
     this.loading = true;
     try {
-      await Promise.all(this.shorts.map(async (short) => {
-        // Skip current since it's already saved via style-changed event right before
-        if (short.id === this.currentShort?.id) return;
+      const currentProject = projectSignal.get();
+      if (!currentProject || !currentProject.shorts) return;
 
-        short.subtitleStyle = { ...styleToApply };
+      const updatedShorts = await Promise.all(currentProject.shorts.map(async (short) => {
+        // Skip current since it's already saved via style-changed event right before
+        if (short.id === this.currentShort?.id) return short;
+
+        const updated = { ...short, subtitleStyle: { ...styleToApply } };
 
         await fetch(`/api/projects/${projectId}/shorts/${short.id}/style`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(styleToApply)
         });
+        
+        return updated;
       }));
 
-      this.shorts = [...this.shorts]; // Trigger re-render to reflect changes if needed
+      setShorts(updatedShorts);
     } catch (err) {
       console.error('Failed to apply styles to all shorts:', err);
     } finally {
@@ -252,11 +258,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
           this.stemAvailable = updatedShort.stemsAvailable ?? false;
 
           // Update projectSignal to refresh the left sidebar timings
-          const currentProject = projectSignal.get();
-          if (currentProject && currentProject.shorts) {
-            const updatedShorts = currentProject.shorts.map(s => s.id === updatedShort.id ? updatedShort : s);
-            projectSignal.set({ ...currentProject, shorts: updatedShorts });
-          }
+          updateShortInProject(updatedShort);
           this.requestUpdate();
         }
       }
@@ -571,9 +573,10 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       return;
     }
     try {
-      this.shorts = await projectService.getShorts(projectId);
-      if (this.shorts.length > 0 && !this.currentShort) {
-        this.playShort(this.shorts[0]);
+      const shorts = await projectService.getShorts(projectId);
+      setShorts(shorts);
+      if (shorts.length > 0 && !this.currentShort) {
+        this.playShort(shorts[0]);
       }
     } catch (e) {
       console.error('Failed to load shorts:', e);
@@ -1029,9 +1032,9 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         <div class="segment-list">
           ${this.loading
         ? html`<div style="color:#64748b; text-align:center; padding:20px;">Loading shorts...</div>`
-        : this.shorts.length === 0
+        : (projectSignal.get()?.shorts || []).length === 0
           ? html`<div style="color:#64748b; text-align:center; padding:20px;">No shorts detected yet.</div>`
-          : this.shorts.map(s => {
+          : (projectSignal.get()?.shorts || []).map(s => {
             const isSelected = this.currentShort?.id === s.id;
             return html`
                 <button 

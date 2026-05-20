@@ -421,7 +421,9 @@ export class YtsPrecisionMultiTimeline extends LitElement {
     private _formatTimeShort(seconds: number): string {
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);
-        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        const fps = this.fps > 0 ? this.fps : 30;
+        const f = Math.floor((seconds % 1) * fps);
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}:${f.toString().padStart(2, '0')}`;
     }
 
     private _timeToPercent(time: number): number {
@@ -438,10 +440,10 @@ export class YtsPrecisionMultiTimeline extends LitElement {
     private _startDrag(e: MouseEvent, edge: 'start' | 'end') {
         e.stopPropagation();
         this.draggingEdge = edge;
+        const rect = this.shadowRoot!.querySelector('.timeline-track')!.getBoundingClientRect();
 
         const onMouseMove = (moveEvent: MouseEvent) => {
             if (!this.draggingEdge || !this.segment) return;
-            const rect = this.shadowRoot!.querySelector('.timeline-track')!.getBoundingClientRect();
             const x = moveEvent.clientX - rect.left;
             const percent = Math.max(0, Math.min(1, x / rect.width));
             const rawTime = percent * this.duration;
@@ -485,7 +487,8 @@ export class YtsPrecisionMultiTimeline extends LitElement {
         // Prevent trigger if clicking handles
         if ((e.target as HTMLElement).closest('.handle')) return;
 
-        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const track = e.currentTarget as HTMLElement;
+        const rect = track.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const percent = Math.max(0, Math.min(1, x / rect.width));
         const rawTime = percent * this.duration;
@@ -494,6 +497,7 @@ export class YtsPrecisionMultiTimeline extends LitElement {
         // Clamp seekTime between IN and OUT
         seekTime = Math.max(this.segment.startTime, Math.min(this.segment.endTime, seekTime));
 
+        this.currentTime = seekTime;
         this._emitSeek(seekTime);
 
         // Also start playhead drag on click
@@ -503,8 +507,9 @@ export class YtsPrecisionMultiTimeline extends LitElement {
     private _startPlayheadDrag(e: MouseEvent) {
         if (!this.segment) return;
         e.stopPropagation();
-
-        const rect = (this.shadowRoot!.querySelector('.timeline-track') as HTMLElement).getBoundingClientRect();
+        const track = this.shadowRoot!.querySelector('.timeline-track') as HTMLElement;
+        if (!track) return;
+        const rect = track.getBoundingClientRect();
 
         const onMouseMove = (moveEvent: MouseEvent) => {
             const x = moveEvent.clientX - rect.left;
@@ -517,6 +522,7 @@ export class YtsPrecisionMultiTimeline extends LitElement {
                 seekTime = Math.max(this.segment.startTime, Math.min(this.segment.endTime, seekTime));
             }
 
+            this.currentTime = seekTime;
             this._emitSeek(seekTime);
         };
 
@@ -602,7 +608,8 @@ export class YtsPrecisionMultiTimeline extends LitElement {
         if (!container || !track) return;
 
         const oldZoom = this._zoom;
-        const maxZoom = Math.max(1, this.duration / 30); // Max zoom allows 30s to fill the viewport
+        // Max zoom allows 0.5s to fill the viewport for frame-perfect precision
+        const maxZoom = Math.max(1, this.duration / 0.5); 
         const newZoom = Math.max(1, Math.min(maxZoom, this._zoom * factor));
 
         if (newZoom === oldZoom) return;

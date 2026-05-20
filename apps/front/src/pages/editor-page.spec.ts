@@ -5,8 +5,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock project state and service before importing the component
 vi.mock('../state/project.state.js', () => ({
-    projectSignal: { get: vi.fn().mockReturnValue({ id: 'proj-1', name: 'Test Project' }) },
+    projectSignal: { 
+        get: vi.fn().mockReturnValue({ id: 'proj-1', name: 'Test Project', shorts: [] }),
+        set: vi.fn()
+    },
     setProject: vi.fn(),
+    setShorts: vi.fn(),
+    updateShortInProject: vi.fn(),
 }));
 
 vi.mock('../services/project.service.js', () => ({
@@ -41,7 +46,6 @@ type EditorPageInternal = {
     renderReelCenter(): unknown;
     renderToolsPanel(): unknown;
     renderAudioPanel(): unknown;
-    shorts: { id: string; title: string; startTime: number; endTime: number; score: number; reasoning: string; thumbnailUrl: string | null }[];
     loading: boolean;
     currentShort: { id: string; title: string; startTime: number; endTime: number } | null;
     stemAvailable: boolean;
@@ -57,12 +61,13 @@ describe('EditorPage', () => {
 
     it('should load shorts on init (onBeforeEnter)', async () => {
         const { projectService } = await import('../services/project.service.js');
+        const { setShorts } = await import('../state/project.state.js');
         const el = new EditorPage();
 
         await (el as unknown as EditorPageInternal).onBeforeEnter({ params: { projectId: 'proj-1' } });
 
         expect(projectService.getShorts).toHaveBeenCalledWith('proj-1');
-        expect((el as unknown as EditorPageInternal).shorts).toHaveLength(1);
+        expect(setShorts).toHaveBeenCalled();
         expect((el as unknown as EditorPageInternal).loading).toBe(false);
     });
 

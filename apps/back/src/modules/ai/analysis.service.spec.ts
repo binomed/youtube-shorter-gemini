@@ -70,6 +70,7 @@ const mockShortRepository = {
   find: jest.fn(),
   delete: jest.fn(),
   findOneBy: jest.fn(),
+  findOne: jest.fn(),
 };
 
 const mockSubtitleRepository = {
@@ -102,7 +103,10 @@ describe('AnalysisService', () => {
         { provide: GeminiService, useValue: mockGeminiService },
         { provide: WhisperService, useValue: mockWhisperService },
         { provide: FFmpegService, useValue: mockFfmpegService },
-        { provide: StemService, useValue: {} },
+        {
+          provide: StemService,
+          useValue: { invalidateStems: jest.fn().mockResolvedValue(undefined) },
+        },
         {
           provide: ConfigService,
           useValue: {
@@ -218,6 +222,66 @@ describe('AnalysisService', () => {
       await expect(
         service.analyzeProject('proj-1', 'job-1'),
       ).resolves.toBeDefined();
+    });
+  });
+
+  describe('updateSubtitleStyle', () => {
+    it('should update and save short with new style', async () => {
+      const mockShort = {
+        id: 'short-1',
+        projectId: 'proj-1',
+        subtitleStyle: { fontSize: 20 },
+      };
+      mockShortRepository.findOne.mockResolvedValue(mockShort);
+      mockShortRepository.save.mockImplementation((s: unknown) =>
+        Promise.resolve(s as Short),
+      );
+
+      await service.updateSubtitleStyle('proj-1', 'short-1', { fontSize: 24 });
+
+      expect(mockShortRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subtitleStyle: expect.objectContaining({ fontSize: 24 }) as unknown,
+        }),
+      );
+    });
+
+    it('should throw NotFoundException if short not found', async () => {
+      mockShortRepository.findOne.mockResolvedValue(null);
+      await expect(service.updateSubtitleStyle('p', 's', {})).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('updateShortSegments', () => {
+    it('should update segments and recalculate boundaries', async () => {
+      const mockShort = {
+        id: 's1',
+        projectId: 'p1',
+        startTime: 0,
+        endTime: 10,
+        segments: [],
+      };
+      mockShortRepository.findOne.mockResolvedValue(mockShort);
+      mockShortRepository.save.mockImplementation((s: unknown) =>
+        Promise.resolve(s as Short),
+      );
+      mockProjectRepository.findOneBy.mockResolvedValue({
+        id: 'p1',
+        transcript: null,
+      });
+
+      const newSegments = [{ startTime: 5, endTime: 15 }];
+      await service.updateShortSegments('p1', 's1', { segments: newSegments });
+
+      expect(mockShortRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startTime: 5,
+          endTime: 15,
+          segments: newSegments,
+        }),
+      );
     });
   });
 });
