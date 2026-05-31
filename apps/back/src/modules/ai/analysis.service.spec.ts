@@ -284,4 +284,54 @@ describe('AnalysisService', () => {
       );
     });
   });
+
+  describe('createShort', () => {
+    it('should successfully create a custom short, generate a thumbnail and sync subtitles', async () => {
+      const mockProj = {
+        id: 'proj-1',
+        videoPath: '/tmp/test.mp4',
+        transcript: '1\n00:00:01,000 --> 00:00:05,000\nHello World\n',
+      };
+      mockProjectRepository.findOneBy.mockResolvedValue(mockProj);
+      mockShortRepository.find.mockResolvedValue([]);
+      mockShortRepository.save.mockImplementation(
+        (s: Record<string, unknown>) =>
+          Promise.resolve({ ...s, id: 'short-custom-1' }),
+      );
+      mockShortRepository.findOne.mockResolvedValue({
+        id: 'short-custom-1',
+        subtitles: [],
+      });
+
+      const dto = { title: 'My Custom Hook', startTime: 1, endTime: 5 };
+      const result = await service.createShort('proj-1', dto);
+
+      expect(mockProjectRepository.findOneBy).toHaveBeenCalledWith({
+        id: 'proj-1',
+      });
+      expect(mockShortRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: 'proj-1',
+          title: 'My Custom Hook',
+          startTime: 1,
+          endTime: 5,
+          confidence: 100,
+        }),
+      );
+      expect(mockFfmpegService.extractThumbnail).toHaveBeenCalled();
+      expect(result).toBeDefined();
+      expect(result.id).toBe('short-custom-1');
+    });
+
+    it('should throw NotFoundException if parent project does not exist', async () => {
+      mockProjectRepository.findOneBy.mockResolvedValue(null);
+      await expect(
+        service.createShort('nonexistent', {
+          title: 'Custom',
+          startTime: 0,
+          endTime: 10,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });

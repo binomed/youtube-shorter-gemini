@@ -41,6 +41,18 @@ export const setShorts = (shorts: ShortResponse[]): void => {
 };
 
 /**
+ * Adds a new short to the current project's shorts list.
+ * @param newShort The new short data
+ */
+export const addShortToProject = (newShort: ShortResponse): void => {
+    const current = projectSignal.get();
+    if (current) {
+        const updatedShorts = [...(current.shorts || []), newShort];
+        projectSignal.set({ ...current, shorts: updatedShorts });
+    }
+};
+
+/**
  * Clears the current project from the global state.
  */
 export const clearProject = (): void => {

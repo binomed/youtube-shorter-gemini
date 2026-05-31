@@ -110,6 +110,8 @@ If the AI fails to detect any significant segments, the tool provides an interac
 - **FR-12:** Contextual tutorials display in case of automatic detection failure.
 - **FR-13:** Consent management for AI learning.
 - **FR-14:** Short composition from an unlimited number of non-contiguous sequences (In-Out capture) originating from the source video.
+- **FR-15:** Manual custom Short creation instantly from the sidebar via an accessible "Add Short" button, which automatically extracts a midpoint thumbnail, replicates subtitles for the 30s duration, and loads it directly in the active player.
+- **FR-16:** Instant snapping (calage) of IN and OUT bounds directly to the timeline playhead position using dedicated NLE buttons in the timeline controls group. Supports frame-precision rounding and smart crossing-bounds protection (shifting the opposite bound by exactly 1 frame if they cross).
 ## Non-Functional Requirements (Quality Attributes)
 
 ### Performance

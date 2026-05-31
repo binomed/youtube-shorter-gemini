@@ -593,4 +593,126 @@ export class AnalysisService {
 
     return updatedShort;
   }
+
+  /**
+   * Manually create a custom Short instantly.
+   * Extracts subtitles from the master transcript for the chosen timeframe,
+   * generates a thumbnail image from the video, and populates default vertical smart crop.
+   */
+  async createShort(
+    projectId: string,
+    createDto?: { title?: string; startTime?: number; endTime?: number },
+  ): Promise<Short> {
+    const project = await this.projectRepository.findOneBy({ id: projectId });
+    if (!project) {
+      throw new NotFoundException(`Project ${projectId} not found`);
+    }
+
+    // Determine the next order index
+    const existingShorts = await this.shortRepository.find({
+      where: { projectId },
+      order: { orderIndex: 'DESC' },
+    });
+    const orderIndex =
+      existingShorts.length > 0 ? existingShorts[0].orderIndex + 1 : 0;
+
+    const title = createDto?.title || `Custom Short ${orderIndex + 1}`;
+    const startTime =
+      createDto?.startTime !== undefined ? createDto.startTime : 0.0;
+
+    // Fetch duration from metadata, fallback to 30.0
+    const metadata = await this.ffmpegService
+      .extractMetadata(project.videoPath)
+      .catch(() => null);
+    const duration = metadata?.duration || 30.0;
+    const endTime =
+      createDto?.endTime !== undefined
+        ? createDto.endTime
+        : Math.min(30.0, duration);
+
+    // Create the Short entity with default vertical crop and segments
+    let short = this.shortRepository.create({
+      projectId,
+      title,
+      description: 'Manually created short',
+      startTime,
+      endTime,
+      confidence: 100,
+      smartCropData: { centerX: 0.5, width: 0.5625 },
+      orderIndex,
+      segments: [
+        {
+          startTime,
+          endTime,
+          layoutTimeline: [],
+        },
+      ],
+    });
+    short = await this.shortRepository.save(short);
+
+    // Sync subtitles from master project transcript
+    if (project.transcript) {
+      const allSubtitles = parseSrt(project.transcript);
+      const segmentSubtitles = allSubtitles.filter(
+        (sub) =>
+          sub.startTime <= short.endTime && sub.endTime >= short.startTime,
+      );
+
+      if (segmentSubtitles.length > 0) {
+        const subtitleEntities = segmentSubtitles.map((sub, index) => {
+          return this.subtitleRepository.create({
+            shortId: short.id,
+            startTime: sub.startTime,
+            endTime: sub.endTime,
+            text: sub.text,
+            words: distributeWordsUniformly(
+              sub.text,
+              sub.startTime,
+              sub.endTime,
+            ),
+            orderIndex: index,
+          });
+        });
+        await this.subtitleRepository.save(subtitleEntities);
+      }
+    }
+
+    // Generate thumbnail at midpoint using FFmpeg Service
+    try {
+      const thumbnailsDir = path.join(process.cwd(), 'uploads', 'thumbnails');
+      await fs.mkdir(thumbnailsDir, { recursive: true });
+
+      const midpoint = (short.startTime + short.endTime) / 2;
+      const filename = `${short.id}.jpg`;
+      const thumbnailPath = path.join(thumbnailsDir, filename);
+
+      await this.ffmpegService.extractThumbnail(
+        project.videoPath,
+        thumbnailPath,
+        midpoint,
+      );
+
+      short.thumbnailPath = thumbnailPath;
+      short = await this.shortRepository.save(short);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Thumbnail generation failed for custom short ${short.id}: ${errorMessage}`,
+      );
+    }
+
+    // Retrieve and return the saved short with its subtitles
+    const savedShort = await this.shortRepository.findOne({
+      where: { id: short.id },
+      relations: ['subtitles'],
+      order: { subtitles: { startTime: 'ASC' } } as FindOptionsOrder<Short>,
+    });
+
+    if (!savedShort) {
+      throw new NotFoundException(`Short ${short.id} not found after creation`);
+    }
+
+    return savedShort;
+  }
 }

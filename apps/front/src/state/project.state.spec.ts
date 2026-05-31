@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { projectSignal, setProject, updateShortInProject, setShorts, clearProject } from './project.state';
+import { projectSignal, setProject, updateShortInProject, setShorts, clearProject, addShortToProject } from './project.state';
 import type { ProjectResponse, ShortResponse } from '@youtube-shorter/shared';
 
 describe('Project State', () => {
@@ -59,5 +59,25 @@ describe('Project State', () => {
         setProject(mockProject);
         clearProject();
         expect(projectSignal.get()).toBeNull();
+    });
+
+    it('should add a new short to the project shorts list', () => {
+        setProject(mockProject);
+        
+        const newShort: ShortResponse = {
+            id: 'short-new',
+            title: 'New Manual Short',
+            startTime: 10,
+            endTime: 20,
+            segments: [],
+            projectId: 'project-1'
+        } as unknown as ShortResponse;
+
+        addShortToProject(newShort);
+
+        const currentProject = projectSignal.get();
+        expect(currentProject?.shorts).toHaveLength(3);
+        expect(currentProject?.shorts?.[2].id).toBe('short-new');
+        expect(currentProject?.shorts?.[2].title).toBe('New Manual Short');
     });
 });

@@ -126,6 +126,27 @@ export class ProjectService {
     }
 
     /**
+     * Manually create a custom Short instantly.
+     *
+     * @param projectId - UUID of the project
+     * @returns The created short
+     */
+    async createShort(projectId: string): Promise<ShortResponse> {
+        try {
+            const response = await axios.post<ShortResponse>(
+                `${this.baseUrl}/projects/${projectId}/shorts`
+            );
+            return response.data;
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const message = error.response?.data?.message || error.message || 'Failed to create custom short';
+                throw new Error(message);
+            }
+            throw new Error('An unexpected error occurred during short creation');
+        }
+    }
+
+    /**
      * Get existing shorts for a project.
      *
      * @param projectId - UUID of the project

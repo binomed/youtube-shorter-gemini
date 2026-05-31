@@ -488,4 +488,22 @@ export class AnalysisController {
     );
     return this.mapToShortResponse(short, id);
   }
+
+  /**
+   * Manually create a custom Short instantly.
+   *
+   * @param id - Project UUID
+   * @param body - Optional creation params (title, startTime, endTime)
+   * @returns Created short response
+   */
+  @Post(':id/shorts')
+  @ApiOperation({ summary: 'Manually create a custom Short instantly' })
+  @ApiResponse({ status: 201, description: 'Short created successfully' })
+  async createShort(
+    @Param('id') id: string,
+    @Body() body?: { title?: string; startTime?: number; endTime?: number },
+  ): Promise<ShortResponse> {
+    const short = await this.analysisService.createShort(id, body);
+    return this.mapToShortResponse(short, id);
+  }
 }

@@ -97,6 +97,8 @@ Handles video rendering including visual concatenation of segments (jump-cuts) a
 #### 3. Precision Multi-Timeline (Zoomable)
 Displays the source video ribbon. Focuses on captured segments.
 - **Intelligent Refinement:** Start/end handles snap to **word boundaries** detected by transcription to avoid abrupt audio cuts.
+- **NLE Controls Group:** Features immediate "Set IN" and "Set OUT" buttons in a premium Glassmorphism capsule next to Play/Pause to align boundaries precisely to the playhead cursor at the current frame.
+- **Cross-Guard Protection:** Employs smart boundary crossing protection (shifts the opposite boundary by exactly 1 frame if they cross) to maintain segment validity while giving perfect precision to the creator.
 
 ---
 

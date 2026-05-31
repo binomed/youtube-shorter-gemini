@@ -24,11 +24,12 @@ import '../components/molecules/yts-subtitle-style-panel.element.js';
 import '../components/molecules/yts-precision-multi-timeline.element.js';
 import '../components/molecules/yts-header.element.js';
 import { projectService } from '../services/project.service.js';
-import { projectSignal, setProject, updateShortInProject, setShorts } from '../state/project.state.js';
+import { projectSignal, setProject, updateShortInProject, setShorts, addShortToProject } from '../state/project.state.js';
 @customElement('editor-page')
 export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnterObserver {
   @state() private currentShort: ShortResponse | null = null;
   @state() private loading = true;
+  @state() private creatingShort = false;
   @state() private stemSeparating = false;
   @state() private stemProgress = 0;
   @state() private stemMessage = '';
@@ -584,6 +585,22 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     this.loading = false;
   }
 
+  private async handleAddCustomShort(): Promise<void> {
+    const project = projectSignal.get();
+    if (!project || this.creatingShort) return;
+
+    this.creatingShort = true;
+    try {
+      const newShort = await projectService.createShort(project.id);
+      addShortToProject(newShort);
+      this.playShort(newShort);
+    } catch (err) {
+      console.error('Failed to create custom short:', err);
+    } finally {
+      this.creatingShort = false;
+    }
+  }
+
   /**
    * Format seconds to MM:SS display
    */
@@ -956,6 +973,72 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       cursor: not-allowed;
       filter: grayscale(0.5);
     }
+
+    .add-segment-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 2px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      text-align: center;
+      color: #94a3b8;
+      width: 100%;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+
+    .add-segment-card:hover:not(:disabled) {
+      background: rgba(14, 165, 233, 0.05);
+      border-color: #0ea5e9;
+      color: #f8fafc;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(14, 165, 233, 0.15);
+    }
+
+    .add-segment-card:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .add-segment-card:focus-visible {
+      outline: 2px solid #0ea5e9;
+      outline-offset: 2px;
+    }
+
+    .add-icon-container {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+      font-size: 20px;
+      color: #94a3b8;
+    }
+
+    .add-segment-card:hover:not(:disabled) .add-icon-container {
+      background: #0ea5e9;
+      border-color: #0ea5e9;
+      color: white;
+      transform: scale(1.1);
+      box-shadow: 0 0 12px rgba(14, 165, 233, 0.5);
+    }
+    
+    .add-text {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
   `];
 
   render(): unknown {
@@ -1059,6 +1142,23 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                 </button>
               `;
           })}
+          
+          ${!this.loading ? html`
+            <button 
+                class="add-segment-card" 
+                @click="${this.handleAddCustomShort}"
+                ?disabled="${this.creatingShort}"
+                aria-label="Add a custom short"
+            >
+              <div class="add-icon-container">
+                ${this.creatingShort 
+                  ? html`<sl-spinner style="--indicator-color: #0ea5e9; font-size: 1.2rem;"></sl-spinner>` 
+                  : html`<sl-icon name="plus" style="font-weight: bold;"></sl-icon>`
+                }
+              </div>
+              <span class="add-text">${this.creatingShort ? 'Creating...' : 'Add Short'}</span>
+            </button>
+          ` : ''}
         </div>
       </aside>
     `;

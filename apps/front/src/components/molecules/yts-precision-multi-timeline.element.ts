@@ -92,6 +92,49 @@ export class YtsPrecisionMultiTimeline extends LitElement {
             border-radius: 10px;
         }
 
+        .controls-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 30px;
+            padding: 4px 8px;
+        }
+
+        .action-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .action-btn sl-icon {
+            font-size: 20px;
+        }
+
+        .set-in-btn:hover {
+            color: #0ea5e9;
+            box-shadow: 0 0 10px rgba(14, 165, 233, 0.2);
+        }
+
+        .set-out-btn:hover {
+            color: #a855f7;
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+        }
+
         .play-btn {
             background: transparent;
             border: none;
@@ -343,11 +386,25 @@ export class YtsPrecisionMultiTimeline extends LitElement {
             <div class="header">Timeline Editing Zone</div>
             
             <div class="timeline-container">
-                <sl-tooltip content="Play / Pause (Space)">
-                    <button class="play-btn" @click=${this._togglePlay} aria-label="${this.isPlaying ? 'Pause' : 'Play'}">
-                        <sl-icon name="${this.isPlaying ? 'pause-fill' : 'play-fill'}"></sl-icon>
-                    </button>
-                </sl-tooltip>
+                <div class="controls-group">
+                    <sl-tooltip content="Play / Pause (Space)" hoist>
+                        <button class="play-btn" @click=${this._togglePlay} aria-label="${this.isPlaying ? 'Pause' : 'Play'}">
+                            <sl-icon name="${this.isPlaying ? 'pause-fill' : 'play-fill'}"></sl-icon>
+                        </button>
+                    </sl-tooltip>
+
+                    <sl-tooltip content="Set IN at Playhead" hoist>
+                        <button class="action-btn set-in-btn" @click=${this._setInToCursor} aria-label="Set IN point here">
+                            <sl-icon name="chevron-bar-left"></sl-icon>
+                        </button>
+                    </sl-tooltip>
+
+                    <sl-tooltip content="Set OUT at Playhead" hoist>
+                        <button class="action-btn set-out-btn" @click=${this._setOutToCursor} aria-label="Set OUT point here">
+                            <sl-icon name="chevron-bar-right"></sl-icon>
+                        </button>
+                    </sl-tooltip>
+                </div>
 
                 <div class="timeline-scroll-container">
                     <div 
@@ -545,6 +602,52 @@ export class YtsPrecisionMultiTimeline extends LitElement {
 
     private _togglePlay() {
         this.dispatchEvent(new CustomEvent('toggle-play', {
+            bubbles: true,
+            composed: true
+        }));
+    }
+
+    private _setInToCursor() {
+        if (!this.segment) return;
+        const snappedTime = this._snapToFrame(this.currentTime);
+        
+        // Exact timing calage. If crosses/equals OUT, auto-adjust OUT to be IN + 1 frame
+        const newStart = snappedTime;
+        let newEnd = this.segment.endTime;
+        
+        if (newStart >= newEnd) {
+            newEnd = newStart + this._frameDuration;
+        }
+        
+        this.segment = { ...this.segment, startTime: newStart, endTime: newEnd };
+        this._dispatchSegmentChange('start');
+    }
+
+    private _setOutToCursor() {
+        if (!this.segment) return;
+        const snappedTime = this._snapToFrame(this.currentTime);
+        
+        // Exact timing calage. If crosses/equals IN, auto-adjust IN to be OUT - 1 frame
+        const newEnd = snappedTime;
+        let newStart = this.segment.startTime;
+        
+        if (newEnd <= newStart) {
+            newStart = Math.max(0, newEnd - this._frameDuration);
+        }
+        
+        this.segment = { ...this.segment, startTime: newStart, endTime: newEnd };
+        this._dispatchSegmentChange('end');
+    }
+
+    private _dispatchSegmentChange(edge: 'start' | 'end') {
+        this.dispatchEvent(new CustomEvent('segment-change', {
+            detail: { segment: this.segment, edge },
+            bubbles: true,
+            composed: true
+        }));
+        
+        this.dispatchEvent(new CustomEvent('segment-settled', {
+            detail: { segment: this.segment },
             bubbles: true,
             composed: true
         }));

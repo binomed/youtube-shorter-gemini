@@ -82,4 +82,34 @@ describe('AnalysisController', () => {
       );
     });
   });
+
+  describe('POST /projects/:projectId/shorts', () => {
+    it('should call createShort on the service and return mapped response', async () => {
+      const mockShort = {
+        id: 's1',
+        projectId: 'p1',
+        title: 'Custom Short',
+        startTime: 0,
+        endTime: 30,
+        subtitles: [],
+        segments: [],
+        createdAt: new Date(),
+      };
+      mockAnalysisService.createShort = jest.fn().mockResolvedValue(mockShort);
+
+      const result = await controller.createShort('p1', {
+        title: 'Custom Short',
+        startTime: 0,
+        endTime: 30,
+      });
+
+      expect(mockAnalysisService.createShort).toHaveBeenCalledWith('p1', {
+        title: 'Custom Short',
+        startTime: 0,
+        endTime: 30,
+      });
+      expect(result.id).toBe('s1');
+      expect(result.title).toBe('Custom Short');
+    });
+  });
 });
