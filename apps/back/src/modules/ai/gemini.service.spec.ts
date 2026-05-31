@@ -181,6 +181,92 @@ describe('GeminiService', () => {
       expect(result).toHaveLength(1);
       expect(mockGenerateContent).toHaveBeenCalledTimes(2);
     });
+
+    it('should inject user custom prompt guidelines and override default guidelines', async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          text: () => validSegmentsResponse,
+          candidates: [{}],
+        },
+      });
+
+      await service.detectShortsCandidates(
+        ['frame1.jpg'],
+        60,
+        undefined,
+        undefined,
+        'Only find segments where people laugh or argue intensely',
+      );
+
+      expect(mockGenerateContent).toHaveBeenCalled();
+      const calls = mockGenerateContent.mock.calls;
+      const firstCallParts = calls[0][0] as any[];
+      const hasCustomPrompt = firstCallParts.some(
+        (p: any) =>
+          typeof p.text === 'string' &&
+          p.text.includes('USER CUSTOM RULES') &&
+          p.text.includes('laugh or argue intensely'),
+      );
+      expect(hasCustomPrompt).toBe(true);
+    });
+
+    it('should inject custom min and max durations in prompt constraints', async () => {
+      mockGenerateContent.mockResolvedValue({
+        response: {
+          text: () => validSegmentsResponse,
+          candidates: [{}],
+        },
+      });
+
+      await service.detectShortsCandidates(
+        ['frame1.jpg'],
+        60,
+        undefined,
+        undefined,
+        undefined,
+        10,
+        30,
+      );
+
+      expect(mockGenerateContent).toHaveBeenCalled();
+      const calls = mockGenerateContent.mock.calls;
+      const firstCallParts = calls[0][0] as any[];
+      const hasTimingConstraints = firstCallParts.some(
+        (p: any) =>
+          typeof p.text === 'string' &&
+          p.text.includes('Duration: 10-30 seconds per clip'),
+      );
+      expect(hasTimingConstraints).toBe(true);
+    });
+
+    it('should invoke translation pre-step when transcript is provided', async () => {
+      const mockTranslatedPrompt =
+        '<system_instructions>\nTranslated French Prompt\n</system_instructions>';
+      mockGenerateContent
+        .mockResolvedValueOnce({
+          response: { text: () => mockTranslatedPrompt },
+        })
+        .mockResolvedValueOnce({
+          response: {
+            text: () => validSegmentsResponse,
+            candidates: [{}],
+          },
+        });
+
+      const result = await service.detectShortsCandidates(
+        ['frame1.jpg'],
+        60,
+        '1\n00:00:01,000 --> 00:00:04,000\nBonjour tout le monde',
+      );
+
+      expect(result).toHaveLength(1);
+      expect(mockGenerateContent).toHaveBeenCalledTimes(2);
+
+      const translationCall = mockGenerateContent.mock.calls[0][0];
+      expect(translationCall).toContain(
+        'Analyze the following video transcript content, detect its language',
+      );
+    });
   });
 
   describe('generateSubtitles', () => {

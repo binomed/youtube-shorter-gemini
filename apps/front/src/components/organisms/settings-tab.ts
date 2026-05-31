@@ -148,6 +148,9 @@ export class SettingsTab extends LitElement {
   @state() private settings: AppSettings = {
     geminiModel: 'gemini-1.5-flash',
     frameInterval: 3.0,
+    customPrompt: '',
+    minDuration: 15,
+    maxDuration: 59,
   };
 
   @state() private loading = true;
@@ -242,7 +245,75 @@ export class SettingsTab extends LitElement {
               this.updateSetting('frameInterval', parseFloat(target.value));
             }}
           ></sl-input>
+        </div>
 
+        <div class="setting-item">
+          <label class="setting-label">Default Clip Duration Limits (seconds)</label>
+          <p class="setting-description">Specify the default minimum and maximum duration range for AI-extracted Shorts.</p>
+          <div style="display: flex; gap: 16px;">
+            <div style="flex: 1;">
+              <sl-input 
+                type="number" 
+                min="5"
+                max="120"
+                placeholder="Min duration"
+                .value=${this.settings.minDuration !== undefined ? this.settings.minDuration.toString() : '15'} 
+                @sl-input=${(e: CustomEvent): void => {
+                  const target = e.target as HTMLInputElement;
+                  this.updateSetting('minDuration', parseInt(target.value, 10));
+                }}
+              ></sl-input>
+            </div>
+            <div style="flex: 1;">
+              <sl-input 
+                type="number" 
+                min="5"
+                max="120"
+                placeholder="Max duration"
+                .value=${this.settings.maxDuration !== undefined ? this.settings.maxDuration.toString() : '59'} 
+                @sl-input=${(e: CustomEvent): void => {
+                  const target = e.target as HTMLInputElement;
+                  this.updateSetting('maxDuration', parseInt(target.value, 10));
+                }}
+              ></sl-input>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <label class="setting-label">Default AI Analysis Prompt</label>
+          <p class="setting-description">Specify custom guidelines to send to Gemini during video analysis (e.g. focus on natural chapters, ignore slide transitions, etc.). Leave empty to use system defaults.</p>
+          <textarea 
+            style="
+              width: 100%;
+              height: 120px;
+              background: rgba(255, 255, 255, 0.05);
+              border: 1px solid var(--yts-border);
+              border-radius: 8px;
+              color: white;
+              padding: 12px;
+              font-family: inherit;
+              font-size: 14px;
+              resize: vertical;
+              outline: none;
+              box-sizing: border-box;
+              transition: border-color 0.2s ease;
+            "
+            placeholder="e.g. Focus on natural chapter boundaries, ignore silent moments..."
+            .value=${this.settings.customPrompt || ''}
+            @input=${(e: Event): void => {
+              const target = e.target as HTMLTextAreaElement;
+              this.updateSetting('customPrompt', target.value);
+            }}
+            @focus=${(e: Event): void => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.borderColor = 'var(--yts-accent)';
+            }}
+            @blur=${(e: Event): void => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.borderColor = 'var(--yts-border)';
+            }}
+          ></textarea>
         </div>
 
         <div class="actions">

@@ -49,11 +49,18 @@ export class YtsApp extends LitElement {
    * Uploads video to backend, sets global state, then navigates to Analysis page.
    */
   private async handleProjectCreated(e: CustomEvent): Promise<void> {
-    const { name, file } = e.detail;
+    const { name, file, customPrompt, minDuration, maxDuration } = e.detail;
 
     try {
       // Upload video to backend first
-      const dto = { name, deletionPolicyAcknowledged: true, aiLearningConsent: false };
+      const dto = { 
+        name, 
+        deletionPolicyAcknowledged: true, 
+        aiLearningConsent: false,
+        customPrompt,
+        minDuration,
+        maxDuration,
+      };
       const projectResponse = await projectService.createProject(dto, file);
 
       // Update global state

@@ -45,4 +45,13 @@ export interface ProjectResponse {
 
     /** Associated shorts (viral segments) */
     shorts?: ShortResponse[];
+
+    /** Custom analysis prompt override for this project */
+    customPrompt?: string;
+
+    /** Minimum duration of generated shorts */
+    minDuration?: number;
+
+    /** Maximum duration of generated shorts */
+    maxDuration?: number;
 }

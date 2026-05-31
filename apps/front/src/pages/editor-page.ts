@@ -1039,6 +1039,47 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       font-weight: 600;
       letter-spacing: -0.01em;
     }
+
+    /* Premium Checkbox Styling to fix Shoelace icon sizing bug */
+    sl-checkbox {
+      margin: 4px 0;
+    }
+
+    sl-checkbox::part(control) {
+      background: rgba(255, 255, 255, 0.05) !important;
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+      border-radius: 4px !important;
+      width: 18px !important;
+      height: 18px !important;
+      transition: all 0.2s ease !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    sl-checkbox::part(control):hover {
+      background: rgba(255, 255, 255, 0.1) !important;
+      border-color: #818cf8 !important;
+    }
+
+    sl-checkbox[checked]::part(control) {
+      background: #818cf8 !important;
+      border-color: #818cf8 !important;
+      color: white !important;
+    }
+
+    sl-checkbox::part(checked-icon) {
+      width: 10px !important;
+      height: 10px !important;
+      display: block !important;
+    }
+
+    sl-checkbox::part(label) {
+      color: #cbd5e1 !important;
+      font-size: 14px !important;
+      font-weight: 500 !important;
+      margin-left: 8px !important;
+    }
   `];
 
   render(): unknown {
@@ -1085,8 +1126,8 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                ${this.stemAvailable ? html`
                  <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; display: flex; flex-direction: column; gap: 12px;">
                     <strong style="color: #f8fafc; font-size: 14px;">Audio Options (Stems detected)</strong>
-                    <sl-checkbox ?checked=${this.exportIncludeVocals} @click=${() => this.exportIncludeVocals = !this.exportIncludeVocals}>Include Vocals Track</sl-checkbox>
-                    <sl-checkbox ?checked=${this.exportIncludeMusic} @click=${() => this.exportIncludeMusic = !this.exportIncludeMusic}>Include Music & Accompaniment</sl-checkbox>
+                    <sl-checkbox ?checked=${this.exportIncludeVocals} @sl-change=${(e: Event) => this.exportIncludeVocals = (e.target as HTMLInputElement).checked}>Include Vocals Track</sl-checkbox>
+                    <sl-checkbox ?checked=${this.exportIncludeMusic} @sl-change=${(e: Event) => this.exportIncludeMusic = (e.target as HTMLInputElement).checked}>Include Music & Accompaniment</sl-checkbox>
                  </div>
                ` : html`
                  <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px;">

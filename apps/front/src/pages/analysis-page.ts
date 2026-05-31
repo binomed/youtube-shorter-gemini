@@ -36,6 +36,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
   @state() private phases: { key: string; label: string; icon: string; done: boolean }[] = [
     { key: 'extracting_frames', label: 'Extracting video frames', icon: '🎬', done: false },
     { key: 'transcribing', label: 'Transcribing Audio', icon: '📝', done: false },
+    { key: 'translating_prompt', label: 'Adapting AI prompt to video language', icon: '🌐', done: false },
     { key: 'analyzing', label: 'Analyzing with Gemini AI', icon: '✨', done: false },
     { key: 'saving', label: 'Preparing your Shorts', icon: '💾', done: false },
   ];
@@ -317,7 +318,7 @@ export class AnalysisPage extends SignalWatcher(LitElement) implements BeforeEnt
     this.message = event.message;
 
     // Update phase states
-    const phaseOrder = ['extracting_frames', 'transcribing', 'analyzing', 'saving', 'complete'];
+    const phaseOrder = ['extracting_frames', 'transcribing', 'translating_prompt', 'analyzing', 'saving', 'complete'];
     const currentIndex = phaseOrder.indexOf(event.phase);
 
     this.phases = this.phases.map((p, i) => ({

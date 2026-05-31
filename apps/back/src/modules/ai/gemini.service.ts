@@ -304,17 +304,25 @@ export class GeminiService {
     videoDuration: number,
     transcript?: string,
     audioBuffer?: Buffer,
+    customPrompt?: string,
+    minDuration?: number,
+    maxDuration?: number,
   ): Promise<DetectedSegment[]> {
     // Calculate actual interval based on frame count
     const frameInterval =
       videoFrames.length > 1 ? videoDuration / videoFrames.length : 0;
 
-    const prompt = this.buildDetectionPrompt(
+    const basePrompt = this.buildDetectionPrompt(
       videoDuration,
       frameInterval,
       transcript,
       !!audioBuffer,
+      customPrompt,
+      minDuration,
+      maxDuration,
     );
+
+    const prompt = await this.translatePromptIfNeeded(basePrompt, transcript);
 
     const parts: Array<
       { text: string } | { inlineData: { mimeType: string; data: string } }
@@ -480,14 +488,94 @@ export class GeminiService {
    * Build the detection prompt with clear instructions and output format.
    * Uses few-shot and chain-of-thought patterns from the Gemini skill.
    */
+  /**
+   * Translates the prompt to the video transcript language if different.
+   */
+  private async translatePromptIfNeeded(
+    prompt: string,
+    transcript?: string,
+  ): Promise<string> {
+    if (!transcript) return prompt;
+
+    try {
+      const translationModel = this.genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 8192,
+        },
+      });
+
+      const translationInstruction = `Analyze the following video transcript content, detect its language, and translate the accompanying system instructions and task guidelines into that detected language. 
+Ensure all instructions under "<task_guidelines>" are in the detected language of the video transcript so that the video-editing AI perfectly understands the video semantics and context. 
+Keep all XML tags (<system_instructions>, <context>, <data_source>, <task_guidelines>, <constraints>, <output_format>) exactly as they are. Keep the output format, constraints, and JSON schema entirely identical. Only translate the descriptive guidelines and the "reason" description in <output_format>.
+If the detected language is English, return the input prompt exactly as it is without any changes.
+
+Here is the transcript sample to detect language:
+"""
+${transcript.slice(0, 1000)}
+"""
+
+Here is the input prompt to translate:
+"""
+${prompt}
+"""`;
+
+      const result = await translationModel.generateContent(
+        translationInstruction,
+      );
+      const translatedPrompt = result.response.text().trim();
+      if (
+        translatedPrompt &&
+        translatedPrompt.includes('<system_instructions>')
+      ) {
+        this.logger.log(
+          '[Gemini] Prompt translated successfully to the video language.',
+        );
+        return translatedPrompt;
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Prompt translation failed, using fallback original prompt: ${(err as Error).message}`,
+      );
+    }
+
+    return prompt;
+  }
+
+  /**
+   * Build the detection prompt with clear instructions and output format.
+   * Uses few-shot and chain-of-thought patterns from the Gemini skill.
+   */
   private buildDetectionPrompt(
     duration: number,
     interval: number,
     transcript?: string,
     hasAudio?: boolean,
+    customPrompt?: string,
+    minDuration: number = 15,
+    maxDuration: number = 59,
   ): string {
+    const defaultEditorial = `2. IDENTIFY all segments of high engagement:
+   - Identify moments of high interest: visual climax, strong emotional statements, warnings/hacks, tutorial steps, funny jokes, or reaction peaks.
+   - Hook: The first 3 seconds MUST contain a visual or auditory "curiosity loop" or an immediate statement of the value of this segment.`;
+
+    const editorialGuidelines = customPrompt
+      ? `2. EDITORIAL FOCUS (USER CUSTOM RULES):\n   ${customPrompt.replace(/\n/g, '\n   ')}`
+      : defaultEditorial;
+
+    const guidelines = `1. CHAPTER & TOPIC DETECTION (CRITICAL):
+   - Analyze the transcript and video frames to detect natural chapter markers, transition slides, or verbal cues introducing a new subject (e.g., "Maintenant passons à...", "Chapitre 2...", title screens).
+   - If chapters or clear topic transitions are detected, align the start and end of your suggested segments to these chapter boundaries to make the Shorts feel clean and stand-alone.
+
+${editorialGuidelines}
+
+3. SMART CROP & LAYOUT (MANDATORY):
+   - centerX: Coordinate (0.0 to 1.0) of the main subject's nose/eyes.
+   - layoutMode: 'fill' for talking heads, 'fullscreen' for wide action or UI elements.`;
+
     return `<system_instructions>
-You are a World-Class Viral Video Editor specialized in YouTube Shorts and TikTok. Your goal is to identify segments with the highest "Retention Potential" based on psychological hooks. 
+You are a World-Class Viral Video Editor specialized in YouTube Shorts and TikTok. Your goal is to identify segments with the highest "Retention Potential" and stand-alone value based on psychological hooks, visual cues, and structural chapters.
 Use a "Chain of Thought" reasoning before generating the final JSON.
 </system_instructions>
 
@@ -502,23 +590,12 @@ ${transcript ? transcript.slice(0, 10000) : 'No transcript provided.'}
 </data_source>
 
 <task_guidelines>
-1. IDENTIFY all segments that match one of these 3 "Viral Patterns":
-   - PATTERN A (The Secret): Reveal of insider info or a "hack" (e.g., "The industry doesn't want you to know...").
-   - PATTERN B (The Discovery): Result of a test or personal experience ("I tested this for 30 days...").
-   - PATTERN C (The Warning/PSA): Urgent advice or common mistake to avoid ("Stop doing this immediately...").
-
-2. RETENTION CRITERIA:
-   - Identify "Pattern Interrupts": Look for sudden changes in vocal energy, camera movement, or subject emotion (Joy, Anger, Surprise).
-   - Hook: The first 3 seconds MUST contain a visual or auditory "curiosity loop".
-
-3. SMART CROP & LAYOUT:
-   - centerX: Coordinate (0.0 to 1.0) of the main subject's nose/eyes.
-   - layoutMode: 'fill' for talking heads, 'fullscreen' for wide action or UI elements.
+${guidelines}
 </task_guidelines>
 
 <constraints>
-- Duration: 15-40 seconds per clip.
-- Quantity: Extract EVERY segment that exceeds a 85/100 viral confidence score. Do not limit yourself to a fixed number.
+- Duration: ${minDuration}-${maxDuration} seconds per clip.
+- Quantity: Extract EVERY single segment that is highly engaging and can stand alone. Do NOT limit the number of segments; output 5, 10, or 20 segments if they meet the criteria. Do not restrict yourself.
 - Format: Return ONLY a valid JSON array.
 </constraints>
 
@@ -529,7 +606,7 @@ Return a JSON array of objects matching this exact structure:
     "startTime": number,
     "endTime": number,
     "confidence": number,
-    "reason": "Explain the pattern (A, B, or C) and why the hook is strong.",
+    "reason": "Explain which pattern is matched or how it aligns with your goals.",
     "subjectPosition": "Description of subject location",
     "layoutMode": "fill" | "fullscreen",
     "layoutTimeline": [

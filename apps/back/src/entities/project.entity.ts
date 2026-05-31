@@ -111,6 +111,24 @@ export class Project {
   createdAt: Date;
 
   /**
+   * Custom analysis prompt override for this project
+   */
+  @Column({ type: 'text', nullable: true })
+  customPrompt?: string;
+
+  /**
+   * Minimum duration in seconds of generated shorts
+   */
+  @Column({ type: 'integer', nullable: true })
+  minDuration?: number;
+
+  /**
+   * Maximum duration in seconds of generated shorts
+   */
+  @Column({ type: 'integer', nullable: true })
+  maxDuration?: number;
+
+  /**
    * Timestamp when the project was last updated
    */
   @UpdateDateColumn()

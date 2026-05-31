@@ -177,10 +177,17 @@ export class AnalysisService {
         // Continue without transcript
       }
 
+      // Phase 2.5: Translating & adapting prompt
+      await this.jobProgressService.emit(jobId, {
+        phase: 'translating_prompt',
+        progress: 50,
+        message: 'Adapting AI prompt to the video language...',
+      });
+
       // Phase 3: Gemini analysis (Viral Detection)
       await this.jobProgressService.emit(jobId, {
         phase: 'analyzing',
-        progress: 60,
+        progress: 65,
         message: 'Analyzing video content (visuals + audio)...',
       });
 
@@ -203,11 +210,22 @@ export class AnalysisService {
           );
         }
 
+        const globalSettings = await this.settingsService.getSettings();
+        const customPrompt =
+          project.customPrompt || globalSettings.customPrompt || '';
+        const minDuration =
+          project.minDuration || globalSettings.minDuration || 15;
+        const maxDuration =
+          project.maxDuration || globalSettings.maxDuration || 59;
+
         detected = await this.geminiService.detectShortsCandidates(
           frames,
           duration,
           project.transcript,
           audioBuffer,
+          customPrompt,
+          minDuration,
+          maxDuration,
         );
       } catch (error: unknown) {
         if (error instanceof Error && error.name === 'GeminiParseError') {

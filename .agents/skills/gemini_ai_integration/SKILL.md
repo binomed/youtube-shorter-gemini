@@ -62,13 +62,27 @@ export class GeminiService {
 
     this.genAI = new GoogleGenerativeAI(apiKey || '');
     
-    // Use latest efficient model
+    // Use latest efficient model with Structured JSON Output
     this.model = this.genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash-exp',
       generationConfig: {
         temperature: 0.4, // Lower = more deterministic
         topP: 0.95,
         maxOutputTokens: 2048,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: SchemaType.ARRAY,
+          items: {
+            type: SchemaType.OBJECT,
+            properties: {
+              startTime: { type: SchemaType.NUMBER, description: 'Start timestamp in seconds' },
+              endTime: { type: SchemaType.NUMBER, description: 'End timestamp in seconds' },
+              confidence: { type: SchemaType.NUMBER, description: 'Confidence score (0-100)' },
+              reason: { type: SchemaType.STRING, description: 'Explanation for selection' }
+            },
+            required: ['startTime', 'endTime', 'confidence', 'reason'],
+          }
+        }
       },
     });
   }
@@ -105,7 +119,7 @@ export class GeminiService {
       const result = await this.model.generateContent(parts);
       const response = result.response.text();
 
-      // Parse JSON response
+      // Parse JSON response safely (Gemini API guarantees valid JSON matching schema)
       const segments = this.parseSegmentsResponse(response);
       
       this.logger.log(`Detected ${segments.length} potential Shorts segments`);
@@ -124,52 +138,28 @@ export class GeminiService {
   }
 
   /**
-   * Build the detection prompt with clear instructions and output format.
+   * Build the detection prompt with clear instructions.
    */
   private buildDetectionPrompt(transcript?: string, duration?: number): string {
     return `You are an expert video editor for YouTube Shorts. Analyze this video and identify the most engaging 30-60 second segments that would make great vertical Shorts.
-
+    
 **Context:**
 - Total video duration: ${duration || 'unknown'} seconds
 - Audio transcript: ${transcript || 'not provided'}
 
 **Your task:**
 1. Identify 3-5 distinct moments with high engagement potential (hooks, punchlines, visual highlights, emotional peaks)
-2. For each moment, provide:
-   - Start timestamp (seconds)
-   - End timestamp (seconds, max 60s duration)
-   - Confidence score (0-100)
-   - Reason (one sentence explaining why this would make a great Short)
-
-**Output format (JSON only, no markdown):**
-\`\`\`json
-[
-  {
-    "startTime": 45.5,
-    "endTime": 78.2,
-    "confidence": 85,
-    "reason": "Strong visual hook with surprising reveal"
-  }
-]
-\`\`\`
-
-Only return the JSON array. No additional text.`;
+2. For each moment, provide a start time, end time, confidence score (0-100), and specific editing reasoning.`;
   }
 
   /**
    * Parse Gemini's text response into structured segments.
-   * Handles markdown code blocks and malformed JSON gracefully.
+   * Highly resilient thanks to SDK level structured output guarantees.
    */
   private parseSegmentsResponse(response: string): ShortsSegment[] {
     try {
-      // Remove markdown code blocks if present
-      let jsonText = response.trim();
-      jsonText = jsonText.replace(/```json\n?/g, '');
-      jsonText = jsonText.replace(/```\n?/g, '');
+      const parsed = JSON.parse(response.trim());
       
-      const parsed = JSON.parse(jsonText);
-      
-      // Validate structure
       if (!Array.isArray(parsed)) {
         throw new Error('Response is not an array');
       }

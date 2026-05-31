@@ -9,6 +9,9 @@ export class SettingsService implements OnModuleInit {
   private readonly DEFAULT_SETTINGS: AppSettings = {
     geminiModel: 'gemini-1.5-flash',
     frameInterval: 3.0,
+    customPrompt: '',
+    minDuration: 15,
+    maxDuration: 59,
   };
 
   constructor(
@@ -44,6 +47,12 @@ export class SettingsService implements OnModuleInit {
             settings.geminiModel = value as string;
           } else if (key === 'frameInterval') {
             settings.frameInterval = Number(value);
+          } else if (key === 'customPrompt') {
+            settings.customPrompt = value as string;
+          } else if (key === 'minDuration') {
+            settings.minDuration = Number(value);
+          } else if (key === 'maxDuration') {
+            settings.maxDuration = Number(value);
           }
         } catch {
           // Fallback to default if parse fails

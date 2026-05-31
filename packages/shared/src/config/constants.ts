@@ -25,6 +25,11 @@ export const PROJECT_NAME = 'youtube-shorter-gemini';
 /** Gemini Model Information for selection */
 export const GEMINI_MODELS = [
     {
+        name: 'Gemini 3.5 Flash',
+        code: 'gemini-3.5-flash',
+        pricing: '$1.50 per 1M input / $9.00 per 1M output',
+    },
+    {
         name: 'Gemini 3.1 Pro (Preview)',
         code: 'gemini-3.1-pro-preview',
         pricing: '$2.00 - $4.00 per 1M input / $12.00 - $18.00 per 1M output',

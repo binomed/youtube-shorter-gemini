@@ -104,7 +104,7 @@ export interface AnalysisResponse {
  */
 export interface AnalysisProgressEvent {
     /** Current phase */
-    phase: 'extracting_frames' | 'transcribing' | 'analyzing' | 'saving' | 'complete' | 'error';
+    phase: 'extracting_frames' | 'transcribing' | 'translating_prompt' | 'analyzing' | 'saving' | 'complete' | 'error';
 
     /** Progress percentage (0-100) */
     progress: number;

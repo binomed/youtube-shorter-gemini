@@ -16,4 +16,7 @@ export interface GeminiModelInfo {
 export interface AppSettings {
   geminiModel: string;
   frameInterval: number;
+  customPrompt?: string;
+  minDuration?: number;
+  maxDuration?: number;
 }

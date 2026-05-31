@@ -34,14 +34,16 @@ export class DashboardPage extends LitElement {
     }
 
     .main-container {
-      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       width: 100%;
       height: 100vh;
+      box-sizing: border-box;
+      padding: 40px 24px;
       gap: 32px;
+      overflow: hidden;
     }
 
     .branding-logo {
@@ -50,6 +52,7 @@ export class DashboardPage extends LitElement {
       align-items: center;
       gap: 16px;
       animation: fadeInDown 0.8s ease-out;
+      flex-shrink: 0;
     }
 
     @keyframes fadeInDown {
@@ -75,7 +78,9 @@ export class DashboardPage extends LitElement {
     .glass-card {
       width: 100%;
       max-width: 500px;
-      padding: 48px;
+      height: 600px;
+      max-height: calc(100vh - 240px);
+      padding: 40px 32px 32px 32px;
       background: var(--yts-glass-bg);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
@@ -86,11 +91,9 @@ export class DashboardPage extends LitElement {
                   inset 0 0 20px rgba(255, 255, 255, 0.02);
       position: relative;
       overflow: hidden;
-
-      /* Restored min-height, removed fixed height */
-      min-height: 520px;
       display: flex;
       flex-direction: column;
+      box-sizing: border-box;
     }
 
     /* Top highlight line simulating light source */
@@ -233,6 +236,17 @@ export class DashboardPage extends LitElement {
       --track-color: transparent;
       margin-top: -20px;
       margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    sl-tab-group::part(base) {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
     }
 
     sl-tab-group::part(nav) {
@@ -241,6 +255,15 @@ export class DashboardPage extends LitElement {
       padding: 4px;
       display: inline-flex;
       position: relative;
+      flex-shrink: 0;
+    }
+
+    sl-tab-group::part(body) {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
     }
 
     /* Target the HOST element for layout/positioning */
@@ -281,6 +304,12 @@ export class DashboardPage extends LitElement {
         outline-offset: 2px;
     }
 
+    sl-tab-panel {
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
+    }
+
     sl-tab-panel::part(base) {
         padding: 0;
         border-top: none;
@@ -288,11 +317,44 @@ export class DashboardPage extends LitElement {
         position: relative;
         z-index: 0;
         animation: fadeIn 0.3s ease-out;
+        height: 100%;
+        overflow: hidden;
     }
 
     @keyframes fadeIn {
         from { opacity: 0; transform: translateY(5px); }
         to { opacity: 1; transform: translateY(0); }
+    }
+
+    .tab-content-scroll {
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 4px;
+      box-sizing: border-box;
+    }
+
+    /* Custom scrollbar for tab panels */
+    .tab-content-scroll::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .tab-content-scroll::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 4px;
+    }
+
+    .tab-content-scroll::-webkit-scrollbar-thumb {
+        background: rgba(157, 80, 255, 0.35); /* Elegant translucent purple */
+        border-radius: 4px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+    }
+
+    .tab-content-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(157, 80, 255, 0.6);
+        border: 2px solid transparent;
+        background-clip: padding-box;
     }
 
     /* Custom scrollbar for project list */
@@ -333,6 +395,7 @@ export class DashboardPage extends LitElement {
   @state() private selectedFile: File | null = null;
   @state() private projects: ProjectResponse[] = [];
   @state() private projectIdToDelete: string | null = null; // Still need this state to track WHICH project to delete
+
 
   // Issue #7: Optimize DOM Access with @query decorator
   // Issue #6: Fix type safety (remove cast)
@@ -393,7 +456,7 @@ export class DashboardPage extends LitElement {
     this.dispatchEvent(new CustomEvent('create-project', {
       detail: {
         name: this.projectName,
-        file: this.selectedFile
+        file: this.selectedFile,
       },
       bubbles: true,
       composed: true
@@ -458,6 +521,7 @@ export class DashboardPage extends LitElement {
             @dragleave=${this.handleDragLeave}
             @drop=${this.handleDrop}
             @click=${this.triggerFileInput}
+            style="margin-bottom: 24px;"
             >
             <input
                 type="file"
@@ -479,6 +543,7 @@ export class DashboardPage extends LitElement {
                 <div class="drop-text">Drop Video Here</div>
             `}
             </div>
+
 
             <div class="actions">
             <button
@@ -566,15 +631,21 @@ export class DashboardPage extends LitElement {
               <sl-tab slot="nav" panel="settings">Settings</sl-tab>
 
               <sl-tab-panel name="create">
-                  ${this.renderCreateTab()}
+                  <div class="tab-content-scroll">
+                      ${this.renderCreateTab()}
+                  </div>
               </sl-tab-panel>
 
               <sl-tab-panel name="projects">
-                  ${this.renderProjectsTab()}
+                  <div class="tab-content-scroll">
+                      ${this.renderProjectsTab()}
+                  </div>
               </sl-tab-panel>
 
               <sl-tab-panel name="settings">
-                  <settings-tab></settings-tab>
+                  <div class="tab-content-scroll">
+                      <settings-tab></settings-tab>
+                  </div>
               </sl-tab-panel>
           </sl-tab-group>
         </div>

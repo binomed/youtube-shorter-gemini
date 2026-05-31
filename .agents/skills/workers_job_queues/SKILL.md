@@ -351,8 +351,19 @@ export class JobService implements OnModuleInit, OnModuleDestroy {
     return this.progressStreams.get(jobId)!.asObservable();
   }
 
+  // Subprocess registry to track active ChildProcess instances
+  private activeProcesses = new Map<string, any>();
+
   /**
-   * Cancel a running job.
+   * Register an active subprocess associated with a job.
+   */
+  registerSubprocess(jobId: string, process: any) {
+    this.activeProcesses.set(jobId, process);
+    process.on('close', () => this.activeProcesses.delete(jobId));
+  }
+
+  /**
+   * Cancel a running job and clean up its associated child process.
    */
   async cancelJob(jobId: string): Promise<void> {
     await this.jobRepository.update(jobId, {
@@ -363,13 +374,20 @@ export class JobService implements OnModuleInit, OnModuleDestroy {
 
     this.activeJobs.delete(jobId);
 
+    // Clean up associated child process to prevent orphan CPU consumption
+    const process = this.activeProcesses.get(jobId);
+    if (process) {
+      this.logger.log(`Killing child process for job ${jobId}`);
+      process.kill('SIGTERM');
+      this.activeProcesses.delete(jobId);
+    }
+
     const stream = this.progressStreams.get(jobId);
     if (stream) {
       stream.complete();
       this.progressStreams.delete(jobId);
     }
 
-    // TODO: Kill child process if running (FFmpeg, etc.)
     this.logger.log(`Job ${jobId} cancelled`);
   }
 

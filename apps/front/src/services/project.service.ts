@@ -72,6 +72,18 @@ export class ProjectService {
             formData.append('aiLearningConsent', String(dto.aiLearningConsent));
         }
 
+        if (dto.customPrompt !== undefined) {
+            formData.append('customPrompt', dto.customPrompt);
+        }
+
+        if (dto.minDuration !== undefined) {
+            formData.append('minDuration', String(dto.minDuration));
+        }
+
+        if (dto.maxDuration !== undefined) {
+            formData.append('maxDuration', String(dto.maxDuration));
+        }
+
         formData.append('videoFile', videoFile);
 
         try {
