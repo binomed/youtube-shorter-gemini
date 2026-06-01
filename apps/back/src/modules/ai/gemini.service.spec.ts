@@ -199,10 +199,10 @@ describe('GeminiService', () => {
       );
 
       expect(mockGenerateContent).toHaveBeenCalled();
-      const calls = mockGenerateContent.mock.calls;
-      const firstCallParts = calls[0][0] as any[];
+      const calls = mockGenerateContent.mock.calls as unknown[][];
+      const firstCallParts = calls[0][0] as Array<{ text?: string }>;
       const hasCustomPrompt = firstCallParts.some(
-        (p: any) =>
+        (p: { text?: string }) =>
           typeof p.text === 'string' &&
           p.text.includes('USER CUSTOM RULES') &&
           p.text.includes('laugh or argue intensely'),
@@ -229,10 +229,10 @@ describe('GeminiService', () => {
       );
 
       expect(mockGenerateContent).toHaveBeenCalled();
-      const calls = mockGenerateContent.mock.calls;
-      const firstCallParts = calls[0][0] as any[];
+      const calls = mockGenerateContent.mock.calls as unknown[][];
+      const firstCallParts = calls[0][0] as Array<{ text?: string }>;
       const hasTimingConstraints = firstCallParts.some(
-        (p: any) =>
+        (p: { text?: string }) =>
           typeof p.text === 'string' &&
           p.text.includes('Duration: 10-30 seconds per clip'),
       );
@@ -262,7 +262,9 @@ describe('GeminiService', () => {
       expect(result).toHaveLength(1);
       expect(mockGenerateContent).toHaveBeenCalledTimes(2);
 
-      const translationCall = mockGenerateContent.mock.calls[0][0];
+      const translationCall = (
+        mockGenerateContent.mock.calls[0] as string[]
+      )[0];
       expect(translationCall).toContain(
         'Analyze the following video transcript content, detect its language',
       );
