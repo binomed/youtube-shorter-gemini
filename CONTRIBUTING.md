@@ -116,13 +116,25 @@ This command executes sequentially:
 - **Mock Hygiene**: In your tests (`.spec.ts`), ensure you reset not only call counters (`jest.clearAllMocks()`) but also specific implementations (`mockResolvedValue`) in the `beforeEach` if you modify global modules (e.g., `fs`).
 - **Monorepo Dependencies**: If you modify `packages/shared`, you **must** run `npm run build` at the root for the changes to be visible to `apps/back` and `apps/front`.
 
-## 🔄 Development Workflow
+## 🔄 Development Workflow (OpenSpec)
 
-1. Use `/sprint-planning` for tracking
-2. `/create-story` for detailing a task
-3. `/dev-story` for implementation
-4. **/verify-ci**: Verify that code compiles, passes lint and tests (mandatory before review)
-5. `/code-review` before merging
+We use the **OpenSpec** Spec-Driven Development (SDD) framework to manage and align on system designs and requirements before coding.
+
+1. **Proposal**: Start a new feature or fix by proposing it via your AI coding assistant:
+   ```text
+   /opsx:propose "Your feature description"
+   ```
+   This creates a proposal and tasks template under `openspec/changes/<change-id>/`.
+2. **Review**: The developer reviews and edits the proposal and tasks checklist.
+3. **Execution**: Once aligned, instruct the AI to execute the tasks systematically:
+   ```text
+   /opsx:apply
+   ```
+4. **Verification**: Run `npm run verify` to build, lint, and test all changes.
+5. **Archive**: Merge the specifications into `openspec/specs/` and clean up the active branch:
+   ```text
+   /opsx:archive
+   ```
 
 ## ⚖️ Licence
 

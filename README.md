@@ -19,8 +19,8 @@ Automate key moment detection and assembly, audio separation, and dynamic captio
 - `apps/back`: Backend API (NestJS)
 - `apps/front`: Web Client (Lit)
 - `packages/shared`: Shared Types and DTOs
-- `.agent/skills`: Custom skills for Antigravity ([see documentation](.agent/skills/README.md))
-- `.agent/workflows`: BMAD Workflows for development
+- `openspec`: OpenSpec Spec-Driven Development (SDD) specifications and active changes
+- `.agents/skills`: Custom skills for Antigravity ([see documentation](.agents/skills/README.md))
 
 ## 📋 Prerequisites
 
