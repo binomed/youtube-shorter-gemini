@@ -30,6 +30,7 @@
   "author": "jef",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@fission-ai/openspec": "latest",
     "eslint": "latest",
     "husky": "^9.1.7",
     "prettier": "latest",

@@ -2,7 +2,9 @@
 
 `youtube-shorter-gemini` is a productivity tool to transform long YouTube videos into vertical Shorts using Gemini AI.
 
-![YouTube Shorter Gemini Preview](docs/user/assets/home_preview.png)
+![YouTube Shorter Gemini Preview](docs/user/assets/edition_styles.png)
+
+> 📖 **Looking for help? Check out the comprehensive [User Guide](docs/user/user_guide.md)!**
 
 ## 🚀 Vision
 Automate key moment detection and assembly, audio separation, and dynamic captioning locally.
