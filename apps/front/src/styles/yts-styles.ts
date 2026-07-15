@@ -7,8 +7,29 @@ import { css } from 'lit';
 export const ytsPremiumStyles = css`
   /* Standard Shoelace Button Branding - Pixel Perfect Match */
   sl-button[variant="primary"], sl-button[variant="default"], sl-button[variant="danger"] {
-    display: block;
+    display: inline-block;
     width: 100%;
+  }
+
+  sl-button::part(base) {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+
+  sl-button::part(prefix),
+  sl-button::part(suffix) {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 0 !important;
+  }
+
+  sl-button sl-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    vertical-align: middle !important;
   }
 
   sl-button[variant="primary"]::part(base) {

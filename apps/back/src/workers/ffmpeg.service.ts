@@ -164,6 +164,71 @@ export class FFmpegService {
   }
 
   /**
+   * Create a single-frame video segment from a still image.
+   * Used to prepend a cover image as the first frame of an exported Short.
+   *
+   * @param coverImagePath - Absolute path to the cover JPEG image
+   * @param outputPath - Absolute path for the output MP4 segment
+   * @param fps - Frames per second to match the main video
+   */
+  async createCoverFrameSegment(
+    coverImagePath: string,
+    outputPath: string,
+    fps: number,
+  ): Promise<void> {
+    const frameDuration = 1 / fps;
+
+    return new Promise((resolve, reject) => {
+      const args = [
+        '-loop',
+        '1',
+        '-i',
+        coverImagePath,
+        '-t',
+        frameDuration.toFixed(6),
+        '-vf',
+        'scale=1080:1920',
+        '-c:v',
+        'libx264',
+        '-pix_fmt',
+        'yuv420p',
+        '-r',
+        fps.toString(),
+        '-y',
+        outputPath,
+      ];
+
+      this.logger.debug(
+        `Creating cover frame segment: ffmpeg ${args.join(' ')}`,
+      );
+
+      const ffmpeg = spawn('ffmpeg', args);
+      let stderr = '';
+
+      ffmpeg.stderr.on('data', (data: Buffer) => {
+        stderr += data.toString();
+      });
+
+      ffmpeg.on('close', (code) => {
+        if (code !== 0) {
+          this.logger.error(
+            `FFmpeg cover frame creation failed: ${stderr.substring(stderr.length - 500)}`,
+          );
+          return reject(
+            new Error(`FFmpeg cover frame creation exited with code ${code}`),
+          );
+        }
+        resolve();
+      });
+
+      ffmpeg.on('error', (error) => {
+        this.logger.error(`FFmpeg spawn error: ${error.message}`);
+        reject(error);
+      });
+    });
+  }
+
+  /**
    * Extract audio track from video file
    *
    * @param videoPath - Absolute path to video file

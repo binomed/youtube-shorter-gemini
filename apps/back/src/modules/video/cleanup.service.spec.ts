@@ -230,6 +230,22 @@ describe('CleanupService', () => {
         );
       });
     });
+
+    describe('cover image cleanup', () => {
+      it('should delete cover images from each Short', async () => {
+        const short: Partial<Short> = {
+          id: 'short-abc',
+          projectId: 'test-project-123',
+          coverImagePath: '/uploads/covers/short-abc.jpg',
+        };
+        createService(undefined, [short]);
+        await buildModule();
+
+        await service.deleteProject('test-project-123');
+
+        expect(fs.unlink).toHaveBeenCalledWith('/uploads/covers/short-abc.jpg');
+      });
+    });
   });
 
   describe('deleteAllProjects', () => {

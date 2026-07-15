@@ -59,6 +59,9 @@ export interface ShortResponse {
     /** URL to get the thumbnail */
     thumbnailUrl?: string;
 
+    /** URL to get the custom cover image (user-uploaded, used as first frame in export) */
+    coverImageUrl?: string;
+
     /**
      * Whether audio stems (vocals + accompaniment) have already been separated.
      * If true, the audio panel can directly show the stems player.

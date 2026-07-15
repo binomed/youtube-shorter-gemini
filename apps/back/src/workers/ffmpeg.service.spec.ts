@@ -4,6 +4,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { FFmpegService } from './ffmpeg.service';
+import { spawn } from 'child_process';
+import { EventEmitter } from 'events';
 import util from 'util';
 
 // Mock child_process and util.promisify
@@ -115,6 +117,72 @@ describe('FFmpegService', () => {
 
       await expect(service.extractMetadata(mockVideoPath)).rejects.toThrow(
         `Metadata extraction failed: ${errorMessage}`,
+      );
+    });
+  });
+
+  describe('createCoverFrameSegment', () => {
+    type MockChildProcess = EventEmitter & {
+      stderr: EventEmitter;
+    };
+
+    it('should spawn ffmpeg with correct flags for cover segment creation', async () => {
+      const mockSpawn = spawn as unknown as jest.Mock;
+      const fakeProcess = new EventEmitter() as MockChildProcess;
+      fakeProcess.stderr = new EventEmitter();
+      mockSpawn.mockReturnValue(fakeProcess);
+
+      const promise = service.createCoverFrameSegment(
+        '/covers/short-1.jpg',
+        '/out/segment.mp4',
+        30,
+      );
+
+      setTimeout(() => {
+        fakeProcess.emit('close', 0);
+      }, 5);
+
+      await promise;
+
+      expect(mockSpawn).toHaveBeenCalledWith('ffmpeg', [
+        '-loop',
+        '1',
+        '-i',
+        '/covers/short-1.jpg',
+        '-t',
+        (1 / 30).toFixed(6),
+        '-vf',
+        'scale=1080:1920',
+        '-c:v',
+        'libx264',
+        '-pix_fmt',
+        'yuv420p',
+        '-r',
+        '30',
+        '-y',
+        '/out/segment.mp4',
+      ]);
+    });
+
+    it('should reject when ffmpeg exits with non-zero code', async () => {
+      const mockSpawn = spawn as unknown as jest.Mock;
+      const fakeProcess = new EventEmitter() as MockChildProcess;
+      fakeProcess.stderr = new EventEmitter();
+      mockSpawn.mockReturnValue(fakeProcess);
+
+      const promise = service.createCoverFrameSegment(
+        '/covers/short-1.jpg',
+        '/out/segment.mp4',
+        30,
+      );
+
+      setTimeout(() => {
+        fakeProcess.stderr.emit('data', Buffer.from('Some error'));
+        fakeProcess.emit('close', 1);
+      }, 5);
+
+      await expect(promise).rejects.toThrow(
+        'FFmpeg cover frame creation exited with code 1',
       );
     });
   });

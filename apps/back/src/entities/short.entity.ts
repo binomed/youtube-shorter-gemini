@@ -104,6 +104,14 @@ export class Short {
   thumbnailPath?: string;
 
   /**
+   * Path to the user-uploaded custom cover image.
+   * Used as the first frame in the exported Short and as the priority thumbnail in previews.
+   * Separate from thumbnailPath to allow rollback without losing the auto-generated thumbnail.
+   */
+  @Column({ type: 'varchar', nullable: true })
+  coverImagePath?: string;
+
+  /**
    * Display order in the sidebar list
    */
   @Column({ type: 'integer', default: 0 })

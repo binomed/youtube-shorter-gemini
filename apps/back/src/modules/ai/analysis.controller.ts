@@ -5,6 +5,7 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
   Patch,
   Body,
   Param,
@@ -18,8 +19,15 @@ import {
   Res,
   NotFoundException,
   BadRequestException,
+  PayloadTooLargeException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
+import * as path from 'path';
 import type { Response } from 'express';
 import { Observable, map, finalize } from 'rxjs';
 import {
@@ -178,6 +186,7 @@ export class AnalysisController {
       confidence: number;
       orderIndex: number;
       thumbnailPath?: string;
+      coverImagePath?: string;
       vocalsPath?: string;
       accompanimentPath?: string;
       subtitleStyle: SubtitleStyle;
@@ -197,6 +206,9 @@ export class AnalysisController {
       orderIndex: rawShort.orderIndex,
       thumbnailUrl: rawShort.thumbnailPath
         ? `/api/projects/${projectId}/shorts/${rawShort.id}/thumbnail`
+        : undefined,
+      coverImageUrl: rawShort.coverImagePath
+        ? `/api/projects/${projectId}/shorts/${rawShort.id}/cover`
         : undefined,
       stemsAvailable: !!(rawShort.vocalsPath && rawShort.accompanimentPath),
       subtitleStyle: rawShort.subtitleStyle,
@@ -261,6 +273,141 @@ export class AnalysisController {
 
     const fileStream = createReadStream(thumbnailPath);
     return new StreamableFile(fileStream);
+  }
+
+  // ─── COVER IMAGE ENDPOINTS ────────────────────────────────────────
+
+  /**
+   * Upload a custom cover image for a specific short.
+   * The cover image will be used as the first frame of the exported Short.
+   *
+   * @param id - Project UUID
+   * @param shortId - Short UUID
+   * @param file - Uploaded JPEG image (max 5 MB)
+   * @returns Updated ShortResponse with coverImageUrl
+   */
+  @Post(':id/shorts/:shortId/cover')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('cover'))
+  @ApiOperation({ summary: 'Upload a custom cover image for a short' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cover image uploaded successfully',
+  })
+  @ApiResponse({ status: 404, description: 'Short not found' })
+  @ApiResponse({ status: 413, description: 'File too large (max 5 MB)' })
+  async uploadCoverImage(
+    @Param('id') id: string,
+    @Param('shortId') shortId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ShortResponse> {
+    const MAX_COVER_SIZE = 5 * 1024 * 1024; // 5 MB
+
+    if (!file) {
+      throw new BadRequestException('No cover image file provided');
+    }
+
+    if (file.size > MAX_COVER_SIZE) {
+      throw new PayloadTooLargeException(
+        `Cover image exceeds maximum size of 5 MB (received ${(file.size / 1024 / 1024).toFixed(1)} MB)`,
+      );
+    }
+
+    const shorts = await this.analysisService.getShortsByProject(id);
+    const short = shorts.find((s) => s.id === shortId);
+
+    if (!short) {
+      throw new NotFoundException(
+        `Short ${shortId} not found in project ${id}`,
+      );
+    }
+
+    // Save cover image to uploads/covers/<shortId>.jpg
+    const coversDir = path.join(process.cwd(), 'uploads', 'covers');
+    if (!fs.existsSync(coversDir)) {
+      fs.mkdirSync(coversDir, { recursive: true });
+    }
+
+    const coverPath = path.join(coversDir, `${shortId}.jpg`);
+    await fsPromises.writeFile(coverPath, file.buffer);
+
+    // Update entity
+    await this.analysisService.updateShortCoverImage(id, shortId, coverPath);
+
+    // Return updated short
+    const updatedShorts = await this.analysisService.getShortsByProject(id);
+    const updated = updatedShorts.find((s) => s.id === shortId);
+
+    return this.mapToShortResponse(updated!, id);
+  }
+
+  /**
+   * Get the cover image for a specific short.
+   *
+   * @param id - Project UUID
+   * @param shortId - Short UUID
+   * @param res - Response object
+   * @returns StreamableFile of the cover image
+   */
+  @Get(':id/shorts/:shortId/cover')
+  @ApiOperation({ summary: 'Get cover image for a short' })
+  @ApiResponse({ status: 200, description: 'Returns JPEG image stream' })
+  @ApiResponse({ status: 404, description: 'Cover image not found' })
+  async getCoverImage(
+    @Param('id') id: string,
+    @Param('shortId') shortId: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const coverPath = await this.analysisService.getCoverImagePath(id, shortId);
+
+    if (!fs.existsSync(coverPath)) {
+      throw new NotFoundException('Cover image file not found on disk');
+    }
+
+    res.set({
+      'Content-Type': 'image/jpeg',
+      'Content-Disposition': 'inline',
+    });
+
+    const fileStream = fs.createReadStream(coverPath);
+    return new StreamableFile(fileStream);
+  }
+
+  /**
+   * Delete the cover image for a specific short.
+   *
+   * @param id - Project UUID
+   * @param shortId - Short UUID
+   */
+  @Delete(':id/shorts/:shortId/cover')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete cover image for a short' })
+  @ApiResponse({ status: 204, description: 'Cover image deleted' })
+  @ApiResponse({ status: 404, description: 'Short not found' })
+  async deleteCoverImage(
+    @Param('id') id: string,
+    @Param('shortId') shortId: string,
+  ): Promise<void> {
+    const shorts = await this.analysisService.getShortsByProject(id);
+    const short = shorts.find((s) => s.id === shortId);
+
+    if (!short) {
+      throw new NotFoundException(
+        `Short ${shortId} not found in project ${id}`,
+      );
+    }
+
+    // Delete file from disk if it exists
+    if (short.coverImagePath) {
+      try {
+        await fsPromises.unlink(short.coverImagePath);
+      } catch {
+        // Fail-safe: ignore if file doesn't exist
+      }
+    }
+
+    // Nullify in DB
+    await this.analysisService.updateShortCoverImage(id, shortId, null);
   }
 
   // ─── STEM SEPARATION ENDPOINTS ────────────────────────────────────

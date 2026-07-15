@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { SignalWatcher } from '@lit-labs/signals';
 import { type BeforeEnterObserver, type RouterLocation } from '@vaadin/router';
@@ -16,6 +16,10 @@ import type { LayoutEvent, StemProgressEvent, ShortResponse, SubtitleResponse, V
 import '../components/molecules/yts-dialog.element.ts';
 import { ytsPremiumStyles } from '../styles/yts-styles.ts';
 import '@shoelace-style/shoelace/dist/components/checkbox/checkbox.js';
+import '@shoelace-style/shoelace/dist/components/dropdown/dropdown.js';
+import '@shoelace-style/shoelace/dist/components/menu/menu.js';
+import '@shoelace-style/shoelace/dist/components/menu-item/menu-item.js';
+import '@shoelace-style/shoelace/dist/components/alert/alert.js';
 import type { YtsShortPlayer } from '../components/organisms/yts-short-player.element.js';
 import '../components/organisms/yts-short-player.element.js';
 
@@ -23,6 +27,8 @@ import '../components/molecules/yts-subtitle-editor.element.js';
 import '../components/molecules/yts-subtitle-style-panel.element.js';
 import '../components/molecules/yts-precision-multi-timeline.element.js';
 import '../components/molecules/yts-header.element.js';
+import '../components/molecules/yts-thumbnail-editor.element.js';
+import type { YtsThumbnailEditor } from '../components/molecules/yts-thumbnail-editor.element.js';
 import { projectService } from '../services/project.service.js';
 import { projectSignal, setProject, updateShortInProject, setShorts, addShortToProject } from '../state/project.state.js';
 @customElement('editor-page')
@@ -48,6 +54,9 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
   @state() private currentTime = 0;
   @state() private isPlaying = false;
+
+  /** The Short currently being edited in the thumbnail editor dialog, or null if closed */
+  @state() private thumbnailEditorShort: ShortResponse | null = null;
 
   async onBeforeEnter(location: RouterLocation): Promise<void> {
     const projectId = location.params.projectId as string;
@@ -609,6 +618,92 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
     const s = Math.floor(seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   }
+
+  private formatSRTTime(seconds: number): string {
+    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    const ms = Math.floor(Math.round(seconds * 1000) % 1000).toString().padStart(3, '0');
+    return `${h}:${m}:${s},${ms}`;
+  }
+
+  private getFormattedTranscript(format: 'srt' | 'txt'): string {
+    if (!this.currentShort || !this.currentShort.subtitles || this.currentShort.subtitles.length === 0) {
+      return '';
+    }
+
+    const sortedSubs = [...this.currentShort.subtitles].sort((a, b) => a.startTime - b.startTime);
+
+    if (format === 'srt') {
+      return sortedSubs.map((sub, index) => {
+        const indexStr = (index + 1).toString();
+        const timeStr = `${this.formatSRTTime(sub.startTime)} --> ${this.formatSRTTime(sub.endTime)}`;
+        return `${indexStr}\n${timeStr}\n${sub.text.trim()}\n`;
+      }).join('\n');
+    }
+
+    return sortedSubs.map(sub => sub.text.trim()).join(' ').trim();
+  }
+
+  private async copyTranscript(): Promise<void> {
+    if (!this.currentShort) return;
+    const transcriptText = this.getFormattedTranscript('txt');
+    if (!transcriptText) {
+      this.showToast('danger', 'No transcript available to copy');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(transcriptText);
+      this.showToast('success', 'Transcript copied to clipboard!');
+    } catch (err) {
+      console.error('Failed to copy transcript:', err);
+      this.showToast('danger', 'Failed to copy transcript to clipboard');
+    }
+  }
+
+  private downloadTranscript(format: 'srt' | 'txt'): void {
+    if (!this.currentShort) return;
+    const fileContent = this.getFormattedTranscript(format);
+    if (!fileContent) {
+      this.showToast('danger', 'No transcript available to export');
+      return;
+    }
+
+    const mimeType = format === 'srt' ? 'text/srt' : 'text/plain';
+
+    try {
+      const blob = new Blob([fileContent], { type: `${mimeType};charset=utf-8;` });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const title = this.currentShort.title ? this.currentShort.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'short';
+      link.setAttribute('download', `${title}-transcript.${format}`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      this.showToast('success', `Transcript exported as .${format} successfully!`);
+    } catch (err) {
+      console.error('Failed to export transcript:', err);
+      this.showToast('danger', 'Failed to export transcript file');
+    }
+  }
+
+  private showToast(variant: 'success' | 'danger', message: string): void {
+    const alert = Object.assign(document.createElement('sl-alert'), {
+      variant,
+      closable: true,
+      duration: 3000,
+      innerHTML: `
+        <sl-icon slot="icon" name="${variant === 'success' ? 'check-circle' : 'exclamation-triangle'}" library="default"></sl-icon>
+        ${message}
+      `
+    });
+    document.body.append(alert);
+    (alert as unknown as { toast: () => void }).toast();
+  }
+
   static styles = [
     ytsPremiumStyles,
     css`
@@ -626,7 +721,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
     .layout {
       display: grid;
-      grid-template-columns: 280px 1fr 340px;
+      grid-template-columns: 210px 1fr 340px;
       flex: 1;
       height: calc(100vh - 64px);
       gap: 24px;
@@ -664,7 +759,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      padding: 20px;
+      padding: 16px;
     }
 
     .segment-list::-webkit-scrollbar {
@@ -698,7 +793,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 12px;
       padding: 0;
-      margin: 0;
+      margin: 0 auto;
       overflow: hidden;
       cursor: pointer;
       text-align: left;
@@ -706,9 +801,11 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       color: inherit;
       transition: all 0.2s ease;
       position: relative;
-      display: flex;
-      flex-direction: column;
+      display: block;
       width: 100%;
+      max-width: 144px;
+      flex-shrink: 0;
+      min-height: min-content;
     }
 
     .segment-card:hover {
@@ -724,16 +821,79 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
 
     .segment-thumb {
       width: 100%;
-      aspect-ratio: 16/9;
+      height: 0;
+      padding-top: 177.78%; /* 16 / 9 * 100% = 9:16 Portrait Ratio! */
+      aspect-ratio: 9/16;
       position: relative;
       background: #000;
+      overflow: hidden;
+      display: block;
+      min-height: 0;
+      flex-shrink: 0;
+    }
+
+    .segment-thumb .thumb-img {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+    }
+
+    .segment-thumb .thumb-placeholder {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1e1b4b, #312e81);
+    }
+
+    .segment-thumb .thumb-placeholder sl-icon {
+      font-size: 2rem;
+      color: rgba(255, 255, 255, 0.15);
+    }
+
+    .segment-thumb .edit-cover-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease, background 0.2s ease, transform 0.15s ease;
+      z-index: 10;
+      padding: 0;
+      pointer-events: auto;
+    }
+
+    .segment-card:hover .edit-cover-btn {
+      opacity: 1;
+    }
+
+    .edit-cover-btn:hover {
+      background: rgba(99, 102, 241, 0.7);
+      border-color: rgba(99, 102, 241, 0.8);
     }
 
     .thumb-overlay {
       position: absolute;
-      bottom: 8px;
-      left: 8px;
-      right: 8px;
+      bottom: 6px;
+      left: 6px;
+      right: 6px;
       display: flex;
       justify-content: space-between;
       pointer-events: none;
@@ -743,23 +903,23 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       background: rgba(0, 0, 0, 0.7);
       backdrop-filter: blur(8px);
       color: white;
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 6px;
+      padding: 2px 6px;
+      border-radius: 5px;
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .segment-footer {
-      padding: 12px;
+      padding: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .segment-title {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: #f1f5f9;
       white-space: nowrap;
@@ -896,6 +1056,37 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       box-shadow: 0 0 10px rgba(14, 165, 233, 0.4);
     }
 
+    .captions-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      justify-content: flex-end;
+      align-items: center;
+      width: 100%;
+    }
+
+    .transcript-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      border-radius: 20px;
+    }
+
+    .transcript-action-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: #0ea5e9;
+      color: white;
+    }
+
+    .transcript-action-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      border-color: rgba(255,255,255,0.05);
+      color: #64748b;
+    }
+
     /* Override Shoelace Tab styling to hide native tabs since we're using custom header */
     .sidebar-right {
       background: #1e202a;
@@ -978,8 +1169,8 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       background: rgba(255, 255, 255, 0.02);
       border: 2px dashed rgba(255, 255, 255, 0.15);
       border-radius: 12px;
-      padding: 20px;
-      margin: 0;
+      padding: 20px 12px;
+      margin: 0 auto;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -990,8 +1181,11 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       text-align: center;
       color: #94a3b8;
       width: 100%;
+      max-width: 144px;
       box-sizing: border-box;
       font-family: inherit;
+      flex-shrink: 0;
+      min-height: min-content;
     }
 
     .add-segment-card:hover:not(:disabled) {
@@ -1095,6 +1289,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         ${this.renderToolsPanel()}
       </div>
       ${this.renderExportDialog()}
+      ${this.renderThumbnailEditor()}
     `;
   }
 
@@ -1161,18 +1356,34 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
           : (projectSignal.get()?.shorts || []).map(s => {
             const isSelected = this.currentShort?.id === s.id;
             return html`
-                <button 
+                <div 
                     class="segment-card ${isSelected ? 'selected' : ''}" 
+                    role="button"
+                    tabindex="0"
                     @click="${(): void => this.playShort(s)}"
+                    @keydown="${(e: KeyboardEvent): void => { if (e.key === 'Enter' || e.key === ' ') this.playShort(s); }}"
                     aria-label="Play segment ${s.title}"
                 >
                   <div class="segment-thumb">
-                    ${s.thumbnailUrl
-                ? html`<img src="${s.thumbnailUrl}" alt="${s.title}" style="width:100%; height:100%; object-fit:cover;">`
-                : ''
+                    ${(s.coverImageUrl ?? s.thumbnailUrl)
+                ? html`<img src="${s.coverImageUrl ?? s.thumbnailUrl}" alt="${s.title}" class="thumb-img">`
+                : html`<div class="thumb-placeholder">
+                    <sl-icon name="image"></sl-icon>
+                  </div>`
               }
+                    <div
+                      class="edit-cover-btn"
+                      role="button"
+                      tabindex="0"
+                      @click=${(e: Event) => { e.stopPropagation(); this.openThumbnailEditor(s); }}
+                      @keydown=${(e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); this.openThumbnailEditor(s); } }}
+                      aria-label="Edit cover image for ${s.title}"
+                      title="Edit cover image"
+                    >
+                      <sl-icon name="pencil" style="font-size: 14px;"></sl-icon>
+                    </div>
                     <div class="thumb-overlay">
-                      <div class="overlay-pill">16:9</div>
+                      <div class="overlay-pill">9:16</div>
                       <div class="overlay-pill">${this.formatTime(s.endTime - s.startTime)}</div>
                     </div>
                   </div>
@@ -1180,7 +1391,7 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
                     <span class="segment-title">${s.title}</span>
                     <sl-icon name="check-circle-fill" class="selected-check"></sl-icon>
                   </div>
-                </button>
+                </div>
               `;
           })}
           
@@ -1322,21 +1533,50 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
       ` : ''}
 
         ${this.activeTab === 'captions' ? html`
-            <div class="captions-list tools-content">
-              ${!this.currentShort?.subtitles || this.currentShort.subtitles.length === 0
-          ? html`<div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">No captions found. Move boundaries or wait for transcription.</div>`
-          : this.currentShort.subtitles.map(sub => html`
+            <div class="tools-content" style="display: flex; flex-direction: column; overflow: hidden; padding-right: 0;">
+              ${this.currentShort?.subtitles && this.currentShort.subtitles.length > 0 ? html`
+                <div class="captions-actions">
                   <button 
-                      class="caption-item" 
-                      @click=${() => this.handleEditSubtitle(new CustomEvent('edit-subtitle', { detail: { subtitle: sub } }))}
-                      aria-label="Edit caption: ${sub.text}"
+                    class="active-pill-btn transcript-action-btn" 
+                    @click=${this.copyTranscript} 
+                    aria-label="Copy transcript to clipboard"
                   >
-                    <sl-icon name="chat-square-text" style="color:#818cf8; font-size: 14px;"></sl-icon>
-                    <div class="caption-text">${sub.text}</div>
-                    <div class="caption-time">${this.formatTime(sub.startTime)}</div>
+                    <sl-icon name="files" style="font-size: 14px;"></sl-icon>
+                    Copy
                   </button>
-                `)
-        }
+                  <sl-dropdown distance="5" hoist placement="bottom-end">
+                    <button 
+                      slot="trigger" 
+                      class="active-pill-btn transcript-action-btn" 
+                      aria-label="Export transcript formats"
+                    >
+                      <sl-icon name="download" style="font-size: 14px;"></sl-icon>
+                      Export
+                    </button>
+                    <sl-menu>
+                      <sl-menu-item @click=${() => this.downloadTranscript('srt')}>.srt (Subtitles)</sl-menu-item>
+                      <sl-menu-item @click=${() => this.downloadTranscript('txt')}>.txt (Plain Text)</sl-menu-item>
+                    </sl-menu>
+                  </sl-dropdown>
+                </div>
+              ` : ''}
+              
+              <div class="captions-list" style="flex: 1; overflow-y: auto; padding-right: 4px;">
+                ${!this.currentShort?.subtitles || this.currentShort.subtitles.length === 0
+            ? html`<div style="color:#64748b; font-size:13px; text-align:center; padding:20px;">No captions found. Move boundaries or wait for transcription.</div>`
+            : this.currentShort.subtitles.map(sub => html`
+                    <button 
+                        class="caption-item" 
+                        @click=${() => this.handleEditSubtitle(new CustomEvent('edit-subtitle', { detail: { subtitle: sub } }))}
+                        aria-label="Edit caption: ${sub.text}"
+                    >
+                      <sl-icon name="chat-square-text" style="color:#818cf8; font-size: 14px;"></sl-icon>
+                      <div class="caption-text">${sub.text}</div>
+                      <div class="caption-time">${this.formatTime(sub.startTime)}</div>
+                    </button>
+                  `)
+          }
+              </div>
             </div>
         ` : ''}
       </aside>
@@ -1392,6 +1632,67 @@ export class EditorPage extends SignalWatcher(LitElement) implements BeforeEnter
         </sl-button>
       </div>
     `;
+  }
+
+  // ─── THUMBNAIL EDITOR ─────────────────────────────────────────
+
+  private openThumbnailEditor(short: ShortResponse) {
+    this.thumbnailEditorShort = short;
+    this.updateComplete.then(() => {
+      const editor = this.shadowRoot?.querySelector('yts-thumbnail-editor') as YtsThumbnailEditor | null;
+      editor?.show();
+    });
+  }
+
+  private renderThumbnailEditor(): unknown {
+    if (!this.thumbnailEditorShort) return nothing;
+    const s = this.thumbnailEditorShort;
+    const projectId = projectSignal.get()?.id;
+    if (!projectId) return nothing;
+
+    return html`
+      <yts-thumbnail-editor
+        .projectId=${projectId}
+        .shortId=${s.id}
+        .hasCover=${!!s.coverImageUrl}
+        @cover-saved=${this.handleCoverSaved}
+        @cover-removed=${this.handleCoverRemoved}
+        @sl-hide=${() => { this.thumbnailEditorShort = null; }}
+      ></yts-thumbnail-editor>
+    `;
+  }
+
+  private async handleCoverSaved(e: CustomEvent<{ blob: Blob }>) {
+    const short = this.thumbnailEditorShort;
+    const projectId = projectSignal.get()?.id;
+    if (!short || !projectId) return;
+
+    try {
+      const updated = await projectService.uploadCoverImage(projectId, short.id, e.detail.blob);
+      updateShortInProject(updated);
+      if (this.currentShort?.id === short.id) {
+        this.currentShort = updated;
+      }
+    } catch (err) {
+      console.error('Failed to upload cover image:', err);
+    }
+  }
+
+  private async handleCoverRemoved() {
+    const short = this.thumbnailEditorShort;
+    const projectId = projectSignal.get()?.id;
+    if (!short || !projectId) return;
+
+    try {
+      await projectService.deleteCoverImage(projectId, short.id);
+      const updated: ShortResponse = { ...short, coverImageUrl: undefined };
+      updateShortInProject(updated);
+      if (this.currentShort?.id === short.id) {
+        this.currentShort = updated;
+      }
+    } catch (err) {
+      console.error('Failed to delete cover image:', err);
+    }
   }
 }
 

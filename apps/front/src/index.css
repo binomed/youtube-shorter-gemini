@@ -82,6 +82,27 @@
 }
 
 /* ========== Shoelace Theme Overrides ========== */
+sl-button::part(base) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+}
+
+sl-button::part(prefix),
+sl-button::part(suffix) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 0 !important;
+}
+
+sl-button sl-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  vertical-align: middle !important;
+}
+
 sl-button[variant="primary"]::part(base) {
   background: var(--yts-gradient-primary);
   border: none;

@@ -38,6 +38,26 @@ describe('Project State', () => {
         expect(currentProject?.shorts?.[1].title).toBe('Short 2');
     });
 
+    it('should update coverImageUrl when short cover is set or removed (Task 7.6)', () => {
+        setProject(mockProject);
+
+        const shortWithCover: ShortResponse = {
+            ...mockProject.shorts![0],
+            coverImageUrl: '/covers/short-1.jpg'
+        };
+
+        updateShortInProject(shortWithCover);
+        expect(projectSignal.get()?.shorts?.[0].coverImageUrl).toBe('/covers/short-1.jpg');
+
+        const shortRemovedCover: ShortResponse = {
+            ...mockProject.shorts![0],
+            coverImageUrl: undefined
+        };
+
+        updateShortInProject(shortRemovedCover);
+        expect(projectSignal.get()?.shorts?.[0].coverImageUrl).toBeUndefined();
+    });
+
     it('should set shorts list for current project', () => {
         setProject({ ...mockProject, shorts: [] });
         

@@ -108,4 +108,48 @@ describe('ProjectService', () => {
             await expect(service.createProject(mockDto, mockFile)).rejects.toThrow('An unexpected error occurred');
         });
     });
+
+    describe('uploadCoverImage (Task 7.4)', () => {
+        it('should upload cover image blob via POST with FormData and return updated ShortResponse', async () => {
+            const fakeBlob = new Blob(['image-content'], { type: 'image/jpeg' });
+            const mockUpdatedShort = {
+                id: 'short-1',
+                projectId: 'proj-1',
+                title: 'Scene 1',
+                startTime: 0,
+                endTime: 10,
+                confidence: 90,
+                orderIndex: 0,
+                stemsAvailable: false,
+                createdAt: '2026-01-01',
+                coverImageUrl: '/covers/short-1.jpg'
+            };
+
+            mockedAxios.post.mockResolvedValue({
+                data: mockUpdatedShort
+            });
+
+            const result = await service.uploadCoverImage('proj-1', 'short-1', fakeBlob);
+            expect(result).toEqual(mockUpdatedShort);
+
+            expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+            const [url, formData, config] = mockedAxios.post.mock.calls[0];
+            expect(url).toBe('/api/projects/proj-1/shorts/short-1/cover');
+            expect(formData).toBeInstanceOf(FormData);
+            expect((formData as FormData).get('cover')).toBeTruthy();
+            expect(config).toEqual({ headers: { 'Content-Type': 'multipart/form-data' } });
+        });
+    });
+
+    describe('deleteCoverImage (Task 7.5)', () => {
+        it('should delete cover image via DELETE call and handle 204 successfully', async () => {
+            mockedAxios.delete.mockResolvedValue({
+                status: 204,
+                data: {}
+            });
+
+            await expect(service.deleteCoverImage('proj-1', 'short-1')).resolves.toBeUndefined();
+            expect(mockedAxios.delete).toHaveBeenCalledWith('/api/projects/proj-1/shorts/short-1/cover');
+        });
+    });
 });

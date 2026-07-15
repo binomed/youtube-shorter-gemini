@@ -35,6 +35,8 @@ export class YtsDialog extends LitElement {
     sl-dialog {
       --sl-panel-background-color: transparent;
       --sl-panel-border-width: 0;
+      --sl-z-index-dialog: 99999;
+      z-index: 99999;
     }
 
     sl-dialog::part(panel) {
@@ -46,13 +48,17 @@ export class YtsDialog extends LitElement {
                   inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
       border: 1px solid #4f46e5 !important; /* Vivid blue border */
       border-radius: 16px !important;
-      max-width: 440px !important;
+      max-width: var(--yts-dialog-max-width, 440px) !important;
+      max-height: var(--yts-dialog-max-height, 86vh) !important;
+      display: flex !important;
+      flex-direction: column !important;
       width: 100% !important;
       overflow: hidden !important; /* rounds the footer corners */
     }
 
     sl-dialog::part(header) {
       padding: 32px 32px 16px 32px !important;
+      flex-shrink: 0 !important;
     }
 
     sl-dialog::part(title) {
@@ -82,7 +88,10 @@ export class YtsDialog extends LitElement {
       color: rgba(255, 255, 255, 0.7) !important;
       font-size: 15px !important;
       line-height: 1.6 !important;
-      padding: 0 32px 32px 32px !important;
+      padding: 0 32px 24px 32px !important;
+      overflow-y: auto !important;
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
     }
 
     sl-dialog::part(overlay) {
@@ -92,19 +101,26 @@ export class YtsDialog extends LitElement {
 
     sl-dialog::part(footer) {
       background-color: #0d0f1c !important; /* Darker bottom section */
-      padding: 24px 32px !important;
-      border-top: none !important;
+      padding: 20px 32px !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+      flex-shrink: 0 !important;
     }
 
     .footer-container {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
       width: 100%;
     }
     
     ::slotted([slot="footer"]) {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
       width: 100%;
+      flex: 1;
     }
   `];
 

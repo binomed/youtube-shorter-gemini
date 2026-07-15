@@ -179,6 +179,40 @@ export class ExportService {
         });
       }
 
+      // 1b. Prepend cover frame segment if a custom cover image exists
+      if (short.coverImagePath) {
+        const { existsSync } = await import('fs');
+        if (existsSync(short.coverImagePath)) {
+          const coverSegPath = path.join(
+            tempDir,
+            `export-cover-${exportId}.mp4`,
+          );
+
+          // Get video metadata to determine FPS
+          const metadata = await this.ffmpegService.extractMetadata(
+            project.videoPath,
+          );
+          const fps = metadata?.framerate ?? 30;
+
+          await this.ffmpegService.createCoverFrameSegment(
+            short.coverImagePath,
+            coverSegPath,
+            fps,
+          );
+
+          // Prepend the cover frame at position 0
+          segmentPaths.unshift(coverSegPath);
+          tempSegmentsToClean.push(coverSegPath);
+
+          // Add a fill layout entry for the cover frame (static image, centered)
+          layoutData.unshift({ layoutMode: 'fill', centerX: 0.5 });
+
+          this.logger.log(
+            `Cover frame segment created and prepended at FPS=${fps}`,
+          );
+        }
+      }
+
       // 2. Adjust Subtitle timestamps for concatenated segments
       // NOTE: We iterate over rawSegments (original, undivided segments), NOT segmentsToProcess
       // (camera-pan sub-segments). A subtitle that spans a camera-pan boundary would otherwise

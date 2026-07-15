@@ -190,6 +190,16 @@ export class CleanupService {
           // Fail-safe: ignore if file doesn't exist
         }
       }
+
+      // Clean up cover image if exists
+      if (short.coverImagePath) {
+        try {
+          await fs.unlink(short.coverImagePath);
+          this.logger.debug(`Cleaned up cover image for short ${short.id}`);
+        } catch {
+          // Fail-safe: ignore if file doesn't exist
+        }
+      }
     }
   }
 

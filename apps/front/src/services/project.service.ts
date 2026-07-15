@@ -232,6 +232,56 @@ export class ProjectService {
             throw new Error('An unexpected error occurred while fetching project');
         }
     }
+
+    /**
+     * Upload a custom cover image for a specific short.
+     *
+     * @param projectId - UUID of the project
+     * @param shortId - UUID of the short
+     * @param blob - JPEG image blob (cropped 1080×1920)
+     * @returns Updated ShortResponse with coverImageUrl
+     */
+    async uploadCoverImage(projectId: string, shortId: string, blob: Blob): Promise<ShortResponse> {
+        const formData = new FormData();
+        formData.append('cover', blob, 'cover.jpg');
+
+        try {
+            const response = await axios.post<ShortResponse>(
+                `${this.baseUrl}/projects/${projectId}/shorts/${shortId}/cover`,
+                formData,
+                {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                },
+            );
+            return response.data;
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const message = error.response?.data?.message || error.message || 'Failed to upload cover image';
+                throw new Error(message);
+            }
+            throw new Error('An unexpected error occurred while uploading cover image');
+        }
+    }
+
+    /**
+     * Delete the custom cover image for a specific short.
+     *
+     * @param projectId - UUID of the project
+     * @param shortId - UUID of the short
+     */
+    async deleteCoverImage(projectId: string, shortId: string): Promise<void> {
+        try {
+            await axios.delete(
+                `${this.baseUrl}/projects/${projectId}/shorts/${shortId}/cover`,
+            );
+        } catch (error: unknown) {
+            if (axios.isAxiosError(error)) {
+                const message = error.response?.data?.message || error.message || 'Failed to delete cover image';
+                throw new Error(message);
+            }
+            throw new Error('An unexpected error occurred while deleting cover image');
+        }
+    }
 }
 
 /** Singleton instance */

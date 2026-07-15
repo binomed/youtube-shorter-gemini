@@ -10,28 +10,44 @@ import { FFmpegService } from '../../workers/ffmpeg.service';
 import { JobService } from './job.service';
 import { JobProgressService } from './job-progress.service';
 import type { SubtitleResponse } from '@youtube-shorter/shared';
-
-// ---------------------------------------------------------------------------
-// Lightweight stubs — we only test the pure subtitle-adjustment logic here
-// ---------------------------------------------------------------------------
-const mockRepository = () => ({
-  findOneBy: jest.fn(),
-  findOne: jest.fn(),
-  save: jest.fn(),
-});
+import * as fs from 'fs';
+import * as fsPromises from 'fs/promises';
+import * as path from 'path';
 
 describe('ExportService', () => {
   let service: ExportService;
+  let mockShortRepo: Record<string, jest.Mock>;
+  let mockProjectRepo: Record<string, jest.Mock>;
+  let mockFFmpegService: Record<string, jest.Mock>;
+  let mockJobProgressService: Record<string, jest.Mock>;
 
   beforeEach(async () => {
+    mockShortRepo = {
+      findOneBy: jest.fn(),
+      findOne: jest.fn(),
+      save: jest.fn(),
+    };
+    mockProjectRepo = {
+      findOneBy: jest.fn(),
+      findOne: jest.fn(),
+      save: jest.fn(),
+    };
+    mockFFmpegService = {
+      extractSegment: jest.fn().mockResolvedValue(undefined),
+      extractMetadata: jest.fn().mockResolvedValue({ framerate: 30 }),
+      createCoverFrameSegment: jest.fn().mockResolvedValue(undefined),
+      concatenateAndRenderVertical: jest.fn().mockResolvedValue(undefined),
+    };
+    mockJobProgressService = { emit: jest.fn().mockResolvedValue(undefined) };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExportService,
-        { provide: getRepositoryToken(Short), useFactory: mockRepository },
-        { provide: getRepositoryToken(Project), useFactory: mockRepository },
-        { provide: FFmpegService, useValue: {} },
+        { provide: getRepositoryToken(Short), useValue: mockShortRepo },
+        { provide: getRepositoryToken(Project), useValue: mockProjectRepo },
+        { provide: FFmpegService, useValue: mockFFmpegService },
         { provide: JobService, useValue: {} },
-        { provide: JobProgressService, useValue: {} },
+        { provide: JobProgressService, useValue: mockJobProgressService },
       ],
     }).compile();
 
@@ -161,6 +177,101 @@ describe('ExportService', () => {
       const result = service.adjustSubtitleTimestamps([], segments);
 
       expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('exportShort with/without cover image', () => {
+    const testCoverPath = path.join('/tmp/yts-processing', 'test-cover.jpg');
+
+    beforeEach(async () => {
+      await fsPromises.mkdir('/tmp/yts-processing', { recursive: true });
+    });
+
+    afterEach(async () => {
+      if (fs.existsSync(testCoverPath)) {
+        await fsPromises.unlink(testCoverPath).catch(() => {});
+      }
+    });
+
+    it('should prepend cover frame segment when short has coverImagePath (Task 4.4)', async () => {
+      await fsPromises.writeFile(testCoverPath, 'fake-jpeg');
+      mockProjectRepo.findOneBy.mockResolvedValue({
+        id: 'proj-1',
+        videoPath: '/videos/test.mp4',
+      });
+      mockShortRepo.findOne.mockResolvedValue({
+        id: 'short-1',
+        projectId: 'proj-1',
+        startTime: 0,
+        endTime: 5,
+        coverImagePath: testCoverPath,
+        segments: [
+          { startTime: 0, endTime: 5, layoutMode: 'fill', centerX: 0.5 },
+        ],
+        subtitles: [],
+      });
+
+      await service.exportShort(
+        'proj-1',
+        { shortId: 'short-1' } as any,
+        'job-123',
+      );
+
+      expect(mockFFmpegService.createCoverFrameSegment).toHaveBeenCalledWith(
+        testCoverPath,
+        expect.stringContaining('export-cover-'),
+        30,
+      );
+      expect(
+        mockFFmpegService.concatenateAndRenderVertical,
+      ).toHaveBeenCalledWith(
+        [
+          expect.stringContaining('export-cover-'),
+          expect.stringContaining('export-seg-'),
+        ],
+        expect.stringContaining('.mp4'),
+        expect.objectContaining({
+          layoutData: [
+            { layoutMode: 'fill', centerX: 0.5 },
+            { layoutMode: 'fill', centerX: 0.5 },
+          ],
+        }),
+      );
+    });
+
+    it('should NOT prepend cover frame segment when short has no coverImagePath (Task 4.5)', async () => {
+      mockProjectRepo.findOneBy.mockResolvedValue({
+        id: 'proj-1',
+        videoPath: '/videos/test.mp4',
+      });
+      mockShortRepo.findOne.mockResolvedValue({
+        id: 'short-1',
+        projectId: 'proj-1',
+        startTime: 0,
+        endTime: 5,
+        coverImagePath: null,
+        segments: [
+          { startTime: 0, endTime: 5, layoutMode: 'fill', centerX: 0.5 },
+        ],
+        subtitles: [],
+      });
+
+      await service.exportShort(
+        'proj-1',
+        { shortId: 'short-1' } as any,
+        'job-123',
+      );
+
+      expect(mockFFmpegService.createCoverFrameSegment).not.toHaveBeenCalled();
+      expect(
+        mockFFmpegService.concatenateAndRenderVertical,
+      ).toHaveBeenCalledWith(
+        [expect.stringContaining('export-seg-')],
+        expect.stringContaining('.mp4'),
+        expect.objectContaining({
+          layoutData: [{ layoutMode: 'fill', centerX: 0.5 }],
+        }),
+      );
     });
   });
 });

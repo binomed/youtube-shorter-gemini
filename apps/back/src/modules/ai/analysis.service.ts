@@ -316,6 +316,50 @@ export class AnalysisService {
   }
 
   /**
+   * Get the cover image path for a specific short
+   */
+  async getCoverImagePath(projectId: string, shortId: string): Promise<string> {
+    const short = await this.shortRepository.findOne({
+      where: { id: shortId, projectId },
+    });
+
+    if (!short) {
+      throw new NotFoundException(
+        `Short ${shortId} not found in project ${projectId}`,
+      );
+    }
+
+    if (!short.coverImagePath) {
+      throw new NotFoundException(`Cover image not found for short ${shortId}`);
+    }
+
+    return short.coverImagePath;
+  }
+
+  /**
+   * Update the cover image path for a specific short.
+   * Pass null to remove the cover image.
+   */
+  async updateShortCoverImage(
+    projectId: string,
+    shortId: string,
+    coverImagePath: string | null,
+  ): Promise<void> {
+    const short = await this.shortRepository.findOne({
+      where: { id: shortId, projectId },
+    });
+
+    if (!short) {
+      throw new NotFoundException(
+        `Short ${shortId} not found in project ${projectId}`,
+      );
+    }
+
+    short.coverImagePath = coverImagePath ?? undefined;
+    await this.shortRepository.save(short);
+  }
+
+  /**
    * Extract frames at regular intervals using FFmpeg for AI analysis.
    * Follows the Gemini skill's frame sampling strategy.
    */
