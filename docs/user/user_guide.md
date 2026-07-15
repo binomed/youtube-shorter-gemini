@@ -12,6 +12,8 @@ Welcome to the **YouTube Shorter Gemini** User Guide. This guide will walk you t
    - [Subtitle Editing](#subtitle-editing)
    - [Audio Track & Stems Selection](#audio-track--stems-selection)
    - [Bounds & Timeline Markers](#bounds--timeline-markers)
+   - [Custom Cover Image & Thumbnail Editor](#custom-cover-image--thumbnail-editor)
+   - [Export Framing & Cover Options](#export-framing--cover-options)
 
 ---
 
@@ -88,3 +90,22 @@ Adjust the vertical framing and clip length directly on the interactive timeline
 
 - **Interactive Handles**: Drag the green **IN** marker and red **OUT** marker on the player timeline to trim the short's duration.
 - **Crop Adjustments**: Shift the focus area horizontally to keep the subject centered in the `9:16` vertical frame.
+
+### Custom Cover Image & Thumbnail Editor
+Make your Shorts stand out in YouTube feeds by assigning a custom portrait cover image (`9:16`) to every clip.
+
+- **Portrait Segment Cards**: All clip cards in the left sidebar are displayed in vertical `9:16` format. Hover over any card and click the **pen icon** (`pencil`) located above the thumbnail to launch the **Thumbnail Editor**.
+- **Upload & Drag-and-Drop**: Upload any image (PNG or JPEG, up to 5 MB) directly by dragging it into the drop zone or clicking to browse your files.
+- **Precision 9:16 Crop Area**: The editor features a locked `9:16` vertical ratio canvas (`225×400px` display preview corresponding to a `1080×1920` final export).
+- **Pan & Zoom Controls**: 
+  - **Pan**: Click and drag inside the crop canvas to reposition your image.
+  - **Zoom**: Use your mouse scroll wheel inside the canvas or click the `+` / `-` zoom controls at the bottom of the crop area.
+  - **Reset**: Click the `Reset` button to quickly center and reset your image scale.
+- **Live Preview**: Inspect how your final vertical cover looks in real time inside the side-by-side **Preview** panel (`117×208px`).
+- **Save / Remove Cover**: Click **Save Cover** to upload and attach the cropped `1080×1920` cover to the Short, or click **Remove** (`trash` icon) to revert to the default video frame.
+
+### Export Framing & Cover Options
+When exporting your Short, any custom cover image you saved will automatically be embedded into the export pipeline:
+
+- **First Frame Inclusion (`Frame 0`)**: During FFmpeg video rendering, your custom cover image is prepended as the very first frame (`0.0s`) of the generated vertical MP4 file. This ensures YouTube automatically picks it up as the default feed thumbnail while keeping subtitle and video timings perfectly aligned.
+- **Cover Persistence**: Covers are safely stored locally in `uploads/covers/` and automatically cleaned up whenever the Short or project is deleted.

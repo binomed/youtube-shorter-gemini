@@ -9,6 +9,12 @@
 ## 🚀 Vision
 Automate key moment detection and assembly, audio separation, and dynamic captioning locally.
 
+## ✨ Key Features
+- **AI Highlight Extraction:** Discover and extract high-engagement vertical clips using Google Gemini.
+- **Custom Cover & Thumbnail Editor (`9:16`):** Interactive portrait crop, pan, and zoom micro-editor. Automatically prepends custom cover frames to exported MP4 Shorts.
+- **Dynamic Subtitle Styling & Timings:** Surgical word/phrase alignment, customizable fonts, outlines, and presets.
+- **Audio Stem Separation:** Separate vocals and background accompaniment with local AI models (`Demucs`), with independent volume balancing.
+
 ## 🛠 Tech Stack
 - **Monorepo:** Turborepo + npm workspaces
 - **Backend:** NestJS + SQLite + FFmpeg
